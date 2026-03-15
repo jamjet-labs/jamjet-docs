@@ -1,0 +1,209 @@
+---
+title: Schnellstart
+description: Bring einen JamJet-Workflow in 60 Sekunden zum Laufen — kein
+  Server, keine Konfiguration, nur Python.
+---
+
+# Schnellstart
+
+## 60-Sekunden-Start
+
+Kein Server. Keine Konfiguration. Kein Pydantic. Einfach Python.
+
+```bash
+pip install jamjet
+```
+
+```python
+
+# agent.py
+
+from jamjet import task, tool
+
+@tool
+async def web_search(query: str) -> str:
+    """Durchsucht das Web nach aktuellen Informationen."""
+    # hier deine eigene Such-Implementierung einbinden
+    return f"Ergebnisse für: {query}"
+
+@task(model="claude-sonnet-4-6", tools=[web_search])
+async def research(question: str) -> str:
+    """Du bist ein Recherche-Assistent. Suche zuerst, dann fasse klar zusammen."""
+
+import asyncio
+result = asyncio.run(research("Was ist JamJet?"))
+print(result)
+```
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-... python agent.py
+```
+
+Das war's. Der `@tool`-Decorator macht jede Python-Funktion für den Agenten verfügbar. Der `@task`-Docstring wird zur Anweisung des Agenten. Funktioniert mit OpenAI, Anthropic, Ollama, Groq — jedem Modell.
+
+> **tip:** 
+**Ollama lokal verwenden? Kein API-Key nötig:**
+```bash
+OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
+```
+Ändere `model=` zu einem beliebigen Ollama-Modell (z. B. `"llama3.2"`)
+
+---
+
+## Was du bekommst
+
+- **`@tool`** — macht jede async Python-Funktion zu einem Agenten-Tool mit automatischer Schema-Generierung
+- **`@task`** — Docstring = Agenten-Anweisungen, Funktionssignatur = Eingabevertrag
+- **Dauerhafte Ausführung** — Absturz und Fortsetzung ab Unterbrechungspunkt (mit `jamjet dev`)
+- **Durchgesetzte Limits** — `max_iterations`, `max_cost_usd`, `timeout_seconds` sind First-Class-Parameter
+
+Kein Boilerplate. Keine State-Klassen. Keine Dependency Injection.
+
+> **note:** 
+Brauchst du vollständige Graph-Kontrolle — mehrstufige Pipelines, bedingte Weiterleitung, Human-in-the-Loop?
+Verwende die [`Workflow`-API](/python-sdk) oder [YAML-Workflows](/yaml-workflows) für komplexe Orchestrierung.
+
+---
+
+## Beispiele ausprobieren
+
+Vier eigenständige Beispiele im [jamjet-benchmarks-Repo](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples) — jedes läuft lokal mit Ollama:
+
+| Beispiel | Was es zeigt |
+|---------|--------------|
+| [01 — Pipeline mit Timeline](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/01_pipeline_with_timeline) | Pro-Schritt-Ausführungs-Timeline, automatisch |
+| [02 — Bedingte Weiterleitung](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/02_conditional_routing) | Routing als einfache Python-Prädikate |
+| [03 — Eval-Harness](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/03_eval_harness) | Integriertes Scoring, LLM-als-Richter |
+| [04 — Selbstevaluierender Workflow](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/04_self_evaluating_workflow) | Entwurf → Bewertung → Wiederholungs-Schleife |
+
+```bash
+git clone https://github.com/jamjet-labs/jamjet-benchmarks
+cd jamjet-benchmarks/examples/01_pipeline_with_timeline
+pip install -r requirements.txt
+OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 MODEL_NAME=llama3.2 python main.py
+```
+
+---
+
+## Ein vollständiges Projekt aufsetzen
+
+Verwende Templates, um ein umfassenderes Projekt zu starten:
+
+```bash
+jamjet init my-agent --template hello-agent
+cd my-agent
+```
+
+Verfügbare Templates:
+
+```bash
+jamjet init my-agent --list-templates
+
+# hello-agent           Minimaler Q&A-Workflow
+
+# research-agent        Websuche + Synthese (Brave Search MCP)
+
+# rag-assistant         RAG mit Dateisystem-MCP
+
+# mcp-tool-consumer     Verbindung zu beliebigen MCP-Tool-Servern
+
+# mcp-tool-provider     Python-Funktionen als MCP-Tools bereitstellen
+
+# code-reviewer         GitHub-PR-Review mit Qualitätsbewertung
+
+# hitl-approval         Human-in-the-Loop-Freigabe-Gate
+
+# multi-agent-review    Writer + Critic Review Loop
+
+# a2a-delegator         Aufgaben via A2A-Protokoll delegieren
+
+# a2a-server            A2A-Anfragen von externen Agents bedienen
+
+# approval-workflow     Dauerhafte Freigabe mit 24h-Timeout
+
+```
+
+---
+
+## Die Durable Runtime hinzufügen (Produktion)
+
+Der In-Process-Executor (`wf.run_sync`) eignet sich gut für die Entwicklung. Für die Produktion — Crash-Recovery, Multi-Instanz-Scheduling, dauerhafter State — starte den Runtime-Server:
+
+```bash
+jamjet dev
+```
+
+```
+▶ JamJet Dev Runtime
+  Port:  7700
+  Mode:  local (SQLite)
+  API:   http://localhost:7700
+```
+
+Dann führe Workflows darüber aus:
+
+```bash
+jamjet run workflow.yaml --input '{"query": "Was ist JamJet?"}'
+```
+
+```
+✓ node_completed   think   gpt-4o-mini  512ms
+✓ Ausführung abgeschlossen.
+```
+
+Absturz während der Ausführung? Setze exakt an der Stelle fort, an der es gestoppt hat — keine erneute Ausführung früherer Schritte, keine verschwendeten API-Calls.
+
+---
+
+## API-Key setzen
+
+#### OpenAI
+
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+#### Anthropic
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+#### Ollama (kostenlos, lokal)
+
+```bash
+export OPENAI_API_KEY=ollama
+export OPENAI_BASE_URL=http://localhost:11434/v1
+
+# ollama pull llama3.2
+
+```
+
+#### Groq
+
+```bash
+export OPENAI_API_KEY=gsk_...
+export OPENAI_BASE_URL=https://api.groq.com/openai/v1
+```
+
+---
+
+## Nächste Schritte
+
+1. [Kernkonzepte](/concepts) — Agenten, Nodes, State und Persistenz
+2. [Python SDK](/python-sdk) — Decorators, Routing, parallele Schritte
+3. [Workflow-Entwicklung](/yaml-workflows) — alle Node-Typen, Retry-Policies, Bedingungen
+4. [MCP-Integration](/mcp) — Verbindung zu externen Tool-Servern in einer Zeile
+5. [Eval Harness](/eval) — Teste deine Agenten wie Software
+
+---
+
+## Fehlerbehebung
+
+**`jamjet` nach Installation nicht gefunden?**
+Stelle sicher, dass dein Python-Skriptverzeichnis in deinem PATH ist. Versuche `python -m jamjet`.
+
+**Connection refused an Port 7700?**
+`jamjet dev` muss laufen, bevor du `jamjet run` verwendest. Der In-Process-Pfad `wf.run_sync()` benötigt keinen Server.
+
+**Brauchst du Hilfe?** Eröffne eine [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions) oder [erstelle ein Issue](https://github.com/jamjet-labs/jamjet/issues).

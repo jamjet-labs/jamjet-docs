@@ -1,0 +1,341 @@
+---
+title: Research-Leitfaden
+description: Reproduzierbare Multi-Agent-Experimente mit JamJet durchführen —
+  vom Gerüst bis zu publikationsreifen Ergebnissen.
+---
+
+# Multi-Agent-Forschung mit JamJet
+
+JamJet bietet Forschern eine vollständige Experimentinfrastruktur out of the box: dauerhafte Ausführung für Reproduzierbarkeit, sechs Reasoning-Strategien für Ablationsstudien, ein Experiment-Grid für Parametersweeps, integrierte Evaluation mit benutzerdefinierten Scorern und Export für Publikationen (LaTeX, CSV, JSON) mit statistischen Tests.
+
+Diese Anleitung führt durch einen kompletten Forschungsworkflow — vom Projekt-Scaffold bis zu publikationsreifen Ergebnissen.
+
+> **Tipp:** 
+Bereits mit JamJet vertraut? Springe direkt zu [Experimente ausführen](#run-experiments) oder [Für Publikation exportieren](#export-for-publication).
+
+---
+
+## Setup
+
+1. **JamJet installieren**
+
+   ```bash
+   pip install jamjet
+   ```
+
+2. **Forschungsprojekt scaffolden**
+
+   ```bash
+   jamjet init my-study --template research
+   cd my-study
+   ```
+
+3. **Erzeugte Struktur überprüfen**
+
+   ```
+   my-study/
+   ├── agents/
+   │   └── researcher.py       # Agentendefinition mit Tools
+   ├── baselines/
+   │   └── baseline.py         # Baseline-Vergleichs-Stubs
+   ├── experiments/
+   │   ├── config.yaml          # Modell-, Seed-, Strategie-Konfiguration
+   │   └── runner.py            # Experiment-Loop
+   ├── evals/
+   │   ├── dataset.jsonl        # Evaluations-Dataset
+   │   └── scorers.py           # Benutzerdefinierte Scorer
+   ├── results/                 # Output-Verzeichnis (.gitkeep)
+   ├── workflow.yaml            # Workflow-Definition
+   └── README.md
+   ```
+
+---
+
+## Agenten definieren
+
+Agenten sind Python-Funktionen mit dem Decorator `@task`. Jeder Agent kann eine andere Reasoning-Strategie nutzen.
+
+```python
+from jamjet import task, tool
+
+@tool
+async def web_search(query: str) -> str:
+    """Search the web for current information."""
+    ...
+
+@task(model="claude-sonnet-4-6", tools=[web_search])
+async def researcher(question: str) -> str:
+    """Research a question using web search."""
+```
+
+### Sechs eingebaute Strategien
+
+JamJet kompiliert High-Level-Strategienamen in explizite IR-Sub-DAGs. Tausche sie mit einem einzigen Parameter — derselbe Agent, anderes Reasoning:
+
+| Strategie | Muster | Optimal für |
+|----------|---------|----------|
+| `react` | Reason → Act → Observe-Loop | Tool-intensive Aufgaben |
+| `plan_and_execute` | Schritte planen → jeden ausführen → synthetisieren | Mehrstufige Dekomposition |
+| `critic` | Generieren → kritisieren → überarbeiten | Qualitätssensitiver Output |
+| `reflection` | Ausführen → reflektieren → Gate → Revisions-Loop | Selbstverbessernde Agenten |
+| `consensus` | N Agenten → Vote → Judge → finalisieren | Varianzreduktion |
+| `debate` | Vorschlagen → kontern → Judge → Settle-Loop | Adversarial Reasoning |
+
+```yaml
+
+# workflow.yaml — Strategie für Vergleich ändern
+
+agents:
+  researcher:
+    model: claude-sonnet-4-6
+    strategy: debate        # ändern zu: react, reflection, consensus...
+    tools: [web_search]
+    max_iterations: 6
+```
+
+---
+
+## Experimente ausführen
+
+`ExperimentGrid` führt jede Kombination aus Bedingungen und Seeds als dauerhafte Workflow-Ausführungen aus. Falls ein Lauf abstürzt, wird er vom Checkpoint fortgesetzt — keine erneute Ausführung vorheriger Schritte.
+
+```python
+from jamjet.eval import ExperimentGrid
+
+grid = ExperimentGrid(
+    conditions={
+        "strategy": ["react", "plan_and_execute", "critic",
+                      "reflection", "consensus", "debate"],
+        "model": ["claude-sonnet-4-6", "gpt-4o"],
+    },
+    seeds=[42, 123, 456],
+    dataset="evals/dataset.jsonl",
+    scorers=["llm_judge", "factuality"],
+)
+
+results = await grid.run()
+results.summary()  # Übersichtliche Tabelle im Terminal
+```
+
+Dies führt 6 Strategien x 2 Modelle x 3 Seeds = **36 dauerhafte Ausführungen** aus, jede mit vollständigen Event-Traces und Checkpoints.
+
+> **Hinweis:** 
+Jede Ausführung ist event-sourced. Falls das Experiment bei Lauf 22 von 36 abstürzt, wird es ab Lauf 22 fortgesetzt — keine Token für abgeschlossene Bedingungen verschwendet.
+
+---
+
+## Ergebnisse auswerten
+
+### Integrierte Scorer
+
+JamJet enthält standardmäßig vier Scorer-Typen:
+
+- **`llm_judge`** — LLM bewertet Output anhand einer Rubrik (Skala 0-5)
+- **`assertion`** — Boolesche Prüfung gegen Output-Struktur oder -Inhalt
+- **`latency`** — Bewertung basierend auf Ausführungszeit vs. Schwellenwert
+- **`cost`** — Bewertung basierend auf Token-Kosten vs. Budget
+
+### Eigene Scorer
+
+Registriere domänenspezifische Scorer mit dem `@scorer`-Decorator:
+
+```python
+from jamjet import scorer
+from jamjet.eval import ScorerResult
+
+@scorer(name="factuality", description="Faktische Richtigkeit prüfen")
+async def factuality_scorer(input: dict, output: dict, context: dict) -> ScorerResult:
+    # Deine eigene Scoring-Logik hier
+    return ScorerResult(
+        score=0.85,
+        passed=True,
+        reason="Alle Aussagen gegen Quelle verifiziert",
+    )
+```
+
+Eigene Scorer sind automatisch in `ExperimentGrid` und `EvalNode` über ihren Namen verfügbar.
+
+### Eval-Knoten in Workflows
+
+Evaluierung kann auch inline als Workflow-Knoten ausgeführt werden – während der Ausführung, nicht danach:
+
+```yaml
+nodes:
+  check-quality:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "Is the response accurate and well-sourced?"
+        min_score: 4
+    on_fail: retry_with_feedback
+    max_retries: 2
+```
+
+Wenn der Score zu niedrig ist, führt `retry_with_feedback` den vorgelagerten Knoten erneut aus, wobei die Begründung des Scorers als zusätzlicher Kontext verwendet wird.
+
+---
+
+## Export für Publikation
+
+### LaTeX-Tabellen
+
+```python
+results.to_latex("table1.tex", caption="Strategy comparison across models")
+```
+
+Gibt eine `booktabs`-formatierte Tabelle mit Mittelwert +/- Std. pro Bedingung aus – bereit zum `\input{}` in Ihrer Arbeit.
+
+### CSV für R / pandas
+
+```python
+results.to_csv("results.csv")
+```
+
+### JSON für weitere Analysen
+
+```python
+results.to_json("results.json")
+```
+
+### Statistischer Vergleich
+
+Vergleichen Sie beliebige zwei Bedingungen mit integrierten Signifikanztests:
+
+```python
+comparison = results.compare("debate", "react", test="auto", alpha=0.05)
+```
+
+Gibt ein `ComparisonResult` zurück mit:
+
+| Feld | Beschreibung |
+|-------|-------------|
+| `test_name` | Verwendeter Test (welch, wilcoxon, mann_whitney) |
+| `statistic` | Teststatistik |
+| `p_value` | p-Wert |
+| `effect_size` | Cohen's d |
+| `ci_lower`, `ci_upper` | 95%-Konfidenzintervall |
+| `significant` | `True`, wenn p < alpha |
+| `mean_a`, `mean_b` | Gruppenmittelwerte |
+
+Verfügbare Tests:
+- **`welch`** — Welch-t-Test (Standard, unabhängige Stichproben)
+- **`wilcoxon`** — Wilcoxon-Vorzeichen-Rang-Test (gepaarte Stichproben)
+- **`mann_whitney`** — Mann-Whitney-U (nicht-parametrisch, unabhängig)
+- **`auto`** — Wählt basierend auf Stichprobengröße und Paarung
+
+### CLI-Export
+
+```bash
+jamjet eval export results.json --format latex --caption "Table 1"
+jamjet eval compare results.json --conditions "debate,react" --test auto
+```
+
+---
+
+## Replay und Fork
+
+### Exaktes Replay
+
+Reproduzieren Sie jede Ausführung von ihrem Checkpoint aus — gleiche Eingaben, gleicher Ausführungspfad:
+
+```bash
+jamjet replay exec_abc123
+```
+
+Die Runtime holt die ursprünglichen Ausführungsereignisse, extrahiert den Workflow und die Eingabe und erstellt eine neue Ausführung mit denselben Parametern. Nützlich für Verifikation und Debugging.
+
+### Fork für Ablationsstudien
+
+Erstellen Sie einen Fork von einer abgeschlossenen Ausführung mit modifizierten Eingaben — ändern Sie eine Variable und behalten Sie alles andere identisch:
+
+```bash
+jamjet fork exec_abc123 --override-input '{"model": "gpt-4o"}'
+```
+
+Die ursprüngliche Eingabe bleibt erhalten und das Override wird eingemergt. Das ist der schnellste Weg zu Ablationsstudien — keine Neukonfiguration, kein erneutes Durchlaufen des gesamten Grids.
+
+---
+
+## Provenienz
+
+Jede Node-Completion in JamJet trägt `ProvenanceMetadata`:
+
+| Feld | Beschreibung |
+|-------|-------------|
+| `model_id` | Welches Modell diese Ausgabe erzeugt hat |
+| `model_version` | Modellversionsstring |
+| `confidence` | Selbstberichtetes Vertrauen (0.0–1.0) |
+| `verified` | Ob die Ausgabe die Verifikation bestanden hat |
+| `source` | Ursprungskennung |
+
+Provenienz wird automatisch angehängt — keine zusätzliche Konfiguration erforderlich. Sie fließt durch zu Event-Traces, Audit-Logs und exportierten Ergebnissen.
+
+> **Tipp:** 
+Provenienz-Metadaten sind besonders wertvoll für Multi-Model-Experimente, bei denen Sie zuordnen müssen, welches Modell welches Zwischenergebnis erzeugt hat.
+
+---
+
+## Workflows inspizieren
+
+Verwenden Sie `jamjet inspect`, um kompilierte Workflows zu untersuchen, einschließlich strategiespezifischer Details:
+
+```bash
+jamjet inspect workflow.yaml
+```
+
+Bei strategiebewussten Agents zeigt dies:
+- Strategiename und -typ
+- Iterationsanzahl und Planschritte
+- Critic-Verdicts (für Critic/Debate-Strategien)
+- Kosten pro Iteration
+
+---
+
+## Beispiel: vollständiger Research-Nachmittag
+
+```python
+from jamjet.eval import ExperimentGrid
+
+# 1. Grid definieren
+
+grid = ExperimentGrid(
+    conditions={
+        "strategy": ["react", "plan_and_execute", "critic",
+                      "reflection", "consensus", "debate"],
+    },
+    seeds=[42, 123, 456],
+    dataset="evals/dataset.jsonl",
+    scorers=["llm_judge"],
+)
+
+# 2. Ausführen (dauerhaft — setzt nach Absturz fort)
+
+results = await grid.run()
+
+# 3. LaTeX-Tabelle exportieren
+
+results.to_latex("table1.tex", caption="Strategievergleich")
+
+# 4. Statistischer Test
+
+comp = results.compare("debate", "react")
+print(f"p = {comp.p_value:.4f}, Cohen's d = {comp.effect_size:.2f}")
+
+# 5. Spezifischen Lauf wiederholen
+
+# $ jamjet replay exec_debate_seed42
+
+# 6. Fork für Ablation
+
+# $ jamjet fork exec_debate_seed42 --override-input '{"model":"gpt-4o"}'
+
+```
+
+---
+
+## Nächste Schritte
+
+- [Research-Beispiele](/examples) durchsehen — DCI-Deliberation und LDP-Routing-Muster
+- Zur [/research](/research)-Seite für Funktionsübersicht
+- [Eval-Harness-Dokumentation](/docs/eval) für detaillierte Eval-Konfiguration lesen
+- `jamjet init my-study --template research` ausprobieren, um loszulegen

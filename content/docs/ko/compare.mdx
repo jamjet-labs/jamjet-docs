@@ -1,0 +1,106 @@
+---
+title: 프레임워크 비교
+description: JamJet vs LangGraph vs CrewAI vs AutoGen — 실행, 내구성, 관찰 가능성, 평가 및
+  확장성에 걸친 기능 매트릭스.
+---
+
+export const Y = () => <span class="ic ic-y">✓</span>;
+export const N = () => <span class="ic ic-n">—</span>;
+export const P = () => <span class="ic ic-p">~</span>;
+export const E = () => <span class="ic ic-e">⚙</span>;
+export const W = () => <span class="ic ic-w">…</span>;
+
+> 최종 업데이트: 2026-03-08 · JamJet v0.1.1 · [수정 제안 환영](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
+
+<div style={{fontSize: "0.82rem", color: "#8b8578", marginBottom: "1.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap"}}>
+  <span><span class="ic ic-y">✓</span> 기본 제공</span>
+  <span><span class="ic ic-e">⚙</span> 플러그인 제공</span>
+  <span><span class="ic ic-p">~</span> 부분 지원</span>
+  <span><span class="ic ic-n">—</span> 미지원</span>
+  <span><span class="ic ic-w">…</span> 개발 중</span>
+</div>
+
+## 핵심 실행
+
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 그래프 기반 워크플로우 | <Y/> | <Y/> | <P/> 순차/계층형 | <Y/> |
+| 비동기 실행 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 로컬 인프로세스 러너 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 타입 지정 상태 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
+| 매 단계 상태 검증 | <Y/> | <N/> | <N/> | <N/> |
+| 조건부 라우팅 | <Y/> 인라인 조건자 | <Y/> 엣지 함수 | <P/> 프로세스 타입 | <Y/> |
+| 병렬 분기 | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
+| 순환/루프 지원 | <Y/> | <Y/> | <P/> | <Y/> |
+
+## 내구성 및 안정성
+
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 내구성 있는 실행 (장애 복구) | <Y/> Rust 런타임 | <E/> 체크포인터 | <N/> | <N/> |
+| 이벤트 소싱 | <Y/> 네이티브 | <N/> | <N/> | <N/> |
+| 백오프 자동 재시도 | <Y/> YAML 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
+| 휴먼-인-더-루프 / 일시정지 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
+| 임의 체크포인트 재개 | <Y/> | <E/> 세이버 필요 | <N/> | <N/> |
+| 단계별 타임아웃 | <Y/> | <P/> | <N/> | <P/> |
+
+## 관찰 가능성
+
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 구조화된 이벤트 로그 | <Y/> 단계별 이벤트 | <P/> 콜백 | <P/> 상세 텍스트 | <P/> |
+| 실행 검사 CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
+| 이벤트 타임라인 | <Y/> | <N/> | <N/> | <N/> |
+| OpenTelemetry 추적 | <W/> | <E/> LangSmith | <E/> | <N/> |
+| 타임 트래블 디버깅 | <W/> | <N/> | <N/> | <N/> |
+
+## 도구 및 프로토콜 통합
+
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| MCP 클라이언트 (모든 MCP 서버 사용) | <Y/> 네이티브 지원 | <E/> 어댑터 경유 | <E/> 어댑터 경유 | <E/> 어댑터 경유 |
+| MCP 서버 (도구 노출) | <W/> | <N/> | <N/> | <N/> |
+| A2A 크로스 에이전트 호출 | <Y/> 클라이언트 + 서버 | <N/> | <N/> | <N/> |
+| OpenAI 함수 호출 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 커스텀 Python 도구 | <Y/> `@tool` 데코레이터 | <Y/> | <Y/> | <Y/> |
+| 오류 시 도구 재시도 | <Y/> 노드 레벨 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
+
+## 평가 및 테스트
+
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 내장 평가 하네스 | <Y/> | <N/> | <N/> | <N/> |
+| LLM-as-judge 스코어링 | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
+| 어서션 스코어링 | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
+| 레이턴시 예산 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
+| 비용 예산 | <Y/> `CostScorer` | <N/> | <N/> | <N/> |
+| 데이터셋 포맷 (JSONL) | <Y/> | <N/> | <N/> | <N/> |
+| 회귀 시 CI 종료 코드 | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
+| 워크플로우 노드로서의 평가 | <Y/> `type: eval` | <N/> | <N/> | <N/> |
+
+## 개발자 경험
+
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| YAML 워크플로우 작성 | <Y/> | <N/> | <N/> | <N/> |
+| Python 데코레이터 API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> |
+| 프로젝트 템플릿 | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> |
+| 로컬 개발 서버 | <Y/> `jamjet dev` | <N/> | <N/> | <N/> |
+| 워크플로우 검증 CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> |
+| 멀티 모델 지원 | <Y/> 모든 OpenAI 호환 | <Y/> | <Y/> | <Y/> |
+| 로컬 모델 (Ollama 등) | <Y/> | <Y/> | <Y/> | <Y/> |
+
+## 프로덕션 및 확장성
+
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 런타임 언어 | **Rust** | Python | Python | Python |
+| 다중 언어 SDK | Python (TS <W/>) | Python, JS | Python | Python, .NET |
+| Kubernetes 지원 | <Y/> 스테이트리스 바이너리 | <E/> | <E/> | <E/> |
+| 관리형 클라우드 제공 | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
+| 오픈 소스 | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 |
+
+---
+
+> **참고:** 
+측정된 지연 시간 비교, 방법론 및 원시 결과는 [벤치마크](/benchmarks)를 참조하세요. 마이그레이션 가이드: [LangGraph에서 마이그레이션](/migrate/from-langgraph), [CrewAI에서 마이그레이션](/migrate/from-crewai), [OpenAI SDK에서 마이그레이션](/migrate/from-openai-direct).

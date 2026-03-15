@@ -1,0 +1,189 @@
+---
+title: Seguridad Empresarial
+description: Aislamiento multi-inquilino, redacción de PII, delegación OAuth,
+  federación mTLS y políticas de retención de datos en JamJet.
+---
+
+# Seguridad empresarial
+
+Las funciones empresariales de JamJet se aplican en la capa de runtime de Rust, no por convención ni por middleware que podrías olvidar agregar.
+
+## Aislamiento multi-tenant
+
+Particiona todo el almacenamiento por ID de tenant. Las definiciones de workflow, el estado de ejecución, los registros de eventos, las pistas de auditoría y los snapshots están aislados por tenant.
+
+```bash
+
+# Mismo workflow, diferentes tenants — completamente aislados
+
+jamjet run workflow.yaml \
+  --input '{"invoice_id": "INV-001", "amount": 2500}' \
+  --tenant acme
+
+jamjet run workflow.yaml \
+  --input '{"invoice_id": "INV-042", "amount": 75000}' \
+  --tenant globex
+```
+
+El `TenantScopedSqliteBackend` del runtime envuelve cada consulta de almacenamiento con `WHERE tenant_id = ?`. La tabla de definiciones de workflow usa una clave primaria compuesta `(tenant_id, workflow_id, version)`.
+
+---
+
+## Redacción de PII
+
+Declara una `data_policy` en tu workflow. El runtime la aplica antes de que cualquier estado llegue al registro de auditoría.
+
+```yaml
+data_policy:
+  pii_detectors: [email, ssn, phone, credit_card, ip_address]
+  pii_fields: ["$.email", "$.ssn", "$.credit_card"]
+  redaction_mode: mask        # o: hash, remove
+  retain_prompts: false       # elimina prompts del registro de auditoría
+  retain_outputs: false       # elimina outputs del modelo del registro de auditoría
+  retention_days: 90          # purga automática después de 90 días
+```
+
+Tres modos de redacción:
+
+| Modo | Comportamiento | Ejemplo |
+|------|----------------|---------|
+| `mask` | Revelación parcial para debugging | `***-**-6789` |
+| `hash` | Pseudonimización SHA-256 para analítica | `a3f2c91b...e71b` |
+| `remove` | Eliminación completa del campo | *(campo eliminado)* |
+
+Equivalente en el SDK de Python:
+
+```python
+@workflow(
+    id="customer-onboarding",
+    version="0.1.0",
+    data_policy={
+        "pii_detectors": ["email", "ssn", "phone", "credit_card"],
+        "pii_fields": ["$.email", "$.ssn"],
+        "redaction_mode": "mask",
+        "retain_prompts": False,
+        "retain_outputs": False,
+        "retention_days": 90,
+    },
+)
+class CustomerOnboarding:
+    ...
+```
+
+---
+
+## Retención de datos
+
+`retention_days` establece un timestamp `expires_at` en cada entrada del registro de auditoría. El método `purge_expired()` del runtime se ejecuta como tarea en segundo plano, eliminando entradas que han superado su fecha de expiración.
+
+Controles adicionales:
+
+- `retain_prompts: false` — elimina los prompts del modelo de las entradas de auditoría antes de escribirlas
+- `retain_outputs: false` — lo mismo para los outputs del modelo
+
+El registro de auditoría retiene metadatos (ID de nodo, conteos de tokens, timestamps) sin el contenido.
+
+---
+
+## Delegación OAuth 2.0
+
+Intercambio de tokens RFC 8693. El token del usuario se intercambia por un token de agente con alcance limitado.
+
+```yaml
+oauth:
+  token_endpoint: "${JAMJET_OAUTH_TOKEN_ENDPOINT}"
+  grant_type: "urn:ietf:params:oauth:grant-type:token-exchange"
+  client_id: "${JAMJET_OAUTH_CLIENT_ID}"
+  client_secret: "${JAMJET_OAUTH_CLIENT_SECRET}"
+  requested_scopes: ["expenses:read", "expenses:write"]
+```
+
+### Reducción de alcance
+
+Los alcances efectivos del agente son la intersección de lo que solicita y lo que tiene el usuario. Si la intersección está vacía, el runtime devuelve `OAuthError::ScopeNarrowingFailed`.
+
+### Alcance por paso
+
+Diferentes nodos pueden declarar diferentes requisitos de alcance:
+
+```yaml
+nodes:
+  authenticate:
+    oauth_scopes:
+      required_scopes: ["expenses:read"]
+
+  submit-expense:
+    oauth_scopes:
+      required_scopes: ["expenses:read", "expenses:write"]
+```
+
+El runtime resuelve los alcances antes de cada ejecución de nodo, no una sola vez al inicio del flujo.
+
+### Validez del token
+
+`check_token_validity()` se ejecuta antes de cada invocación de herramienta y modelo. Los tokens expirados o revocados generan errores claros (`OAuthError::TokenExpired`, `OAuthError::TokenRevoked`) y escalan a un humano.
+
+---
+
+## mTLS y federación A2A
+
+Para comunicación de agentes entre organizaciones:
+
+**Transporte:** TLS mutuo. Ambas partes presentan certificados, ambas partes verifican.
+
+```bash
+export JAMJET_TLS_CERT=/etc/certs/agent.pem
+export JAMJET_TLS_KEY=/etc/certs/agent-key.pem
+export JAMJET_TLS_CA_CERT=/etc/certs/ca.pem
+export JAMJET_MTLS_REQUIRED=true
+```
+
+**Aplicación:** tokens Bearer con alcance de capacidades y listas de agentes permitidos.
+
+```yaml
+federation:
+  require_auth: true
+  public_agent_card: true
+  tokens:
+    - token: "tok-alpha"
+      name: "Research Agent"
+      agent_id: "agent-alpha"
+      scopes: ["read", "write"]
+  allowed_agents: ["agent-alpha"]
+  method_scopes:
+    "tasks/send": ["write"]
+    "tasks/get": ["read"]
+```
+
+El middleware `federation_auth_layer` valida cada solicitud A2A entrante. Las solicitudes no autorizadas reciben un error JSON-RPC antes de llegar al controlador.
+
+---
+
+## Backends de secretos intercambiables
+
+Encadena múltiples fuentes de secretos con orden de prioridad:
+
+| Backend | Caso de uso |
+|---------|----------|
+| Variables de entorno | Desarrollo local, CI |
+| Basado en archivos | Secretos de Kubernetes, volúmenes montados |
+| HashiCorp Vault | Gestión de secretos en producción |
+| AWS Secrets Manager | Despliegues nativos de AWS |
+
+El runtime resuelve los secretos al inicio verificando los backends en orden de prioridad.
+
+---
+
+## Ejemplos
+
+Ejemplos ejecutables para cada funcionalidad empresarial:
+
+```bash
+git clone https://github.com/jamjet-labs/examples
+cd examples/multi-tenant       # aislamiento de inquilinos
+cd examples/data-governance    # redacción de PII + retención
+cd examples/oauth-delegation   # OAuth 2.0 + reducción de ámbito
+```
+
+> **tip:** 
+Lee los análisis completos: [gobernanza de datos y redacción de PII](/blog/data-governance-pii-retention/), [delegación OAuth y autenticación federada](/blog/oauth-federation-agent-auth/).

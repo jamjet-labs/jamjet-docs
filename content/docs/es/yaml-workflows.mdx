@@ -1,0 +1,283 @@
+---
+title: Creación de Flujos de Trabajo (YAML)
+description: Todos los tipos de nodos, políticas de reintento, condiciones y
+  ramas paralelas para flujos de trabajo YAML.
+---
+
+# Creación de flujos (YAML)
+
+YAML es el formato principal de creación para flujos de JamJet. Esta página cubre cada tipo de nodo, opciones de flujo de control y parámetros de configuración.
+
+## Encabezado del flujo
+
+```yaml
+workflow:
+  id: my-workflow          # identificador único (formato slug)
+  version: 0.1.0           # semver
+  state_schema:            # estado tipado (todas las claves opcionales al inicio)
+    query: str
+    results: list[str]
+    answer: str
+    score: float
+  start: first-node        # id del nodo de entrada
+```
+
+## Nodo de modelo
+
+Llama a un LLM y escribe la respuesta en una clave de estado.
+
+```yaml
+nodes:
+  think:
+    type: model
+    model: claude-haiku-4-5-20251001       # o gpt-4o, gemini-2.0-flash, etc.
+    prompt: |
+      Eres un asistente útil.
+      Responde esta pregunta: {{ state.query }}
+    output_key: answer          # escribe la respuesta del modelo aquí
+    next: end
+
+    # Opcional
+    system: "Eres conciso y preciso."
+    temperature: 0.3
+    max_tokens: 1024
+    retry:
+      max_attempts: 3
+      backoff: exponential      # o linear, constant
+      delay_ms: 500
+```
+
+**Modelos compatibles:**
+
+| Proveedor | IDs de modelo |
+|----------|-----------|
+| Anthropic | `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-6` |
+| OpenAI | `gpt-4o`, `gpt-4o-mini`, `o3-mini` |
+| Google | `gemini-2.0-flash`, `gemini-2.5-pro` |
+
+## Nodo de herramienta (MCP)
+
+Llama a una herramienta desde un servidor MCP conectado.
+
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search        # nombre del servidor MCP (de jamjet.toml)
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+      count: 5
+    output_key: search_results
+    next: summarize
+```
+
+Los servidores MCP se configuran en `jamjet.toml`:
+
+```toml
+[[mcp.servers]]
+name = "brave-search"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-brave-search"]
+env = { BRAVE_API_KEY = "${BRAVE_API_KEY}" }
+```
+
+## Nodo HTTP
+
+Realiza una solicitud HTTP y escribe el cuerpo de la respuesta al estado.
+
+```yaml
+nodes:
+  fetch-data:
+    type: http
+    method: GET
+    url: "https://api.example.com/data/{{ state.item_id }}"
+    headers:
+      Authorization: "Bearer {{ env.API_KEY }}"
+    output_key: raw_data
+    next: process
+```
+
+Para `POST`/`PUT`, agrega un campo `body`:
+
+```yaml
+    method: POST
+    body:
+      query: "{{ state.query }}"
+      format: json
+```
+
+## Nodo branch
+
+Enruta la ejecución basándose en una condición.
+
+```yaml
+nodes:
+  route:
+    type: branch
+    conditions:
+      - if: "state.confidence >= 0.9"
+        next: done
+      - if: "state.confidence >= 0.5"
+        next: refine
+    default: escalate        # fallback if no condition matches
+```
+
+Las condiciones se evalúan en orden — la primera coincidencia gana. Las expresiones usan un subconjunto simple de sintaxis Python con `state.*` y `env.*` disponibles.
+
+## Nodo parallel
+
+Se ramifica a múltiples rutas, espera a que todas se completen y luego continúa.
+
+```yaml
+nodes:
+  gather:
+    type: parallel
+    branches:
+      - search
+      - fetch-docs
+      - check-cache
+    join: synthesize         # node to run after all branches complete
+```
+
+Cada rama se ejecuta concurrentemente. Las escrituras de estado de las ramas paralelas se fusionan; si dos ramas escriben la misma clave, gana el último que escribe.
+
+## Nodo wait
+
+Pausa la ejecución hasta que se reciba un evento externo.
+
+```yaml
+nodes:
+  await-approval:
+    type: wait
+    event: human_approved    # event name to wait for
+    timeout_hours: 24
+    on_timeout: escalate     # node to run if timeout fires
+    next: continue
+```
+
+Reanuda una ejecución en espera con:
+
+```bash
+jamjet resume exec_01JM4X8NKWP2 --event human_approved --data '{"approved": true}'
+```
+
+## Nodo eval
+
+Evalúa la calidad del resultado en línea. Útil para ciclos de autocorrección.
+
+```yaml
+nodes:
+  check-quality:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "Is the answer accurate, complete, and under 200 words?"
+        min_score: 4          # 1-5 scale
+        model: claude-haiku-4-5-20251001
+      - type: assertion
+        check: "len(output.answer) > 0"
+      - type: latency
+        max_ms: 5000
+    on_fail: retry_with_feedback   # or escalate, halt, log_and_continue
+    max_retries: 2
+    next: end
+```
+
+Opciones de `on_fail`:
+- `retry_with_feedback` — vuelve a ejecutar el nodo de modelo anterior con los comentarios del evaluador inyectados en el prompt
+- `escalate` — redirige a un nodo de escalamiento (define `escalate:` en el encabezado del workflow)
+- `halt` — detiene la ejecución con un error
+- `log_and_continue` — registra el fallo pero continúa de todos modos
+
+## Nodo end
+
+Termina la ejecución. Todo flujo de trabajo necesita al menos uno.
+
+```yaml
+nodes:
+  end:
+    type: end
+```
+
+Puedes tener múltiples nodos end con nombre (por ejemplo, `success`, `failure`, `escalated`) — todos terminan la ejecución limpiamente.
+
+## Políticas de reintento
+
+Cualquier nodo puede tener una política de reintento:
+
+```yaml
+    retry:
+      max_attempts: 3
+      backoff: exponential    # linear | constant | exponential
+      delay_ms: 200           # retardo inicial
+      max_delay_ms: 10000     # límite para backoff exponencial
+      retry_on:               # opcional: solo reintentar en estos errores
+        - model_overloaded
+        - rate_limited
+        - timeout
+```
+
+## Expresiones de plantilla
+
+Los prompts, URLs, encabezados y argumentos admiten expresiones de plantilla `{{ }}`:
+
+| Expresión | Valor |
+|-----------|-------|
+| `{{ state.key }}` | Un valor de estado |
+| `{{ env.KEY }}` | Una variable de entorno |
+| `{{ execution.id }}` | ID de ejecución actual |
+| `{{ execution.workflow_id }}` | ID del flujo de trabajo |
+| `{{ node.id }}` | ID del nodo actual |
+
+## Ejemplo completo
+
+```yaml
+workflow:
+  id: research-agent
+  version: 0.2.0
+  state_schema:
+    query: str
+    search_results: list[str]
+    draft: str
+    answer: str
+  start: search
+
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+      count: 10
+    output_key: search_results
+    next: draft
+
+  draft:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: |
+      Basándote en estos resultados de búsqueda:
+      {{ state.search_results | join('\n') }}
+
+      Escribe una respuesta completa a: {{ state.query }}
+    output_key: draft
+    next: evaluate
+
+  evaluate:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "¿Esta respuesta está fundamentada en los resultados de búsqueda, es completa y está bien estructurada?"
+        min_score: 4
+        model: claude-haiku-4-5-20251001
+      - type: assertion
+        check: "len(output.draft) >= 100"
+    on_fail: retry_with_feedback
+    max_retries: 2
+    next: done
+
+  done:
+    type: end
+```

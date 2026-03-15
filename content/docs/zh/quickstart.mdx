@@ -1,0 +1,208 @@
+---
+title: 快速开始
+description: 在 60 秒内运行 JamJet 工作流 — 无需服务器、无需配置，只需 Python。
+---
+
+# 快速开始
+
+## 60 秒启动
+
+无需服务器。无需配置。无需 Pydantic。只需 Python。
+
+```bash
+pip install jamjet
+```
+
+```python
+
+# agent.py
+
+from jamjet import task, tool
+
+@tool
+async def web_search(query: str) -> str:
+    """搜索网络获取最新信息。"""
+    # 接入你的实际搜索实现
+    return f"搜索结果:{query}"
+
+@task(model="claude-sonnet-4-6", tools=[web_search])
+async def research(question: str) -> str:
+    """你是一个研究助手。先搜索,然后清晰总结。"""
+
+import asyncio
+result = asyncio.run(research("什么是 JamJet?"))
+print(result)
+```
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-... python agent.py
+```
+
+就是这样。`@tool` 装饰器将任何 Python 函数暴露给代理。`@task` 的文档字符串成为代理的指令。支持 OpenAI、Anthropic、Ollama、Groq — 任何模型。
+
+> **提示:** 
+**本地使用 Ollama?无需 API 密钥:**
+```bash
+OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
+```
+将 `model=` 改为任何 Ollama 模型(例如 `"llama3.2"`)。
+
+---
+
+## 你获得的能力
+
+- **`@tool`** — 将任何异步 Python 函数转换为代理工具,自动生成 schema
+- **`@task`** — 文档字符串 = 代理指令,函数签名 = 输入约定
+- **持久执行** — 崩溃后从停止处恢复(使用 `jamjet dev`)
+- **强制限制** — `max_iterations`、`max_cost_usd`、`timeout_seconds` 是一等参数
+
+无样板代码。无状态类。无依赖注入。
+
+> **注意:** 
+需要完整的图控制 — 多步骤流水线、条件路由、人工介入?
+使用 [`Workflow` API](/python-sdk) 或 [YAML workflows](/yaml-workflows) 进行复杂编排。
+
+---
+
+## 试试这些示例
+
+[jamjet-benchmarks 仓库](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples)中有四个独立示例 — 每个都可以用 Ollama 本地运行:
+
+| 示例 | 展示内容 |
+|------|----------|
+| [01 — 带时间线的流水线](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/01_pipeline_with_timeline) | 每步执行时间线,自动生成 |
+| [02 — 条件路由](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/02_conditional_routing) | 用纯 Python 谓词实现路由 |
+| [03 — 评估框架](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/03_eval_harness) | 内置评分,LLM 作为评判者 |
+| [04 — 自我评估工作流](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/04_self_evaluating_workflow) | 草稿 → 评判 → 重试循环 |
+
+```bash
+git clone https://github.com/jamjet-labs/jamjet-benchmarks
+cd jamjet-benchmarks/examples/01_pipeline_with_timeline
+pip install -r requirements.txt
+OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 MODEL_NAME=llama3.2 python main.py
+```
+
+---
+
+## 搭建完整项目
+
+使用模板快速启动一个更完整的项目：
+
+```bash
+jamjet init my-agent --template hello-agent
+cd my-agent
+```
+
+可用模板：
+
+```bash
+jamjet init my-agent --list-templates
+
+# hello-agent           极简问答工作流
+
+# research-agent        网页搜索 + 综合分析（Brave Search MCP）
+
+# rag-assistant         基于文件系统 MCP 的 RAG
+
+# mcp-tool-consumer     连接任意 MCP 工具服务器
+
+# mcp-tool-provider     将 Python 函数暴露为 MCP 工具
+
+# code-reviewer         GitHub PR 审查与质量评分
+
+# hitl-approval         人工审批卡点
+
+# multi-agent-review    写手 + 评审循环
+
+# a2a-delegator         通过 A2A 协议委派任务
+
+# a2a-server            响应外部代理的 A2A 请求
+
+# approval-workflow     带 24 小时超时的持久审批
+
+```
+
+---
+
+## 添加持久化运行时（生产环境）
+
+进程内执行器（`wf.run_sync`）非常适合开发。对于生产环境——崩溃恢复、多实例调度、持久化状态——启动运行时服务器：
+
+```bash
+jamjet dev
+```
+
+```
+▶ JamJet Dev Runtime
+  Port:  7700
+  Mode:  local (SQLite)
+  API:   http://localhost:7700
+```
+
+然后通过它运行工作流：
+
+```bash
+jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
+```
+
+```
+✓ node_completed   think   gpt-4o-mini  512ms
+✓ Execution completed.
+```
+
+执行中途崩溃？从中断处精确恢复——不会重跑早期步骤，不会浪费 API 调用。
+
+---
+
+## 设置 API 密钥
+
+#### OpenAI
+
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+#### Anthropic
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+#### Ollama（免费，本地）
+
+```bash
+export OPENAI_API_KEY=ollama
+export OPENAI_BASE_URL=http://localhost:11434/v1
+
+# ollama pull llama3.2
+
+```
+
+#### Groq
+
+```bash
+export OPENAI_API_KEY=gsk_...
+export OPENAI_BASE_URL=https://api.groq.com/openai/v1
+```
+
+---
+
+## 下一步
+
+1. [核心概念](/concepts) — agents、节点、状态和持久性
+2. [Python SDK](/python-sdk) — 装饰器、路由、并行步骤
+3. [工作流编写](/yaml-workflows) — 所有节点类型、重试策略、条件
+4. [MCP 集成](/mcp) — 一行代码连接外部工具服务器
+5. [评估工具](/eval) — 像测试软件一样测试你的 agents
+
+---
+
+## 故障排除
+
+**安装后找不到 `jamjet`？**
+确保你的 Python 脚本目录在 PATH 中。尝试使用 `python -m jamjet`。
+
+**端口 7700 连接被拒绝？**
+在使用 `jamjet run` 之前必须先运行 `jamjet dev`。进程内的 `wf.run_sync()` 路径不需要服务器。
+
+**需要帮助？** 在 [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions) 中提问或[提交 issue](https://github.com/jamjet-labs/jamjet/issues)。

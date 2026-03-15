@@ -1,0 +1,175 @@
+---
+title: CrewAI에서 마이그레이션
+description: CrewAI에서 JamJet으로 전환하는 개발자를 위한 코드 비교 및 개념 매핑.
+---
+
+## 개념 매핑
+
+| CrewAI | JamJet |
+|---|---|
+| `Agent(role, goal, backstory, tools)` | 시스템 프롬프트 + MCP 도구를 사용하는 `@wf.step` |
+| `Task(description, agent, context)` | 워크플로우 스텝 — 컨텍스트는 공유 상태 |
+| `Crew(agents, tasks, process)` | `Workflow` |
+| `Process.sequential` | 기본 스텝 순서 |
+| `Process.hierarchical` | 오케스트레이터 워크플로우 → A2A를 통한 하위 워크플로우 |
+| `crew.kickoff(inputs)` | `wf.run_sync(State(...))` 또는 `jamjet run` |
+| `crewai_tools.SerperDevTool` | MCP 도구 노드 (`type: tool`, `server: brave-search`) |
+| Memory (short/long term) | State 객체 (단기); Postgres 기반 런타임 (장기) |
+| `agent.verbose = True` | 구조화된 이벤트 로그 — `jamjet inspect`로 모든 스텝 조회 가능 |
+
+## 비교 예시
+
+연구자와 작성자, 두 에이전트가 협업하여 보고서를 작성하는 크루입니다.
+
+#### CrewAI
+
+```python
+from crewai import Agent, Crew, Process, Task
+from crewai_tools import SerperDevTool
+
+search_tool = SerperDevTool()
+
+researcher = Agent(
+    role="Research Analyst",
+    goal="Find comprehensive, accurate information on the topic",
+    backstory="Expert analyst with deep domain knowledge.",
+    tools=[search_tool],
+)
+
+writer = Agent(
+    role="Technical Writer",
+    goal="Write clear, concise reports from research findings",
+    backstory="Skilled writer for technical audiences.",
+)
+
+research_task = Task(
+    description="Research the topic: {topic}",
+    expected_output="Structured summary with bullet points and sources.",
+    agent=researcher,
+)
+
+write_task = Task(
+    description="Write a report on: {topic}",
+    expected_output="Report with introduction, key findings, conclusion.",
+    agent=writer,
+    context=[research_task],
+)
+
+crew = Crew(
+    agents=[researcher, writer],
+    tasks=[research_task, write_task],
+    process=Process.sequential,
+)
+
+result = crew.kickoff(inputs={"topic": "durable AI workflow orchestration"})
+```
+
+#### JamJet
+
+```python
+from openai import OpenAI
+from pydantic import BaseModel
+from jamjet import Workflow
+
+client = OpenAI()
+
+class State(BaseModel):
+    topic: str
+    research: str = ""
+    report: str = ""
+
+wf = Workflow("research-crew")
+
+@wf.state
+class CrewState(State):
+    pass
+
+@wf.step
+async def research(state: CrewState) -> CrewState:
+    # Role/goal/backstory live in the system prompt — you own it
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": (
+                "You are an expert research analyst. "
+                "Return a structured summary with bullet points."
+            )},
+            {"role": "user", "content": f"Research: {state.topic}"},
+        ],
+    )
+    return state.model_copy(update={"research": resp.choices[0].message.content or ""})
+
+@wf.step
+async def write_report(state: CrewState) -> CrewState:
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a skilled technical writer."},
+            {"role": "user", "content": (
+                f"Topic: {state.topic}\n"
+                f"Research:\n{state.research}\n"
+                "Write a comprehensive report."
+            )},
+        ],
+    )
+    return state.model_copy(update={"report": resp.choices[0].message.content or ""})
+
+result = wf.run_sync(CrewState(topic="durable AI workflow orchestration"))
+print(result.state.report)
+```
+
+## 주요 차이점
+
+### 에이전트 vs 스텝
+
+CrewAI는 에이전트를 역할, 목표, 배경 스토리, 도구 접근 권한을 가진 불투명한 객체로 취급합니다. JamJet은 이것을 실제로 무엇인지 그대로 다룹니다: 시스템 프롬프트와 도구 세트입니다. "에이전트"는 잘 작성된 시스템 프롬프트를 가진 스텝이며, 완전한 제어와 가시성을 제공합니다.
+
+### 도구
+
+CrewAI는 자체 도구 생태계(`crewai_tools`)를 가지고 있습니다. JamJet은 MCP(오픈 표준)를 사용합니다. 모든 MCP 서버가 작동합니다: Brave Search, GitHub, Postgres, 사용자 정의 서버 등. 독점 도구 레지스트리에 종속되지 않습니다.
+
+### 멀티 에이전트
+
+CrewAI의 `Process.hierarchical`은 내부 관리자 에이전트를 사용합니다. JamJet은 A2A(Agent-to-Agent 프로토콜)를 사용합니다 — 각 에이전트가 자체 엔드포인트를 가진 별도의 워크플로우인 오픈 표준입니다. 오케스트레이터는 `type: a2a_task` 노드를 통해 전문가에게 위임합니다. 이는 머신과 조직 전반에 걸쳐 확장됩니다.
+
+```yaml
+
+# orchestrator/workflow.yaml
+
+nodes:
+  delegate-research:
+    type: a2a_task
+    agent_url: "{{ env.RESEARCH_AGENT_URL }}"
+    input:
+      query: "{{ state.topic }}"
+    output_key: research
+    next: write-report
+```
+
+### 관찰 가능성
+
+CrewAI의 verbose 모드는 사람이 읽을 수 있는 텍스트를 출력합니다. JamJet은 모든 스텝에 대해 구조화된 이벤트를 생성합니다 — 쿼리 가능하고, 비교 가능하며, 재현 가능합니다:
+
+```bash
+jamjet inspect exec-abc123   # 전체 타임라인
+jamjet events exec-abc123    # 이벤트 스트림
+```
+
+### 내구성
+
+CrewAI는 내장된 영속성이 없습니다. 실행 중간에 프로세스가 중단되면 처음부터 다시 시작해야 합니다. JamJet의 Rust 런타임은 모든 스텝을 영속화합니다. 충돌 복구는 자동으로 이루어집니다.
+
+## 빠른 시작 마이그레이션
+
+```bash
+pip install jamjet
+```
+
+1. 각 `Agent`를 `@wf.step`으로 변환 — role/goal/backstory를 시스템 프롬프트로 이동
+2. `Task` 순서를 스텝 선언 순서로 변환 — 공유 컨텍스트는 상태 필드가 됨
+3. `crewai_tools`를 MCP 도구 노드로 교체 (YAML에서 `type: tool`)
+4. `crew.kickoff(inputs)`를 `wf.run_sync(State(...))`로 교체
+5. 멀티 에이전트 계층 구조의 경우: `type: a2a_task` 노드 사용
+
+> **tip:** 
+[jamjet-labs/jamjet-benchmarks](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/migrate/from-crewai)에서 전체 작동 예제를 확인하세요.

@@ -1,0 +1,528 @@
+---
+title: REST API 레퍼런스
+description: JamJet 런타임을 위한 완전한 HTTP API 레퍼런스 — 워크플로우, 실행, 에이전트, 감사 및 테넌트.
+---
+
+# REST API 레퍼런스
+
+JamJet 런타임은 기본적으로 `http://localhost:7700`에서 REST API를 제공합니다. 모든 요청과 응답은 JSON을 사용합니다.
+
+## 인증
+
+보호된 엔드포인트는 Bearer 토큰이 필요합니다:
+
+```
+Authorization: Bearer <token>
+```
+
+토큰은 CLI 또는 operator API를 통해 생성됩니다. 런타임은 해시만 저장하며, 평문은 생성 시 한 번만 반환됩니다.
+
+### 역할
+
+| 역할 | 읽기 | 쓰기 | 관리자 |
+|------|------|-------|-------|
+| `operator` | yes | yes | yes |
+| `developer` | yes | yes | no |
+| `reviewer` | yes | no | no |
+| `viewer` | yes | no | no |
+
+쓰기 작업(POST, PUT, DELETE)은 `developer` 또는 `operator` 권한이 필요합니다. 테넌트 관리는 `operator` 권한이 필요합니다.
+
+---
+
+## 헬스체크
+
+### `GET /health`
+
+인증이 필요하지 않습니다.
+
+```json
+{ "status": "ok", "version": "0.1.1" }
+```
+
+---
+
+## 워크플로우
+
+### `POST /workflows`
+
+워크플로우 정의(컴파일된 IR)를 등록합니다.
+
+**요청:**
+```json
+{
+  "ir": {
+    "workflow_id": "research-agent",
+    "version": "0.1.0",
+    "state_schema": { ... },
+    "nodes": { ... },
+    "edges": [ ... ]
+  }
+}
+```
+
+**응답** `201 Created`:
+```json
+{
+  "workflow_id": "research-agent",
+  "version": "0.1.0"
+}
+```
+
+> **tip:** 
+대부분의 사용자는 이 엔드포인트를 직접 호출하지 않습니다. `jamjet run workflow.yaml` 명령어가 자동으로 IR을 컴파일하고 제출합니다.
+
+---
+
+## 실행
+
+### `POST /executions`
+
+새로운 워크플로우 실행을 시작합니다.
+
+**요청:**
+```json
+{
+  "workflow_id": "research-agent",
+  "workflow_version": "0.1.0",
+  "input": {
+    "query": "Latest AI agent frameworks?"
+  }
+}
+```
+
+`workflow_version`은 선택 사항이며, 생략 시 최신 등록 버전이 기본값으로 사용됩니다.
+
+**응답** `201 Created`:
+```json
+{
+  "execution_id": "exec_a1b2c3d4"
+}
+```
+
+**CLI 동등 명령어:** `jamjet run workflow.yaml --input '{"query": "..."}'`
+
+---
+
+### `GET /executions`
+
+선택적 필터링과 함께 실행 목록을 조회합니다.
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|-----------|------|---------|-------------|
+| `status` | string | — | 필터: `running`, `paused`, `completed`, `failed`, `cancelled` |
+| `limit` | int | 50 | 최대 결과 수 |
+| `offset` | int | 0 | 페이지네이션 오프셋 |
+
+**응답:**
+```json
+{
+  "executions": [
+    {
+      "execution_id": "exec_a1b2c3d4",
+      "workflow_id": "research-agent",
+      "status": "completed",
+      "created_at": "2026-03-12T10:00:00Z",
+      "completed_at": "2026-03-12T10:00:04Z"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /executions/:id`
+
+전체 상태와 함께 단일 실행을 조회합니다.
+
+**응답:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "workflow_id": "research-agent",
+  "status": "completed",
+  "state": {
+    "query": "Latest AI agent frameworks?",
+    "answer": "..."
+  },
+  "steps_executed": 3,
+  "created_at": "2026-03-12T10:00:00Z",
+  "completed_at": "2026-03-12T10:00:04Z"
+}
+```
+
+**CLI 동등 명령:** `jamjet inspect exec_a1b2c3d4`
+
+---
+
+### `GET /executions/:id/events`
+
+실행의 이벤트 타임라인을 조회합니다.
+
+**응답:**
+```json
+{
+  "events": [
+    {
+      "sequence": 1,
+      "kind": "WorkflowStarted",
+      "node_id": null,
+      "created_at": "2026-03-12T10:00:00.000Z"
+    },
+    {
+      "sequence": 2,
+      "kind": "NodeCompleted",
+      "node_id": "search",
+      "created_at": "2026-03-12T10:00:00.200Z"
+    },
+    {
+      "sequence": 3,
+      "kind": "NodeCompleted",
+      "node_id": "synthesize",
+      "created_at": "2026-03-12T10:00:02.040Z"
+    }
+  ]
+}
+```
+
+**이벤트 종류:** `WorkflowStarted`, `NodeScheduled`, `NodeCompleted`, `ApprovalReceived`, `ExternalEventReceived`, `ToolCallCompleted`, `WorkflowCancelled`
+
+**CLI 동등 명령:** `jamjet events exec_a1b2c3d4`
+
+---
+
+### `POST /executions/:id/cancel`
+
+실행 중인 실행을 취소합니다.
+
+**응답:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "status": "cancelled"
+}
+```
+
+---
+
+### `POST /executions/:id/approve`
+
+휴먼-인-더-루프 노드에 대한 승인 결정을 전송합니다.
+
+**요청:**
+```json
+{
+  "decision": "approved",
+  "node_id": "manager-review",
+  "user_id": "user-42",
+  "comment": "Looks good, proceed.",
+  "state_patch": {
+    "priority": "high"
+  }
+}
+```
+
+`decision`만 필수입니다. 유효한 값: `"approved"`, `"rejected"`.
+
+**응답:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "accepted": true
+}
+```
+
+---
+
+### `POST /executions/:id/external-event`
+
+일시 중지된 실행을 깨우기 위해 외부 이벤트를 주입합니다.
+
+**요청:**
+```json
+{
+  "correlation_key": "payment-received",
+  "payload": {
+    "amount": 500,
+    "currency": "USD"
+  }
+}
+```
+
+**응답:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "accepted": true
+}
+```
+
+---
+
+## 에이전트
+
+### `POST /agents`
+
+Agent Card와 함께 에이전트를 등록합니다.
+
+**요청:**
+```json
+{
+  "id": "research-agent",
+  "uri": "http://localhost:7701",
+  "name": "Research Agent",
+  "description": "Searches the web and synthesizes reports.",
+  "version": "0.1.0",
+  "capabilities": {
+    "skills": [
+      {
+        "name": "research",
+        "description": "Deep research on any topic",
+        "input_schema": { "type": "object", "properties": { "query": { "type": "string" } } },
+        "output_schema": { "type": "object", "properties": { "report": { "type": "string" } } }
+      }
+    ],
+    "protocols": ["a2a"],
+    "tools_provided": ["web_search"],
+    "tools_consumed": []
+  },
+  "autonomy": "guided",
+  "auth": { "type": "bearer_token" }
+}
+```
+
+**응답** `201 Created`:
+```json
+{
+  "agent_id": "research-agent"
+}
+```
+
+---
+
+### `GET /agents`
+
+선택적 필터링과 함께 에이전트 목록을 조회합니다.
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 설명 |
+|-----------|------|-------------|
+| `status` | string | `registered`, `active`, `paused`, `deactivated` |
+| `skill` | string | 스킬 이름으로 필터링 |
+| `protocol` | string | `mcp`, `a2a`, `anp` |
+
+**CLI 명령어:** `jamjet agents list`
+
+---
+
+### `GET /agents/:id`
+
+Agent Card를 포함한 전체 에이전트 정보를 조회합니다.
+
+**CLI 명령어:** `jamjet agents inspect <agent_id>`
+
+---
+
+### `POST /agents/discover`
+
+URL로 원격 에이전트를 검색합니다. `/.well-known/agent.json`을 가져와서 에이전트를 등록합니다.
+
+**요청:**
+```json
+{
+  "url": "https://remote-agent.example.com"
+}
+```
+
+**응답** `201 Created`: 전체 에이전트 객체.
+
+**CLI 명령어:** `jamjet agents discover <url>`
+
+---
+
+### `POST /agents/:id/activate`
+
+등록된 에이전트를 활성화합니다.
+
+**응답:**
+```json
+{
+  "agent_id": "research-agent",
+  "status": "active"
+}
+```
+
+---
+
+### `POST /agents/:id/deactivate`
+
+에이전트를 비활성화합니다.
+
+---
+
+### `POST /agents/:id/heartbeat`
+
+에이전트 생존 상태 하트비트.
+
+**응답:**
+```json
+{
+  "agent_id": "research-agent",
+  "ok": true
+}
+```
+
+---
+
+## 감사 로그
+
+### `GET /audit`
+
+불변 감사 로그를 조회합니다.
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|-----------|------|---------|-------------|
+| `execution_id` | string | — | 실행으로 필터링 |
+| `actor_id` | string | — | 액터/사용자로 필터링 |
+| `event_type` | string | — | 작업 유형으로 필터링 |
+| `limit` | int | 50 | 최대 결과 수 (최대 200) |
+| `offset` | int | 0 | 페이지네이션 오프셋 |
+
+**응답:**
+```json
+{
+  "items": [
+    {
+      "id": "audit_001",
+      "execution_id": "exec_a1b2c3d4",
+      "event_type": "node_completed",
+      "actor_id": "agent:research-agent",
+      "created_at": "2026-03-12T10:00:02Z"
+    }
+  ],
+  "total": 42,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+---
+
+## 테넌트
+
+테넌트 관리는 `operator` 역할이 필요합니다.
+
+### `POST /tenants`
+
+새 테넌트를 생성합니다.
+
+**요청:**
+```json
+{
+  "id": "acme",
+  "name": "Acme Corp"
+}
+```
+
+**응답** `201 Created`:
+```json
+{
+  "tenant_id": "acme"
+}
+```
+
+---
+
+### `GET /tenants`
+
+모든 테넌트를 나열합니다.
+
+---
+
+### `GET /tenants/:id`
+
+테넌트 세부 정보를 가져옵니다.
+
+---
+
+### `PUT /tenants/:id`
+
+테넌트 구성을 업데이트합니다.
+
+**요청:**
+```json
+{
+  "name": "Acme Corporation",
+  "status": "active",
+  "policy": { ... },
+  "limits": { ... }
+}
+```
+
+모든 필드는 선택 사항입니다.
+
+---
+
+## Workers
+
+### `GET /workers`
+
+활성 런타임 워커 목록을 조회합니다.
+
+---
+
+## Federation
+
+### `GET /.well-known/did.json`
+
+A2A 연합을 위한 W3C DID 문서입니다. 인증이 필요하지 않습니다. 활성 에이전트의 서비스 엔드포인트와 함께 런타임의 분산 식별자를 반환합니다.
+
+---
+
+## 오류 응답
+
+모든 오류는 적절한 HTTP 상태 코드와 함께 JSON을 반환합니다:
+
+| 상태 | 의미 | 예시 |
+|--------|---------|---------|
+| `400` | 잘못된 요청 | `{ "error": "bad request: ir.workflow_id is required" }` |
+| `401` | 인증 실패 | `{ "error": "invalid or expired token" }` |
+| `403` | 권한 없음 | `{ "error": "insufficient role — developer or operator required" }` |
+| `404` | 찾을 수 없음 | `{ "error": "not found: execution exec_abc123" }` |
+| `500` | 내부 오류 | `{ "error": "internal error: ..." }` |
+
+---
+
+## 설정
+
+| 환경 변수 | 기본값 | 설명 |
+|---------------------|---------|-------------|
+| `JAMJET_BIND` | `127.0.0.1` | 바인드 주소 |
+| `JAMJET_PORT` | `7700` | HTTP 포트 |
+| `JAMJET_PUBLIC_URL` | `http://{bind}:{port}` | 연합을 위한 공개 URL |
+| `DATABASE_URL` | `.jamjet/runtime.db` | SQLite 또는 PostgreSQL 연결 문자열 |
+| `JAMJET_TOKEN` | — | 기본 API 토큰 (클라이언트용) |
+| `RUST_LOG` | `info` | 로그 레벨 |
+
+---
+
+## CLI와 API 매핑
+
+| CLI 명령 | API 엔드포인트 |
+|-------------|-------------|
+| `jamjet run <wf> --input <json>` | `POST /executions` |
+| `jamjet inspect <exec_id>` | `GET /executions/:id` + `GET /executions/:id/events` |
+| `jamjet events <exec_id>` | `GET /executions/:id/events` |
+| `jamjet agents list` | `GET /agents` |
+| `jamjet agents inspect <id>` | `GET /agents/:id` |
+| `jamjet agents activate <id>` | `POST /agents/:id/activate` |
+| `jamjet agents deactivate <id>` | `POST /agents/:id/deactivate` |
+| `jamjet agents discover <url>` | `POST /agents/discover` |
+
+> **참고:** 
+`jamjet dev`는 로컬에서 런타임 서버를 시작합니다. `jamjet validate`와 `jamjet eval run`은 API를 호출하지 않는 클라이언트 측 작업입니다.

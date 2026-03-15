@@ -1,0 +1,167 @@
+---
+title: 从 LangGraph 迁移
+description: 为从 LangGraph 迁移到 JamJet 的开发者提供的代码对比和概念映射。
+---
+
+## 概念映射
+
+| LangGraph | JamJet |
+|---|---|
+| `TypedDict` 状态 | `pydantic.BaseModel` 状态 — 每步自动校验 |
+| `StateGraph` | `Workflow` |
+| `graph.add_node("name", fn)` | `@workflow.step` 装饰器 |
+| `graph.add_conditional_edges(node, router_fn)` | `@workflow.step(next={"target": predicate})` |
+| `graph.add_edge(A, B)` | 默认顺序执行；使用 `next=` 实现分支 |
+| `graph.compile()` | `workflow.compile()` → 生成 Rust 运行时的中间表示 |
+| `app.invoke(state)` | `workflow.run_sync(state)` (本地) |
+| `app.astream(state)` | `workflow.run(state)` (异步，本地) |
+| `MemorySaver` / `PostgresSaver` | 内置于 Rust 运行时 — 自动完成 |
+| `interrupt_before` (人工介入) | `type: wait` 节点或步骤上的 `human_approval=True` |
+
+## 对比示例
+
+一个多步骤 Agent，包含条件路由 — 决定是否搜索，然后合成答案。
+
+#### LangGraph
+
+```python
+from typing import Literal, TypedDict
+from langgraph.graph import END, START, StateGraph
+
+class State(TypedDict):
+    question: str
+    needs_search: bool
+    search_results: list[str]
+    answer: str
+
+def route(state: State) -> State:
+    q = state["question"].lower()
+    needs = any(w in q for w in ["latest", "current", "today"])
+    return {**state, "needs_search": needs}
+
+def search(state: State) -> State:
+    return {**state, "search_results": [f"[result for: {state['question']}]"]}
+
+def answer(state: State) -> State:
+    ctx = "\n".join(state.get("search_results", []))
+    return {**state, "answer": f"Answer: {state['question']}\n{ctx}"}
+
+def should_search(state: State) -> Literal["search", "answer"]:
+    return "search" if state["needs_search"] else "answer"
+
+graph = StateGraph(State)
+graph.add_node("route", route)
+graph.add_node("search", search)
+graph.add_node("answer", answer)
+graph.add_edge(START, "route")
+graph.add_conditional_edges("route", should_search)
+graph.add_edge("search", "answer")
+graph.add_edge("answer", END)
+
+app = graph.compile()
+result = app.invoke({"question": "...", "needs_search": False, "search_results": [], "answer": ""})
+print(result["answer"])
+```
+
+#### JamJet
+
+```python
+from pydantic import BaseModel
+from jamjet import Workflow
+
+class State(BaseModel):
+    question: str
+    needs_search: bool = False
+    search_results: list[str] = []
+    answer: str = ""
+
+wf = Workflow("research-agent")
+
+@wf.state
+class AgentState(State):
+    pass
+
+@wf.step
+async def route(state: AgentState) -> AgentState:
+    q = state.question.lower()
+    needs = any(w in q for w in ["latest", "current", "today"])
+    return state.model_copy(update={"needs_search": needs})
+
+@wf.step(next={"search": lambda s: s.needs_search})
+async def check_route(state: AgentState) -> AgentState:
+    return state  # pure routing step
+
+@wf.step
+async def search(state: AgentState) -> AgentState:
+    results = [f"[result for: {state.question}]"]
+    return state.model_copy(update={"search_results": results})
+
+@wf.step
+async def answer(state: AgentState) -> AgentState:
+    ctx = "\n".join(state.search_results)
+    return state.model_copy(update={"answer": f"Answer: {state.question}\n{ctx}"})
+
+# 本地执行 — 无需服务器
+
+result = wf.run_sync(AgentState(question="..."))
+print(result.state.answer)
+
+# 生产环境：wf.compile() + jamjet dev
+
+```
+
+## 主要差异
+
+### 状态验证
+
+LangGraph 使用 `TypedDict` — 字典访问，无验证。JamJet 使用 Pydantic — 每个步骤转换时都会验证字段。如果某个步骤返回错误的数据结构，你会立即收到错误提示，而不是在下游出现静默数据损坏。
+
+### 路由语法
+
+LangGraph 需要将单独的路由函数传递给 `add_conditional_edges`。JamJet 的路由直接内联在步骤上：
+
+```python
+@wf.step(next={"branch_a": lambda s: s.flag, "branch_b": lambda s: not s.flag})
+async def my_step(state: State) -> State: ...
+```
+
+对于简单的线性工作流，你无需编写任何路由代码 — 步骤按声明顺序执行。
+
+### 持久性
+
+LangGraph 的检查点是可选的，且在进程内运行（需要你自行配置和管理 SQLite、Redis、Postgres 适配器）。JamJet 的 Rust 运行时默认具备持久性 — 每个步骤转换都是事件溯源写入。在 12 个步骤中的第 7 步崩溃？从第 7 步恢复，而不是从第 1 步重新开始。
+
+### 本地 vs 生产环境
+
+两种模式使用相同的 API：
+
+```python
+
+# 开发环境（进程内，无服务器）
+
+result = wf.run_sync(State(question="..."))
+
+# 生产环境（持久化 Rust 运行时）
+
+ir = wf.compile()
+
+# jamjet dev  ← 在另一个终端启动运行时
+
+# jamjet run workflow.yaml --input '{"question": "..."}'
+
+```
+
+## 快速迁移指南
+
+```bash
+pip install jamjet
+```
+
+1. 将 `TypedDict` 替换为 `pydantic.BaseModel`
+2. 将 `StateGraph` + `add_node` + `add_edge` 替换为 `@wf.step`
+3. 条件路由使用：`@wf.step(next={"target": lambda s: s.flag})`
+4. 将 `app.invoke(state)` 替换为 `wf.run_sync(State(...))`
+5. 准备好生产部署时：`wf.compile()` → `jamjet dev`
+
+> **提示：** 
+完整的可运行示例请参见 [jamjet-labs/jamjet-benchmarks](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/migrate/from-langgraph)。

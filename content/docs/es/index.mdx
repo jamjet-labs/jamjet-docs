@@ -1,0 +1,41 @@
+---
+title: Documentación de JamJet
+description: "El runtime nativo para agentes: ejecución duradera, MCP + A2A
+  nativos, observabilidad completa. Construido en Rust. Creado en Python."
+---
+
+# Documentación de JamJet
+
+Bienvenido a JamJet: el runtime de grado productivo para agentes de IA.
+
+## ¿Qué es JamJet?
+
+JamJet es un runtime de flujos de trabajo duraderos y de código abierto, construido específicamente para agentes de IA. El núcleo es Rust (para rendimiento). La superficie de creación es Python y Java (para ergonomía). Cada ejecución tiene event sourcing, puntos de control y es reproducible.
+
+## Enlaces rápidos
+
+- **[Inicio rápido](/docs/quickstart)** — Pon en marcha un agente duradero en menos de 5 minutos
+- **[Conceptos](/docs/concepts)** — Comprende la arquitectura
+- **[SDK de Python](/docs/python-sdk)** — Referencia de la API `@task`, `Agent`, `Workflow`
+- **[Guía de investigación](/docs/research-guide)** — Ejecuta experimentos multi-agente reproducibles
+- **[Guía MCP](/docs/mcp)** — Conéctate a cualquier servidor de herramientas MCP
+- **[Guía A2A](/docs/a2a)** — Comunicación agente a agente
+
+## Instalación
+
+```bash
+pip install jamjet
+```
+
+## Capacidades clave
+
+| Capacidad | Descripción |
+|------------|-------------|
+| **Ejecución duradera** | Event sourcing, recuperable ante fallos, reproducción desde puntos de control |
+| **MCP + A2A nativos** | Cliente y servidor para ambos protocolos |
+| **Seis estrategias** | react, plan-and-execute, critic, reflection, consensus, debate |
+| **Evaluación integrada** | LLM-judge, aserciones, scorers de costo/latencia, `@scorer` personalizado |
+| **ExperimentGrid** | Barridos de parámetros con exportación a LaTeX/CSV/JSON |
+| **Núcleo Rust** | Scheduler asíncrono, despacho en microsegundos, paralelismo real |
+| **SDKs políglotas** | Python, Java, Go (próximamente) |
+| **Motor de políticas** | Límites de tokens/costo, redacción de PII, niveles de autonomía |

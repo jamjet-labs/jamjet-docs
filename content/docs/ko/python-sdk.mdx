@@ -1,0 +1,263 @@
+---
+title: Python SDK
+description: 데코레이터와 워크플로우 빌더를 사용하여 Python으로 JamJet 워크플로우를 작성하세요.
+---
+
+# Python SDK
+
+JamJet Python SDK를 사용하면 YAML 대신 Python으로 워크플로우를 작성할 수 있습니다. 두 방식 모두 동일한 IR로 컴파일되며 동일한 Rust 런타임에서 실행됩니다.
+
+## 설치
+
+```bash
+pip install jamjet
+```
+
+## 데코레이터 API
+
+데코레이터 API는 워크플로우를 작성하는 가장 간결한 방법입니다. 함수에 `@node`를 추가하면 JamJet이 함수 시그니처와 반환 타입에서 노드 타입을 자동으로 추론합니다.
+
+```python
+from jamjet import workflow, node, State
+
+@workflow(id="hello-agent", version="0.1.0")
+class HelloWorkflow:
+    @node(start=True)
+    async def think(self, state: State) -> State:
+        response = await self.model(
+            model="claude-haiku-4-5-20251001",
+            prompt=f"Answer clearly: {state['query']}",
+        )
+        return {"answer": response.text}
+```
+
+실행 방법:
+
+```python
+import asyncio
+from jamjet import JamJetClient
+
+async def main():
+    client = JamJetClient()  # connects to http://localhost:7700
+    result = await client.run(
+        HelloWorkflow,
+        input={"query": "What is JamJet?"}
+    )
+    print(result.state["answer"])
+
+asyncio.run(main())
+```
+
+## 워크플로우 빌더
+
+더 세밀한 제어가 필요하다면 빌더 API를 사용하세요:
+
+```python
+from jamjet.workflows import WorkflowBuilder, ModelNode, ToolNode, BranchNode
+
+wf = (
+    WorkflowBuilder("research-agent", version="0.2.0")
+    .state_schema(query=str, results=list, answer=str)
+    .add_node(
+        ToolNode("search")
+        .server("brave-search")
+        .tool("web_search")
+        .arguments({"query": "{{ state.query }}", "count": 5})
+        .output_key("results")
+        .next("draft")
+    )
+    .add_node(
+        ModelNode("draft")
+        .model("claude-sonnet-4-6")
+        .prompt("""
+            Search results: {{ state.results | join('\\n') }}
+
+            Answer: {{ state.query }}
+        """)
+        .output_key("answer")
+        .next("end")
+    )
+    .start("search")
+    .build()
+)
+```
+
+## State 접근
+
+State는 타입이 지정된 딕셔너리 유사 객체입니다. `state["key"]` 또는 `state.key`로 키에 접근할 수 있습니다:
+
+```python
+@node
+async def process(self, state: State) -> State:
+    query = state["query"]          # raises KeyError if missing
+    context = state.get("context")  # returns None if missing
+
+    # Return a partial state patch — only keys you include are updated
+    return {"answer": "...", "confidence": 0.95}
+```
+
+> **tip:** 
+노드는 전체 state가 아닌 **state 패치**를 반환합니다. 업데이트할 키만 반환하면 됩니다. 기존 키는 그대로 유지됩니다.
+
+## 모델 호출
+
+노드 내부에서 `self.model()`을 사용하여 LLM을 호출하세요:
+
+```python
+@node
+async def think(self, state: State) -> State:
+    response = await self.model(
+        model="claude-sonnet-4-6",
+        prompt=f"Answer: {state['query']}",
+        system="You are concise and accurate.",
+        temperature=0.3,
+        max_tokens=512,
+    )
+
+    # response.text — 전체 텍스트
+    # response.usage.input_tokens
+    # response.usage.output_tokens
+    # response.model
+
+    return {"answer": response.text}
+```
+
+## 툴 호출 (MCP)
+
+연결된 MCP 서버의 툴을 호출하려면 `self.tool()`을 사용하세요:
+
+```python
+@node
+async def search(self, state: State) -> State:
+    result = await self.tool(
+        server="brave-search",
+        tool="web_search",
+        arguments={"query": state["query"], "count": 5},
+    )
+    return {"results": result.content}
+```
+
+## HTTP 호출
+
+```python
+@node
+async def fetch(self, state: State) -> State:
+    result = await self.http(
+        method="GET",
+        url=f"https://api.example.com/items/{state['item_id']}",
+        headers={"Authorization": f"Bearer {self.env('API_KEY')}"},
+    )
+    return {"raw": result.json()}
+```
+
+## 분기
+
+```python
+from jamjet import node, branch
+
+@node
+@branch(
+    conditions=[
+        ("state['confidence'] >= 0.9", "done"),
+        ("state['confidence'] >= 0.5", "refine"),
+    ],
+    default="escalate",
+)
+async def route(self, state: State) -> State:
+    return {}  # 분기 노드는 기존 상태를 읽습니다 — 출력이 필요하지 않습니다
+```
+
+## 병렬 실행
+
+```python
+from jamjet.workflows import ParallelNode
+
+.add_node(
+    ParallelNode("gather")
+    .branches(["search", "fetch-docs", "check-cache"])
+    .join("synthesize")
+)
+```
+
+## 재시도 정책
+
+```python
+from jamjet.workflows import RetryPolicy
+
+ModelNode("think")
+    .model("claude-haiku-4-5-20251001")
+    .prompt("...")
+    .retry(RetryPolicy(
+        max_attempts=3,
+        backoff="exponential",
+        delay_ms=500,
+    ))
+```
+
+## 워크플로우 실행
+
+```python
+from jamjet import JamJetClient
+
+client = JamJetClient(base_url="http://localhost:7700")
+
+# 실행하고 완료될 때까지 대기
+
+result = await client.run(wf, input={"query": "..."})
+print(result.state)
+print(result.execution_id)
+print(result.duration_ms)
+
+# 실행 후 대기 없이 진행 — 즉시 실행 ID 반환
+
+exec_id = await client.submit(wf, input={"query": "..."})
+
+# 상태 폴링
+
+status = await client.get_execution(exec_id)
+print(status.status)  # running | completed | failed
+
+# 이벤트를 실시간으로 스트리밍
+
+async for event in client.stream(wf, input={"query": "..."}):
+    print(event.type, event.node_id)
+```
+
+## 타입 어노테이션
+
+SDK는 완전한 타입 스텁을 제공합니다. strict 모드에서:
+
+```python
+from jamjet import State, NodeResult
+from typing import TypedDict
+
+class MyState(TypedDict):
+    query: str
+    answer: str
+    confidence: float
+
+@node(start=True)
+async def think(self, state: MyState) -> NodeResult[MyState]:
+    ...
+    return NodeResult(answer="...", confidence=0.9)
+```
+
+## 설정
+
+```python
+from jamjet import JamJetClient, JamJetConfig
+
+client = JamJetClient(config=JamJetConfig(
+    base_url="http://localhost:7700",
+    api_key="YOUR_API_KEY",  # for hosted/production
+    timeout_ms=30_000,
+    default_model="claude-haiku-4-5-20251001",
+))
+```
+
+또는 환경 변수를 통해:
+
+```bash
+export JAMJET_URL=http://localhost:7700
+export JAMJET_API_KEY=...
+```

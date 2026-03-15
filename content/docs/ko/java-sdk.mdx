@@ -1,0 +1,374 @@
+---
+title: Java SDK
+description: 빌더, 레코드, @Tool 어노테이션을 사용하여 Java로 JamJet 워크플로우와 에이전트를 작성하세요.
+---
+
+# Java SDK
+
+JamJet Java SDK를 사용하면 Java로 워크플로우, 에이전트, 도구를 작성할 수 있습니다. Python SDK와 동일한 정규 IR로 컴파일되며 동일한 Rust 런타임에서 실행됩니다.
+
+## 설치
+
+**Java 21+**(가상 스레드)가 필요합니다.
+
+```xml
+<dependency>
+    <groupId>dev.jamjet</groupId>
+    <artifactId>jamjet-sdk</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
+## 빠른 시작
+
+```java
+import dev.jamjet.agent.Agent;
+import dev.jamjet.ir.IrValidator;
+
+var agent = Agent.builder("hello-agent")
+    .model("claude-haiku-4-5-20251001")
+    .instructions("질문에 명확하고 간결하게 답변하세요.")
+    .strategy("react")
+    .maxIterations(1)
+    .build();
+
+var ir = agent.compile();
+IrValidator.validateOrThrow(ir);
+
+var result = agent.run("JamJet이 무엇인가요?");
+System.out.println(result.output());
+```
+
+---
+
+## 워크플로우
+
+타입이 지정된 상태를 가진 방향성 비순환 워크플로우를 구축합니다. 상태는 Java 레코드로 불변이며, 검증되고, 직렬화 가능합니다.
+
+```java
+import dev.jamjet.workflow.Workflow;
+
+record ResearchState(String query, String results, String answer) {}
+
+var wf = Workflow.builder("research-flow")
+    .version("0.1.0")
+    .state(ResearchState.class)
+    .step("search", state ->
+        new ResearchState(state.query(), "[검색 결과]", state.answer()))
+    .step("synthesize", state ->
+        new ResearchState(state.query(), state.results(), "최종 답변: ..."))
+    .build();
+
+var result = wf.run(new ResearchState("최신 AI 프레임워크는?", "", ""));
+System.out.println(result.state().answer());
+System.out.printf("%d개 단계를 %.1fms에 실행%n",
+    result.stepsExecuted(), result.totalDurationUs() / 1000.0);
+```
+
+### 조건부 라우팅
+
+```java
+import dev.jamjet.workflow.Step;
+
+var route = Step.builder("route")
+    .handler(state -> state)
+    .when("approved", state -> state.approved())
+    .when("rejected", state -> !state.approved())
+    .defaultNext("escalate")
+    .timeout("30s")
+    .retryPolicy("exponential")
+    .build();
+```
+
+### IR로 컴파일
+
+모든 워크플로우는 런타임에 제출하기 위해 정규 IR로 컴파일됩니다:
+
+```java
+var ir = wf.compile();
+System.out.println(ir.toJson());
+
+// 제출 전 검증
+var errors = IrValidator.validate(ir);
+errors.forEach(System.err::println);
+```
+
+---
+
+## 에이전트
+
+에이전트는 모델, 도구, 추론 전략을 결합합니다. 세 가지 내장 전략:
+
+| 전략 | 동작 |
+|----------|----------|
+| `react` | 사고 → 도구 사용 → 관찰 루프 |
+| `plan-and-execute` | 계획 → 단계 실행 → 종합 |
+| `critic` | 초안 → 비평 → 수정 루프 |
+
+```java
+import dev.jamjet.agent.Agent;
+
+var agent = Agent.builder("research-agent")
+    .model("claude-sonnet-4-6")
+    .tools(WebSearch.class, FetchPage.class)
+    .instructions("당신은 철저한 연구자입니다.")
+    .strategy("plan-and-execute")
+    .maxIterations(8)
+    .maxCostUsd(0.50)
+    .timeoutSeconds(300)
+    .build();
+
+var result = agent.run("JamJet과 LangGraph 비교");
+System.out.println(result.output());
+System.out.printf("소요 시간: %.1fms%n", result.durationUs() / 1000.0);
+```
+
+### 어노테이션 기반 에이전트
+
+간단한 에이전트의 경우 인터페이스에 `@Task` 어노테이션을 사용하세요:
+
+```java
+import dev.jamjet.agent.JamjetAgent;
+import dev.jamjet.agent.Task;
+
+@Task(
+    model = "gpt-4o",
+    tools = { WebSearch.class },
+    strategy = "react",
+    maxIterations = 5,
+    instructions = "You are helpful.",
+    maxCostUsd = 1.0
+)
+interface ResearchTask {
+    String research(String topic);
+}
+
+// 직접 실행
+String result = JamjetAgent.run(ResearchTask.class, "What is JamJet?");
+
+// 또는 재사용 가능한 프록시 가져오기
+ResearchTask task = JamjetAgent.proxy(ResearchTask.class);
+String answer = task.research("What is JamJet?");
+```
+
+---
+
+## 도구
+
+도구는 `@Tool` 어노테이션이 지정되고 `ToolCall<T>`를 구현하는 Java 레코드입니다. SDK는 레코드 컴포넌트 타입으로부터 JSON 스키마를 자동 생성합니다.
+
+```java
+import dev.jamjet.tool.Tool;
+import dev.jamjet.tool.ToolCall;
+
+@Tool(description = "Search the web for information")
+record WebSearch(String query) implements ToolCall<String> {
+    @Override
+    public String execute() {
+        // 실제 구현으로 교체
+        return "Results for: " + query;
+    }
+}
+
+@Tool(description = "Fetch page content from a URL")
+record FetchPage(String url) implements ToolCall<String> {
+    @Override
+    public String execute() {
+        return "Page content for " + url;
+    }
+}
+```
+
+### 도구 레지스트리
+
+```java
+import dev.jamjet.tool.ToolRegistry;
+
+// 전역으로 등록
+ToolRegistry.global()
+    .register(WebSearch.class)
+    .register(FetchPage.class);
+
+// 조회
+ToolRegistry.global().names();          // ["web_search", "fetch_page"]
+ToolRegistry.global().toOpenAiFormat(); // OpenAI 함수 호출 스키마
+```
+
+도구 이름은 레코드 클래스 이름에서 파생됩니다(`WebSearch` → `web_search`).
+
+---
+
+## 런타임 클라이언트
+
+JamjetClient`는 JamJet 런타임 API를 위한 블로킹 HTTP 클라이언트입니다(가상 스레드 사용).
+
+```java
+import dev.jamjet.JamjetClient;
+import dev.jamjet.client.ClientConfig;
+
+var client = new JamjetClient(
+    ClientConfig.builder()
+        .baseUrl("http://localhost:7700")
+        .apiToken("YOUR_TOKEN")  // 또는 JAMJET_TOKEN 환경 변수
+        .timeoutSeconds(30)
+        .build()
+);
+```
+
+### 워크플로우 라이프사이클
+
+```java
+// 워크플로우 등록
+client.createWorkflow(ir.toMap());
+
+// 실행 시작
+var execId = client.startExecution("research-flow", Map.of("query", "..."));
+
+// 상태 폴링
+var status = client.getExecution(execId);
+System.out.println(status.get("status")); // running | completed | failed
+
+// 이벤트 타임라인 가져오기
+var events = client.getEvents(execId);
+```
+
+### 휴먼-인-더-루프
+
+```java
+// Approve a paused execution
+client.approve(execId, "approved", "Looks good", Map.of("priority", "high"));
+
+// Send external event to wake a waiting execution
+client.sendExternalEvent(execId, "payment-received", Map.of("amount", 500));
+```
+
+### 에이전트 관리
+
+```java
+// Register agent
+client.registerAgent(agentCard);
+
+// Discovery
+client.discoverAgent("https://remote-agent.example.com");
+
+// Lifecycle
+client.activateAgent(agentId);
+client.deactivateAgent(agentId);
+
+// List with filters
+client.listAgents(); // all agents
+```
+
+---
+
+## 상태 관리
+
+상태는 Java 레코드입니다. 스텝은 현재 상태를 받아 새 인스턴스를 반환합니다 — 상태는 항상 불변입니다.
+
+```java
+record OrderState(
+    String orderId,
+    double amount,
+    boolean approved,
+    String result
+) {}
+
+// Steps return new state instances
+.step("validate", state ->
+    new OrderState(state.orderId(), state.amount(), state.amount() < 10000, state.result()))
+```
+
+> **tip:** 
+Java 레코드는 불변성, equals/hashCode, toString을 기본 제공합니다. SDK는 IR 검증을 위해 레코드 컴포넌트 타입으로부터 JSON Schema를 자동 생성합니다.
+
+---
+
+## IR 컴파일 및 검증
+
+워크플로우와 에이전트 모두 `WorkflowIr`로 컴파일됩니다 — Python SDK 및 YAML 워크플로우와 공유되는 표준 중간 표현입니다.
+
+```java
+import dev.jamjet.ir.IrCompiler;
+import dev.jamjet.ir.IrValidator;
+
+// Compile
+var ir = IrCompiler.compileWorkflow(wf);
+// or: var ir = IrCompiler.compileAgent(agent);
+
+// Inspect
+System.out.println(ir.id());          // workflow name
+System.out.println(ir.version());     // version string
+System.out.println(ir.nodes());       // node definitions
+System.out.println(ir.toJson());      // canonical JSON
+
+// Validate
+var errors = IrValidator.validate(ir);
+if (!errors.isEmpty()) {
+    errors.forEach(System.err::println);
+    System.exit(1);
+}
+
+// Or throw on first error
+IrValidator.validateOrThrow(ir);
+```
+
+---
+
+## 평가
+
+플러그형 스코어러로 데이터셋에 대해 에이전트와 워크플로우를 테스트합니다:
+
+```java
+import dev.jamjet.eval.EvalRunner;
+import dev.jamjet.eval.Scorer;
+
+var results = EvalRunner.builder()
+    .dataset(dataset)
+    .agent(myAgent)
+    .scorers(new Scorer.ExactMatchScorer("expected"))
+    .parallelism(4)
+    .failBelow(0.8)  // fail if mean score < 0.8
+    .build()
+    .run();
+```
+
+---
+
+## Python vs Java 비교
+
+| 기능 | Java SDK | Python SDK |
+|---------|----------|-----------|
+| 워크플로우 정의 | Fluent builder + records | 데코레이터 + TypedDict |
+| 도구 정의 | `@Tool` record + `ToolCall<T>` | `@tool` 데코레이터 / MCP |
+| 에이전트 정의 | `Agent.builder()` | `@agent` 데코레이터 |
+| 상태 | 불변 Java records | TypedDict / Pydantic |
+| HTTP 클라이언트 | 블로킹 (가상 스레드) | 비동기 (asyncio) |
+| IR 컴파일 | `workflow.compile()` | `@workflow` 데코레이터 |
+| 최소 버전 | Java 21 | Python 3.10 |
+
+두 SDK 모두 **동일한 정규 IR**로 컴파일되며 동일한 Rust 런타임에서 실행됩니다.
+
+---
+
+## 예제
+
+[예제 저장소](https://github.com/jamjet-labs/examples)의 실제 동작 예제:
+
+| 예제 | 설명 |
+|---------|---------------------|
+| `java-hello-agent` | 단일 모델 호출을 사용하는 최소 에이전트 |
+| `java-research-agent` | 도구 + 계획 및 실행 전략 |
+| `java-support-bot` | 조건부 라우팅이 포함된 다단계 워크플로우 |
+| `java-approval-workflow` | 런타임 통합 + 사람 개입 루프 |
+| `java-multi-tenant` | 테넌트 격리 워크플로우 실행 |
+| `java-data-governance` | PII 탐지 및 마스킹 패턴 |
+| `java-oauth-agent` | OAuth 위임 + 범위 축소 |
+
+```bash
+git clone https://github.com/jamjet-labs/examples
+cd examples/java-hello-agent
+mvn compile exec:java
+```
+
+> **팁:** 
+모든 Java 예제는 동일한 저장소에 Python/YAML 버전도 함께 제공됩니다.

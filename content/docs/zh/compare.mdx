@@ -1,0 +1,105 @@
+---
+title: 框架对比
+description: JamJet 与 LangGraph、CrewAI、AutoGen 的功能对比矩阵 — 涵盖执行、持久化、可观测性、评估和扩展能力。
+---
+
+export const Y = () => <span class="ic ic-y">✓</span>;
+export const N = () => <span class="ic ic-n">—</span>;
+export const P = () => <span class="ic ic-p">~</span>;
+export const E = () => <span class="ic ic-e">⚙</span>;
+export const W = () => <span class="ic ic-w">…</span>;
+
+> 最后更新：2026-03-08 · JamJet v0.1.1 · [欢迎指正](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
+
+<div style={{fontSize: "0.82rem", color: "#8b8578", marginBottom: "1.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap"}}>
+  <span><span class="ic ic-y">✓</span> 内置</span>
+  <span><span class="ic ic-e">⚙</span> 通过插件</span>
+  <span><span class="ic ic-p">~</span> 部分支持</span>
+  <span><span class="ic ic-n">—</span> 不支持</span>
+  <span><span class="ic ic-w">…</span> 开发中</span>
+</div>
+
+## 核心执行
+
+| 功能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 基于图的工作流 | <Y/> | <Y/> | <P/> 顺序/层级 | <Y/> |
+| 异步执行 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 本地进程内运行器 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 类型化状态 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
+| 每步状态验证 | <Y/> | <N/> | <N/> | <N/> |
+| 条件路由 | <Y/> 内联谓词 | <Y/> 边缘函数 | <P/> 进程类型 | <Y/> |
+| 并行分支 | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
+| 循环支持 | <Y/> | <Y/> | <P/> | <Y/> |
+
+## 持久性与可靠性
+
+| 功能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 持久执行（崩溃恢复） | <Y/> Rust 运行时 | <E/> 检查点器 | <N/> | <N/> |
+| 事件溯源 | <Y/> 原生 | <N/> | <N/> | <N/> |
+| 自动重试与退避 | <Y/> YAML 配置 | <E/> 手动 | <E/> 手动 | <E/> 手动 |
+| 人机协作 / 暂停 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
+| 从任意检查点恢复 | <Y/> | <E/> 需要保存器 | <N/> | <N/> |
+| 单步超时 | <Y/> | <P/> | <N/> | <P/> |
+
+## 可观测性
+
+| 功能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 结构化事件日志 | <Y/> 按步骤记录事件 | <P/> 回调函数 | <P/> 详细文本 | <P/> |
+| 执行检查 CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
+| 事件时间线 | <Y/> | <N/> | <N/> | <N/> |
+| OpenTelemetry 追踪 | <W/> | <E/> LangSmith | <E/> | <N/> |
+| 时间旅行调试 | <W/> | <N/> | <N/> | <N/> |
+
+## 工具与协议集成
+
+| 功能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| MCP 客户端（使用任何 MCP 服务器）| <Y/> 原生支持 | <E/> 通过适配器 | <E/> 通过适配器 | <E/> 通过适配器 |
+| MCP 服务器（暴露你的工具）| <W/> | <N/> | <N/> | <N/> |
+| A2A 跨 Agent 调用 | <Y/> 客户端 + 服务器 | <N/> | <N/> | <N/> |
+| OpenAI 函数调用 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 自定义 Python 工具 | <Y/> `@tool` 装饰器 | <Y/> | <Y/> | <Y/> |
+| 工具错误重试 | <Y/> 节点级配置 | <E/> 手动 | <E/> 手动 | <E/> 手动 |
+
+## 评估与测试
+
+| 功能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 内置评估框架 | <Y/> | <N/> | <N/> | <N/> |
+| LLM 评审打分 | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
+| 断言打分 | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
+| 延迟预算 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
+| 成本预算 | <Y/> `CostScorer` | <N/> | <N/> | <N/> |
+| 数据集格式（JSONL）| <Y/> | <N/> | <N/> | <N/> |
+| CI 回归失败退出码 | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
+| 作为工作流节点的评估 | <Y/> `type: eval` | <N/> | <N/> | <N/> |
+
+## 开发者体验
+
+| 功能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| YAML 工作流编写 | <Y/> | <N/> | <N/> | <N/> |
+| Python 装饰器 API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> |
+| 项目模板 | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> |
+| 本地开发服务器 | <Y/> `jamjet dev` | <N/> | <N/> | <N/> |
+| 工作流验证 CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> |
+| 多模型支持 | <Y/> 任何 OpenAI 兼容模型 | <Y/> | <Y/> | <Y/> |
+| 本地模型（Ollama 等） | <Y/> | <Y/> | <Y/> | <Y/> |
+
+## 生产与扩展
+
+| 功能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 运行时语言 | **Rust** | Python | Python | Python |
+| 多语言 SDK | Python（TS <W/>） | Python、JS | Python | Python、.NET |
+| Kubernetes 就绪 | <Y/> 无状态二进制 | <E/> | <E/> | <E/> |
+| 托管云服务 | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
+| 开源 | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 |
+
+---
+
+> **注意：** 
+查看[基准测试](/benchmarks)了解延迟对比的测量方法和原始结果。迁移指南：[从 LangGraph 迁移](/migrate/from-langgraph)、[从 CrewAI 迁移](/migrate/from-crewai)、[从 OpenAI SDK 迁移](/migrate/from-openai-direct)。

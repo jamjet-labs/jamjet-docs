@@ -1,0 +1,340 @@
+---
+title: 研究指南
+description: 使用 JamJet 运行可复现的多智能体实验 — 从搭建到发表级结果。
+---
+
+# 使用 JamJet 进行多智能体研究
+
+JamJet 为研究人员提供了开箱即用的完整实验基础设施：持久化执行以保证可重复性、六种推理策略用于消融研究、实验网格用于参数扫描、内置评估与自定义评分器，以及论文发布导出功能（LaTeX、CSV、JSON）并配备统计检验。
+
+本指南将带你完成完整的研究工作流程——从项目脚手架到可用于论文的结果。
+
+> **提示：**
+已经熟悉 JamJet 了？直接跳转到[运行实验](#run-experiments)或[导出用于发布](#export-for-publication)。
+
+---
+
+## 设置
+
+1. **安装 JamJet**
+
+   ```bash
+   pip install jamjet
+   ```
+
+2. **搭建研究项目脚手架**
+
+   ```bash
+   jamjet init my-study --template research
+   cd my-study
+   ```
+
+3. **查看生成的项目结构**
+
+   ```
+   my-study/
+   ├── agents/
+   │   └── researcher.py       # 智能体定义及工具
+   ├── baselines/
+   │   └── baseline.py         # 基线对比存根
+   ├── experiments/
+   │   ├── config.yaml          # 模型、种子、策略配置
+   │   └── runner.py            # 实验循环
+   ├── evals/
+   │   ├── dataset.jsonl        # 评估数据集
+   │   └── scorers.py           # 自定义评分器定义
+   ├── results/                 # 输出目录（.gitkeep）
+   ├── workflow.yaml            # 工作流定义
+   └── README.md
+   ```
+
+---
+
+## 定义你的智能体
+
+智能体是用 `@task` 装饰的 Python 函数。每个智能体可以使用不同的推理策略。
+
+```python
+from jamjet import task, tool
+
+@tool
+async def web_search(query: str) -> str:
+    """搜索网络以获取最新信息。"""
+    ...
+
+@task(model="claude-sonnet-4-6", tools=[web_search])
+async def researcher(question: str) -> str:
+    """使用网络搜索研究一个问题。"""
+```
+
+### 六种内置策略
+
+JamJet 将高级策略名称编译为显式的 IR 子 DAG。只需一个参数即可切换——相同智能体，不同推理方式：
+
+| 策略 | 模式 | 最适用于 |
+|----------|---------|----------|
+| `react` | 推理 → 行动 → 观察循环 | 工具密集型任务 |
+| `plan_and_execute` | 规划步骤 → 逐步执行 → 综合 | 多步骤分解 |
+| `critic` | 生成 → 批判 → 修订 | 质量敏感型输出 |
+| `reflection` | 执行 → 反思 → 判断 → 修订循环 | 自我改进型智能体 |
+| `consensus` | N 个智能体 → 投票 → 裁决 → 最终确定 | 减少方差 |
+| `debate` | 提议 → 反驳 → 裁决 → 定论循环 | 对抗性推理 |
+
+```yaml
+
+# workflow.yaml — 更改策略以进行比较
+
+agents:
+  researcher:
+    model: claude-sonnet-4-6
+    strategy: debate        # 切换至：react、reflection、consensus...
+    tools: [web_search]
+    max_iterations: 6
+```
+
+---
+
+## 运行实验
+
+`ExperimentGrid` 将所有条件和种子的组合作为持久化工作流执行运行。如果某次运行崩溃,它会从检查点恢复——无需重新运行之前的步骤。
+
+```python
+from jamjet.eval import ExperimentGrid
+
+grid = ExperimentGrid(
+    conditions={
+        "strategy": ["react", "plan_and_execute", "critic",
+                      "reflection", "consensus", "debate"],
+        "model": ["claude-sonnet-4-6", "gpt-4o"],
+    },
+    seeds=[42, 123, 456],
+    dataset="evals/dataset.jsonl",
+    scorers=["llm_judge", "factuality"],
+)
+
+results = await grid.run()
+results.summary()  # 终端中的富文本表格
+```
+
+这将运行 6 种策略 x 2 个模型 x 3 个种子 = **36 次持久化执行**,每次都带有完整的事件跟踪和检查点。
+
+> **注意：** 
+每次执行都是事件溯源的。如果实验在第 22 次运行(共 36 次)时崩溃,它会从第 22 次恢复——不会浪费 token 重新运行已完成的条件。
+
+---
+
+## 评估结果
+
+### 内置评分器
+
+JamJet 开箱即用地包含四种评分器类型:
+
+- **`llm_judge`** — LLM 根据评分标准评估输出(0-5 分制)
+- **`assertion`** — 对输出结构或内容进行布尔检查
+- **`latency`** — 基于执行时间与阈值的评分
+- **`cost`** — 基于 token 成本与预算的评分
+
+### 自定义评分器
+
+使用 `@scorer` 装饰器注册特定领域的评分器:
+
+```python
+from jamjet import scorer
+from jamjet.eval import ScorerResult
+
+@scorer(name="factuality", description="检查事实准确性")
+async def factuality_scorer(input: dict, output: dict, context: dict) -> ScorerResult:
+    # 你的自定义评分逻辑
+    return ScorerResult(
+        score=0.85,
+        passed=True,
+        reason="所有声明均已根据来源验证",
+    )
+```
+
+自定义评分器会自动按名称在 `ExperimentGrid` 和 `EvalNode` 中可用。
+
+### 工作流中的评估节点
+
+评估也可以作为工作流节点内联运行——在执行期间而非执行之后：
+
+```yaml
+nodes:
+  check-quality:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "Is the response accurate and well-sourced?"
+        min_score: 4
+    on_fail: retry_with_feedback
+    max_retries: 2
+```
+
+当分数过低时，`retry_with_feedback` 会将评分器的推理作为额外上下文，重新运行上游节点。
+
+---
+
+## 导出用于发布
+
+### LaTeX 表格
+
+```python
+results.to_latex("table1.tex", caption="Strategy comparison across models")
+```
+
+输出符合 `booktabs` 格式的表格，包含每个条件的均值 +/- 标准差——可直接在论文中使用 `\input{}` 引入。
+
+### CSV 用于 R / pandas
+
+```python
+results.to_csv("results.csv")
+```
+
+### JSON 用于进一步分析
+
+```python
+results.to_json("results.json")
+```
+
+### 统计对比
+
+使用内置显著性检验比较任意两个条件：
+
+```python
+comparison = results.compare("debate", "react", test="auto", alpha=0.05)
+```
+
+返回包含以下内容的 `ComparisonResult`：
+
+| 字段 | 描述 |
+|-------|-------------|
+| `test_name` | 使用的检验方法（welch、wilcoxon、mann_whitney）|
+| `statistic` | 检验统计量 |
+| `p_value` | p 值 |
+| `effect_size` | Cohen's d |
+| `ci_lower`、`ci_upper` | 95% 置信区间 |
+| `significant` | 如果 p < alpha 则为 `True` |
+| `mean_a`、`mean_b` | 组均值 |
+
+可用检验方法：
+- **`welch`** — Welch's t 检验（默认，独立样本）
+- **`wilcoxon`** — Wilcoxon 符号秩检验（配对样本）
+- **`mann_whitney`** — Mann-Whitney U 检验（非参数，独立样本）
+- **`auto`** — 根据样本量和配对情况自动选择
+
+### CLI 导出
+
+```bash
+jamjet eval export results.json --format latex --caption "Table 1"
+jamjet eval compare results.json --conditions "debate,react" --test auto
+```
+
+---
+
+## 重放与分支
+
+### 精确重放
+
+从检查点重现任何执行——相同的输入，相同的执行路径：
+
+```bash
+jamjet replay exec_abc123
+```
+
+运行时获取原始执行事件，提取工作流和输入，并使用相同参数创建新的执行。适用于验证和调试。
+
+### 用于消融研究的分支
+
+从已完成的执行中创建分支并修改输入——在保持其他所有内容不变的情况下更改一个变量：
+
+```bash
+jamjet fork exec_abc123 --override-input '{"model": "gpt-4o"}'
+```
+
+原始输入被保留，覆盖内容会合并进去。这是进行消融研究的最快路径——无需重新配置，无需重新运行整个网格。
+
+---
+
+## 溯源
+
+JamJet 中的每个节点完成都携带 `ProvenanceMetadata`：
+
+| 字段 | 描述 |
+|-------|-------------|
+| `model_id` | 生成此输出的模型 |
+| `model_version` | 模型版本字符串 |
+| `confidence` | 自报告的置信度（0.0–1.0）|
+| `verified` | 输出是否通过验证 |
+| `source` | 来源标识符 |
+
+溯源信息会自动附加——无需额外配置。它会流转到事件跟踪、审计日志和导出结果中。
+
+> **提示：**
+溯源元数据在多模型实验中特别有价值，可以帮助你追溯哪个模型产生了哪个中间结果。
+
+---
+
+## 检查工作流
+
+使用 `jamjet inspect` 检查已编译的工作流，包括特定策略的详细信息：
+
+```bash
+jamjet inspect workflow.yaml
+```
+
+对于策略感知型代理，这会显示：
+- 策略名称和类型
+- 迭代次数和计划步骤
+- 评审者裁决（用于评审/辩论策略）
+- 每次迭代的成本
+
+---
+
+## 示例：完整的研究下午
+
+```python
+from jamjet.eval import ExperimentGrid
+
+# 1. 定义实验网格
+
+grid = ExperimentGrid(
+    conditions={
+        "strategy": ["react", "plan_and_execute", "critic",
+                      "reflection", "consensus", "debate"],
+    },
+    seeds=[42, 123, 456],
+    dataset="evals/dataset.jsonl",
+    scorers=["llm_judge"],
+)
+
+# 2. 运行（持久化 — 崩溃后自动恢复）
+
+results = await grid.run()
+
+# 3. 导出 LaTeX 表格
+
+results.to_latex("table1.tex", caption="策略对比")
+
+# 4. 统计检验
+
+comp = results.compare("debate", "react")
+print(f"p = {comp.p_value:.4f}, Cohen's d = {comp.effect_size:.2f}")
+
+# 5. 重放特定运行
+
+# $ jamjet replay exec_debate_seed42
+
+# 6. Fork 进行消融实验
+
+# $ jamjet fork exec_debate_seed42 --override-input '{"model":"gpt-4o"}'
+
+```
+
+---
+
+## 后续步骤
+
+- 浏览[研究示例](/examples) — DCI 协商和 LDP 路由模式
+- 查看 [/research](/research) 页面了解功能概览
+- 阅读[评估框架文档](/docs/eval)深入了解评估配置
+- 尝试 `jamjet init my-study --template research` 快速开始

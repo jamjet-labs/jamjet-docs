@@ -1,0 +1,188 @@
+---
+title: 企业级安全
+description: JamJet 中的多租户隔离、PII 脱敏、OAuth 委托、mTLS 联合认证和数据保留策略。
+---
+
+# 企业级安全
+
+JamJet 的企业功能在 Rust 运行时层强制执行——不依赖约定，也不依赖可能被遗漏的中间件。
+
+## 多租户隔离
+
+按租户 ID 分区所有存储。工作流定义、执行状态、事件日志、审计追踪和快照均按租户隔离。
+
+```bash
+
+# 同一工作流，不同租户——完全隔离
+
+jamjet run workflow.yaml \
+  --input '{"invoice_id": "INV-001", "amount": 2500}' \
+  --tenant acme
+
+jamjet run workflow.yaml \
+  --input '{"invoice_id": "INV-042", "amount": 75000}' \
+  --tenant globex
+```
+
+运行时的 `TenantScopedSqliteBackend` 对每个存储查询都包装了 `WHERE tenant_id = ?`。工作流定义表使用复合主键 `(tenant_id, workflow_id, version)`。
+
+---
+
+## PII 脱敏
+
+在工作流中声明 `data_policy`。运行时在任何状态进入审计日志前应用该策略。
+
+```yaml
+data_policy:
+  pii_detectors: [email, ssn, phone, credit_card, ip_address]
+  pii_fields: ["$.email", "$.ssn", "$.credit_card"]
+  redaction_mode: mask        # 或：hash、remove
+  retain_prompts: false       # 从审计日志中删除提示词
+  retain_outputs: false       # 从审计日志中删除模型输出
+  retention_days: 90          # 90 天后自动清除
+```
+
+三种脱敏模式：
+
+| 模式 | 行为 | 示例 |
+|------|----------|---------|
+| `mask` | 部分显示用于调试 | `***-**-6789` |
+| `hash` | SHA-256 假名化用于分析 | `a3f2c91b...e71b` |
+| `remove` | 完全删除字段 | *（字段已删除）* |
+
+Python SDK 对应写法：
+
+```python
+@workflow(
+    id="customer-onboarding",
+    version="0.1.0",
+    data_policy={
+        "pii_detectors": ["email", "ssn", "phone", "credit_card"],
+        "pii_fields": ["$.email", "$.ssn"],
+        "redaction_mode": "mask",
+        "retain_prompts": False,
+        "retain_outputs": False,
+        "retention_days": 90,
+    },
+)
+class CustomerOnboarding:
+    ...
+```
+
+---
+
+## 数据保留
+
+`retention_days` 为每个审计日志条目设置 `expires_at` 时间戳。运行时的 `purge_expired()` 方法作为后台任务运行，删除过期条目。
+
+额外控制：
+
+- `retain_prompts: false` — 写入前从审计条目中删除模型提示词
+- `retain_outputs: false` — 对模型输出执行相同操作
+
+审计日志保留元数据（节点 ID、令牌数、时间戳），但不保留内容。
+
+---
+
+## OAuth 2.0 委托
+
+RFC 8693 令牌交换。用户令牌被交换为权限范围更窄的代理令牌。
+
+```yaml
+oauth:
+  token_endpoint: "${JAMJET_OAUTH_TOKEN_ENDPOINT}"
+  grant_type: "urn:ietf:params:oauth:grant-type:token-exchange"
+  client_id: "${JAMJET_OAUTH_CLIENT_ID}"
+  client_secret: "${JAMJET_OAUTH_CLIENT_SECRET}"
+  requested_scopes: ["expenses:read", "expenses:write"]
+```
+
+### 权限范围收窄
+
+代理的有效权限范围是其请求的权限与用户拥有的权限的交集。如果交集为空,运行时会返回 `OAuthError::ScopeNarrowingFailed`。
+
+### 按步骤限定权限范围
+
+不同节点可以声明不同的权限范围要求:
+
+```yaml
+nodes:
+  authenticate:
+    oauth_scopes:
+      required_scopes: ["expenses:read"]
+
+  submit-expense:
+    oauth_scopes:
+      required_scopes: ["expenses:read", "expenses:write"]
+```
+
+运行时在每个节点执行前解析权限范围——而不是在工作流启动时解析一次。
+
+### 令牌有效性
+
+`check_token_validity()` 在每次工具和模型调用前运行。过期或已撤销的令牌会产生清晰的错误(`OAuthError::TokenExpired`、`OAuthError::TokenRevoked`)并上报给人类处理。
+
+---
+
+## mTLS 与 A2A 联邦
+
+用于跨组织代理通信:
+
+**传输层:** 双向 TLS。双方均出示证书,双方均进行验证。
+
+```bash
+export JAMJET_TLS_CERT=/etc/certs/agent.pem
+export JAMJET_TLS_KEY=/etc/certs/agent-key.pem
+export JAMJET_TLS_CA_CERT=/etc/certs/ca.pem
+export JAMJET_MTLS_REQUIRED=true
+```
+
+**应用层:** 基于能力限定范围的 Bearer 令牌,配合代理白名单。
+
+```yaml
+federation:
+  require_auth: true
+  public_agent_card: true
+  tokens:
+    - token: "tok-alpha"
+      name: "Research Agent"
+      agent_id: "agent-alpha"
+      scopes: ["read", "write"]
+  allowed_agents: ["agent-alpha"]
+  method_scopes:
+    "tasks/send": ["write"]
+    "tasks/get": ["read"]
+```
+
+`federation_auth_layer` 中间件会验证每个传入的 A2A 请求。未授权的请求会在到达处理程序前收到 JSON-RPC 错误。
+
+---
+
+## 可插拔密钥后端
+
+按优先级顺序链接多个密钥源:
+
+| 后端 | 使用场景 |
+|---------|----------|
+| 环境变量 | 本地开发、CI |
+| 基于文件 | Kubernetes secrets、挂载卷 |
+| HashiCorp Vault | 生产环境密钥管理 |
+| AWS Secrets Manager | AWS 原生部署 |
+
+运行时在启动时按优先级顺序检查后端来解析密钥。
+
+---
+
+## 示例
+
+每个企业功能的可运行示例：
+
+```bash
+git clone https://github.com/jamjet-labs/examples
+cd examples/multi-tenant       # 租户隔离
+cd examples/data-governance    # PII 脱敏 + 保留策略
+cd examples/oauth-delegation   # OAuth 2.0 + 权限范围缩小
+```
+
+> **提示：** 
+阅读完整深度解析：[数据治理和 PII 脱敏](/blog/data-governance-pii-retention/)、[OAuth 委托和联合认证](/blog/oauth-federation-agent-auth/)。

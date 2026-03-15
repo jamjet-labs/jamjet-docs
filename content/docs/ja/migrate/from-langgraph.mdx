@@ -1,0 +1,167 @@
+---
+title: LangGraphからの移行
+description: LangGraphからJamJetへ移行する開発者のための、コードの比較とコンセプトマッピング。
+---
+
+## コンセプトマッピング
+
+| LangGraph | JamJet |
+|---|---|
+| `TypedDict` state | `pydantic.BaseModel` state — 各ステップで検証 |
+| `StateGraph` | `Workflow` |
+| `graph.add_node("name", fn)` | `@workflow.step` デコレーター |
+| `graph.add_conditional_edges(node, router_fn)` | `@workflow.step(next={"target": predicate})` |
+| `graph.add_edge(A, B)` | デフォルトで順次実行; 分岐には `next=` を使用 |
+| `graph.compile()` | `workflow.compile()` → Rustランタイム用のIR |
+| `app.invoke(state)` | `workflow.run_sync(state)` (ローカル) |
+| `app.astream(state)` | `workflow.run(state)` (非同期、ローカル) |
+| `MemorySaver` / `PostgresSaver` | Rustランタイムに組み込み — 自動 |
+| `interrupt_before` (human-in-the-loop) | `type: wait` ノードまたはステップの `human_approval=True` |
+
+## 並列比較
+
+条件分岐を含むマルチステップエージェント — 検索が必要かを判断し、回答を生成します。
+
+#### LangGraph
+
+```python
+from typing import Literal, TypedDict
+from langgraph.graph import END, START, StateGraph
+
+class State(TypedDict):
+    question: str
+    needs_search: bool
+    search_results: list[str]
+    answer: str
+
+def route(state: State) -> State:
+    q = state["question"].lower()
+    needs = any(w in q for w in ["latest", "current", "today"])
+    return {**state, "needs_search": needs}
+
+def search(state: State) -> State:
+    return {**state, "search_results": [f"[result for: {state['question']}]"]}
+
+def answer(state: State) -> State:
+    ctx = "\n".join(state.get("search_results", []))
+    return {**state, "answer": f"Answer: {state['question']}\n{ctx}"}
+
+def should_search(state: State) -> Literal["search", "answer"]:
+    return "search" if state["needs_search"] else "answer"
+
+graph = StateGraph(State)
+graph.add_node("route", route)
+graph.add_node("search", search)
+graph.add_node("answer", answer)
+graph.add_edge(START, "route")
+graph.add_conditional_edges("route", should_search)
+graph.add_edge("search", "answer")
+graph.add_edge("answer", END)
+
+app = graph.compile()
+result = app.invoke({"question": "...", "needs_search": False, "search_results": [], "answer": ""})
+print(result["answer"])
+```
+
+#### JamJet
+
+```python
+from pydantic import BaseModel
+from jamjet import Workflow
+
+class State(BaseModel):
+    question: str
+    needs_search: bool = False
+    search_results: list[str] = []
+    answer: str = ""
+
+wf = Workflow("research-agent")
+
+@wf.state
+class AgentState(State):
+    pass
+
+@wf.step
+async def route(state: AgentState) -> AgentState:
+    q = state.question.lower()
+    needs = any(w in q for w in ["latest", "current", "today"])
+    return state.model_copy(update={"needs_search": needs})
+
+@wf.step(next={"search": lambda s: s.needs_search})
+async def check_route(state: AgentState) -> AgentState:
+    return state  # pure routing step
+
+@wf.step
+async def search(state: AgentState) -> AgentState:
+    results = [f"[result for: {state.question}]"]
+    return state.model_copy(update={"search_results": results})
+
+@wf.step
+async def answer(state: AgentState) -> AgentState:
+    ctx = "\n".join(state.search_results)
+    return state.model_copy(update={"answer": f"Answer: {state.question}\n{ctx}"})
+
+# ローカル実行 — サーバー不要
+
+result = wf.run_sync(AgentState(question="..."))
+print(result.state.answer)
+
+# 本番環境: wf.compile() + jamjet dev
+
+```
+
+## 主な違い
+
+### 状態の検証
+
+LangGraphは`TypedDict`を使用 — 検証なしの辞書アクセス。JamJetはPydanticを使用 — すべてのステップ遷移でフィールドが検証されます。ステップが誤った形式を返した場合、下流でのサイレントなデータ破損ではなく、即座にエラーが発生します。
+
+### ルーティング構文
+
+LangGraphでは`add_conditional_edges`に渡す別個のルーティング関数が必要です。JamJetではステップ上でルーティングをインラインで記述します:
+
+```python
+@wf.step(next={"branch_a": lambda s: s.flag, "branch_b": lambda s: not s.flag})
+async def my_step(state: State) -> State: ...
+```
+
+シンプルな線形ワークフローの場合は何も記述する必要がありません — ステップは宣言順に実行されます。
+
+### 耐久性
+
+LangGraphのチェックポイント機能はオプトインでインプロセス(SQLite、Redis、Postgresアダプタを設定・管理)。JamJetのRustランタイムはデフォルトで耐久性があります — すべてのステップ遷移はイベントソーシングされた書き込みです。12ステップ中の7ステップ目でクラッシュ?ステップ1ではなく、ステップ7から再開します。
+
+### ローカルと本番環境
+
+両方のモードで同じAPIを使用します:
+
+```python
+
+# 開発環境(インプロセス、サーバーなし)
+
+result = wf.run_sync(State(question="..."))
+
+# 本番環境(耐久性のあるRustランタイム)
+
+ir = wf.compile()
+
+# jamjet dev  ← 別のターミナルでランタイムを起動
+
+# jamjet run workflow.yaml --input '{"question": "..."}'
+
+```
+
+## クイックスタート移行
+
+```bash
+pip install jamjet
+```
+
+1. `TypedDict`を`pydantic.BaseModel`に置き換え
+2. `StateGraph` + `add_node` + `add_edge`を`@wf.step`に置き換え
+3. 条件付きルーティングの場合: `@wf.step(next={"target": lambda s: s.flag})`
+4. `app.invoke(state)`を`wf.run_sync(State(...))`に置き換え
+5. 本番環境の準備ができたら: `wf.compile()` → `jamjet dev`
+
+> **ヒント:** 
+実際に動作する完全な例は[jamjet-labs/jamjet-benchmarks](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/migrate/from-langgraph)にあります。

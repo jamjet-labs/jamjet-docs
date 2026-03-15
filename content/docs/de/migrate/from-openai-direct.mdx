@@ -1,0 +1,206 @@
+---
+title: Migration vom OpenAI SDK
+description: Von einer handgeschriebenen Agentic Loop zu einem strukturierten,
+  dauerhaften JamJet-Workflow.
+---
+
+## Warum migrieren
+
+Die rohe OpenAI SDK Agentic Loop funktioniert hervorragend für Demos und Prototypen. In Produktion bauen Sie unweigerlich:
+
+- Manuelle Retry-Logik mit exponentiellem Backoff
+- State-Threading zwischen Tool-Calls und Model-Calls
+- Logging („Was hat Schritt 7 tatsächlich erhalten?“)
+- Restart-Logik, wenn Ihr Prozess während der Ausführung abstürzt
+- Tool-Dispatch-Tabellen, die mit jedem hinzugefügten Tool wachsen
+
+JamJet behandelt all das als Infrastruktur, nicht als Anwendungscode.
+
+## Konzept-Mapping
+
+| Raw OpenAI SDK | JamJet |
+|---|---|
+| `messages`-Liste | `State` (Pydantic-Modell — typisiert, validiert) |
+| `while True:` Agentic Loop | Workflow-Graph — explizit, inspizierbar |
+| Manuelle `tool_calls`-Dispatch | MCP Tool Nodes (`type: tool`) |
+| `client.chat.completions.create(...)` | `type: model` Node (oder `@wf.step` mit Client-Aufruf) |
+| Handgestrickte Retries | `retry: max_attempts: 3, backoff: exponential` |
+| `print()`-Debugging | `jamjet inspect <exec-id>` — vollständige Event-Timeline |
+| Prozess-Neustart bei Crash | Durable Runtime — Fortsetzung ab letztem abgeschlossenen Schritt |
+| Nichts | `jamjet eval run` — CI-Regression bei jedem Commit |
+
+## Beispiel nebeneinander
+
+#### Raw OpenAI
+
+```python
+import json
+from openai import OpenAI
+
+client = OpenAI()
+
+TOOLS = [{
+    "type": "function",
+    "function": {
+        "name": "web_search",
+        "description": "Search the web for current information",
+        "parameters": {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+    },
+}]
+
+def web_search(query: str) -> str:
+    return f"[results for: {query}]"  # replace with real call
+
+def run_agent(question: str) -> str:
+    messages = [
+        {"role": "system", "content": "You are a helpful research assistant."},
+        {"role": "user", "content": question},
+    ]
+    while True:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            tools=TOOLS,
+            tool_choice="auto",
+        )
+        msg = resp.choices[0].message
+        if msg.tool_calls:
+            messages.append(msg)
+            for tc in msg.tool_calls:
+                args = json.loads(tc.function.arguments)
+                result = web_search(args["query"])
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result,
+                })
+        else:
+            return msg.content or ""
+
+print(run_agent("Latest AI agent frameworks?"))
+```
+
+#### JamJet
+
+```python
+from openai import OpenAI
+from pydantic import BaseModel
+from jamjet import Workflow
+
+client = OpenAI()
+
+class State(BaseModel):
+    question: str
+    search_results: str = ""
+    answer: str = ""
+
+wf = Workflow("research-agent")
+
+@wf.state
+class AgentState(State):
+    pass
+
+@wf.step
+async def search(state: AgentState) -> AgentState:
+    # In production: type: tool + MCP server (no dispatch table needed)
+    results = f"[results for: {state.question}]"
+    return state.model_copy(update={"search_results": results})
+
+@wf.step
+async def synthesize(state: AgentState) -> AgentState:
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful research assistant."},
+            {"role": "user", "content": (
+                f"Question: {state.question}\n"
+                f"Search results: {state.search_results}\n"
+                "Provide a comprehensive answer."
+            )},
+        ],
+    )
+    return state.model_copy(update={"answer": resp.choices[0].message.content or ""})
+
+result = wf.run_sync(AgentState(question="Latest AI agent frameworks?"))
+print(result.state.answer)
+print(f"Ran {result.steps_executed} steps in {result.total_duration_us / 1000:.1f}ms")
+```
+
+## Migrationspfad
+
+1. **Heben Sie Ihren State in ein Pydantic-Modell.**
+
+   ```python
+   # Vorher: verstreute Variablen
+   messages = [...]
+   search_results = None
+   final_answer = None
+
+   # Nachher: expliziter, validierter State
+   class State(BaseModel):
+       question: str
+       search_results: str = ""
+       answer: str = ""
+   ```
+
+2. **Teilen Sie Ihre Schleife in benannte Schritte auf.**
+
+   Jede logische "Phase" Ihrer Schleife wird zu einem `@wf.step`. Tool-Dispatch wird zu einem `type: tool` Node.
+
+3. **Behalten Sie Ihre LLM-Aufrufe unverändert bei.**
+
+   Verwenden Sie den OpenAI-Client in Ihrer Step-Funktion genau wie zuvor. Sie können später zu einem YAML-`type: model`-Node wechseln, wenn die Runtime Retries, Cost-Tracking und Observability übernehmen soll.
+
+4. **Starten Sie zunächst lokal.**
+
+   `wf.run_sync(State(...))` funktioniert ohne Server – exakt das gleiche Verhalten wie Ihre Schleife.
+
+5. **Machen Sie es durable, wenn Sie es brauchen.**
+
+   ```bash
+   jamjet dev      # startet die Rust-Runtime
+   jamjet run workflow.yaml --input '{"question": "..."}'
+   ```
+
+   Ihr Workflow ist jetzt crash-safe, observierbar und testbar mit `jamjet eval run`.
+
+## Was Sie kostenlos erhalten
+
+Sobald Sie JamJet nutzen, erhalten Sie dies ohne zusätzlichen Code:
+
+**Retry ohne try/except-Chaos:**
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.question }}"
+    retry:
+      max_attempts: 3
+      backoff: exponential
+      delay_ms: 1000
+```
+
+**Vollständige Ausführungs-Timeline:**
+```bash
+jamjet inspect exec-abc123
+
+# → step: search     200ms  completed
+
+# → step: synthesize 1840ms completed
+
+```
+
+**CI-Regression:**
+```bash
+jamjet eval run evals/dataset.jsonl --workflow research-agent --fail-under 0.9
+```
+
+> **Tipp:** 
+Vollständige funktionierende Beispiele in [jamjet-labs/jamjet-benchmarks](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/migrate/from-openai-direct).

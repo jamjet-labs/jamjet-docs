@@ -1,0 +1,528 @@
+---
+title: REST APIリファレンス
+description: JamJetランタイムの完全なHTTP APIリファレンス — ワークフロー、実行、エージェント、監査、テナント。
+---
+
+# REST APIリファレンス
+
+JamJetランタイムは、デフォルトで`http://localhost:7700`にREST APIを公開します。すべてのリクエストとレスポンスはJSONを使用します。
+
+## 認証
+
+保護されたエンドポイントにはBearerトークンが必要です:
+
+```
+Authorization: Bearer <token>
+```
+
+トークンはCLIまたはオペレーターAPI経由で作成されます。ランタイムはハッシュのみを保存し、平文は作成時に一度だけ返されます。
+
+### ロール
+
+| ロール | 読み取り | 書き込み | 管理者 |
+|------|------|-------|-------|
+| `operator` | 可 | 可 | 可 |
+| `developer` | 可 | 可 | 不可 |
+| `reviewer` | 可 | 不可 | 不可 |
+| `viewer` | 可 | 不可 | 不可 |
+
+書き込み操作(POST、PUT、DELETE)には`developer`または`operator`が必要です。テナント管理には`operator`が必要です。
+
+---
+
+## ヘルスチェック
+
+### `GET /health`
+
+認証は不要です。
+
+```json
+{ "status": "ok", "version": "0.1.1" }
+```
+
+---
+
+## ワークフロー
+
+### `POST /workflows`
+
+ワークフロー定義(コンパイル済みIR)を登録します。
+
+**リクエスト:**
+```json
+{
+  "ir": {
+    "workflow_id": "research-agent",
+    "version": "0.1.0",
+    "state_schema": { ... },
+    "nodes": { ... },
+    "edges": [ ... ]
+  }
+}
+```
+
+**レスポンス** `201 Created`:
+```json
+{
+  "workflow_id": "research-agent",
+  "version": "0.1.0"
+}
+```
+
+> **tip:** 
+ほとんどのユーザーはこのエンドポイントを直接呼び出しません。`jamjet run workflow.yaml`がIRを自動的にコンパイルして送信します。
+
+---
+
+## 実行
+
+### `POST /executions`
+
+新しいワークフロー実行を開始します。
+
+**リクエスト:**
+```json
+{
+  "workflow_id": "research-agent",
+  "workflow_version": "0.1.0",
+  "input": {
+    "query": "Latest AI agent frameworks?"
+  }
+}
+```
+
+`workflow_version`は省略可能で、デフォルトでは最新の登録バージョンになります。
+
+**レスポンス** `201 Created`:
+```json
+{
+  "execution_id": "exec_a1b2c3d4"
+}
+```
+
+**CLI相当:** `jamjet run workflow.yaml --input '{"query": "..."}'`
+
+---
+
+### `GET /executions`
+
+オプションのフィルタリングを使用して実行をリスト表示します。
+
+**クエリパラメータ:**
+
+| パラメータ | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `status` | string | — | フィルタ: `running`, `paused`, `completed`, `failed`, `cancelled` |
+| `limit` | int | 50 | 最大結果数 |
+| `offset` | int | 0 | ページネーションオフセット |
+
+**レスポンス:**
+```json
+{
+  "executions": [
+    {
+      "execution_id": "exec_a1b2c3d4",
+      "workflow_id": "research-agent",
+      "status": "completed",
+      "created_at": "2026-03-12T10:00:00Z",
+      "completed_at": "2026-03-12T10:00:04Z"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /executions/:id`
+
+完全な状態を含む単一の実行を取得します。
+
+**レスポンス:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "workflow_id": "research-agent",
+  "status": "completed",
+  "state": {
+    "query": "Latest AI agent frameworks?",
+    "answer": "..."
+  },
+  "steps_executed": 3,
+  "created_at": "2026-03-12T10:00:00Z",
+  "completed_at": "2026-03-12T10:00:04Z"
+}
+```
+
+**CLI相当コマンド:** `jamjet inspect exec_a1b2c3d4`
+
+---
+
+### `GET /executions/:id/events`
+
+実行のイベントタイムラインを取得します。
+
+**レスポンス:**
+```json
+{
+  "events": [
+    {
+      "sequence": 1,
+      "kind": "WorkflowStarted",
+      "node_id": null,
+      "created_at": "2026-03-12T10:00:00.000Z"
+    },
+    {
+      "sequence": 2,
+      "kind": "NodeCompleted",
+      "node_id": "search",
+      "created_at": "2026-03-12T10:00:00.200Z"
+    },
+    {
+      "sequence": 3,
+      "kind": "NodeCompleted",
+      "node_id": "synthesize",
+      "created_at": "2026-03-12T10:00:02.040Z"
+    }
+  ]
+}
+```
+
+**イベントの種類:** `WorkflowStarted`, `NodeScheduled`, `NodeCompleted`, `ApprovalReceived`, `ExternalEventReceived`, `ToolCallCompleted`, `WorkflowCancelled`
+
+**CLI相当コマンド:** `jamjet events exec_a1b2c3d4`
+
+---
+
+### `POST /executions/:id/cancel`
+
+実行中の実行をキャンセルします。
+
+**レスポンス:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "status": "cancelled"
+}
+```
+
+---
+
+### `POST /executions/:id/approve`
+
+ヒューマン・イン・ザ・ループノードの承認判定を送信します。
+
+**リクエスト:**
+```json
+{
+  "decision": "approved",
+  "node_id": "manager-review",
+  "user_id": "user-42",
+  "comment": "Looks good, proceed.",
+  "state_patch": {
+    "priority": "high"
+  }
+}
+```
+
+`decision`のみ必須です。有効な値: `"approved"`, `"rejected"`
+
+**レスポンス:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "accepted": true
+}
+```
+
+---
+
+### `POST /executions/:id/external-event`
+
+一時停止中の実行を再開するために外部イベントを注入します。
+
+**リクエスト:**
+```json
+{
+  "correlation_key": "payment-received",
+  "payload": {
+    "amount": 500,
+    "currency": "USD"
+  }
+}
+```
+
+**レスポンス:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "accepted": true
+}
+```
+
+---
+
+## エージェント
+
+### `POST /agents`
+
+エージェントカードを使用してエージェントを登録します。
+
+**リクエスト:**
+```json
+{
+  "id": "research-agent",
+  "uri": "http://localhost:7701",
+  "name": "Research Agent",
+  "description": "Searches the web and synthesizes reports.",
+  "version": "0.1.0",
+  "capabilities": {
+    "skills": [
+      {
+        "name": "research",
+        "description": "Deep research on any topic",
+        "input_schema": { "type": "object", "properties": { "query": { "type": "string" } } },
+        "output_schema": { "type": "object", "properties": { "report": { "type": "string" } } }
+      }
+    ],
+    "protocols": ["a2a"],
+    "tools_provided": ["web_search"],
+    "tools_consumed": []
+  },
+  "autonomy": "guided",
+  "auth": { "type": "bearer_token" }
+}
+```
+
+**レスポンス** `201 Created`:
+```json
+{
+  "agent_id": "research-agent"
+}
+```
+
+---
+
+### `GET /agents`
+
+オプションのフィルタリングを使用してエージェントをリストします。
+
+**クエリパラメータ:**
+
+| パラメータ | 型 | 説明 |
+|-----------|------|-------------|
+| `status` | string | `registered`, `active`, `paused`, `deactivated` |
+| `skill` | string | スキル名でフィルタリング |
+| `protocol` | string | `mcp`, `a2a`, `anp` |
+
+**CLIコマンド:** `jamjet agents list`
+
+---
+
+### `GET /agents/:id`
+
+エージェントカードを含む完全なエージェント詳細を取得します。
+
+**CLIコマンド:** `jamjet agents inspect <agent_id>`
+
+---
+
+### `POST /agents/discover`
+
+URLでリモートエージェントを検出します。`/.well-known/agent.json`を取得してエージェントを登録します。
+
+**リクエスト:**
+```json
+{
+  "url": "https://remote-agent.example.com"
+}
+```
+
+**レスポンス** `201 Created`: 完全なエージェントオブジェクト。
+
+**CLIコマンド:** `jamjet agents discover <url>`
+
+---
+
+### `POST /agents/:id/activate`
+
+登録済みエージェントをアクティベートします。
+
+**レスポンス:**
+```json
+{
+  "agent_id": "research-agent",
+  "status": "active"
+}
+```
+
+---
+
+### `POST /agents/:id/deactivate`
+
+エージェントを非アクティブ化します。
+
+---
+
+### `POST /agents/:id/heartbeat`
+
+エージェントの生存確認ハートビート。
+
+**レスポンス:**
+```json
+{
+  "agent_id": "research-agent",
+  "ok": true
+}
+```
+
+---
+
+## 監査ログ
+
+### `GET /audit`
+
+不変の監査ログを照会します。
+
+**クエリパラメータ:**
+
+| パラメータ | 型 | デフォルト | 説明 |
+|-----------|------|---------|-------------|
+| `execution_id` | string | — | 実行IDでフィルタリング |
+| `actor_id` | string | — | アクター/ユーザーでフィルタリング |
+| `event_type` | string | — | 操作タイプでフィルタリング |
+| `limit` | int | 50 | 最大結果数(最大200) |
+| `offset` | int | 0 | ページネーションオフセット |
+
+**レスポンス:**
+```json
+{
+  "items": [
+    {
+      "id": "audit_001",
+      "execution_id": "exec_a1b2c3d4",
+      "event_type": "node_completed",
+      "actor_id": "agent:research-agent",
+      "created_at": "2026-03-12T10:00:02Z"
+    }
+  ],
+  "total": 42,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+---
+
+## テナント
+
+テナント管理には`operator`ロールが必要です。
+
+### `POST /tenants`
+
+新しいテナントを作成します。
+
+**リクエスト:**
+```json
+{
+  "id": "acme",
+  "name": "Acme Corp"
+}
+```
+
+**レスポンス** `201 Created`:
+```json
+{
+  "tenant_id": "acme"
+}
+```
+
+---
+
+### `GET /tenants`
+
+すべてのテナントをリストします。
+
+---
+
+### `GET /tenants/:id`
+
+テナントの詳細を取得します。
+
+---
+
+### `PUT /tenants/:id`
+
+テナント設定を更新します。
+
+**リクエスト:**
+```json
+{
+  "name": "Acme Corporation",
+  "status": "active",
+  "policy": { ... },
+  "limits": { ... }
+}
+```
+
+すべてのフィールドはオプションです。
+
+---
+
+## ワーカー
+
+### `GET /workers`
+
+アクティブなランタイムワーカーを一覧表示します。
+
+---
+
+## フェデレーション
+
+### `GET /.well-known/did.json`
+
+A2Aフェデレーション用のW3C DIDドキュメント。認証不要。アクティブなエージェント用のサービスエンドポイントを含むランタイムの分散識別子を返します。
+
+---
+
+## エラーレスポンス
+
+すべてのエラーは適切なHTTPステータスコードとともにJSONを返します：
+
+| ステータス | 意味 | 例 |
+|--------|---------|---------|
+| `400` | 不正なリクエスト | `{ "error": "bad request: ir.workflow_id is required" }` |
+| `401` | 認証されていません | `{ "error": "invalid or expired token" }` |
+| `403` | 禁止されています | `{ "error": "insufficient role — developer or operator required" }` |
+| `404` | 見つかりません | `{ "error": "not found: execution exec_abc123" }` |
+| `500` | 内部エラー | `{ "error": "internal error: ..." }` |
+
+---
+
+## 設定
+
+| 環境変数 | デフォルト | 説明 |
+|---------------------|---------|-------------|
+| `JAMJET_BIND` | `127.0.0.1` | バインドアドレス |
+| `JAMJET_PORT` | `7700` | HTTPポート |
+| `JAMJET_PUBLIC_URL` | `http://{bind}:{port}` | フェデレーション用のパブリックURL |
+| `DATABASE_URL` | `.jamjet/runtime.db` | SQLiteまたはPostgreSQLの接続文字列 |
+| `JAMJET_TOKEN` | — | デフォルトのAPIトークン（クライアント用） |
+| `RUST_LOG` | `info` | ログレベル |
+
+---
+
+## CLIからAPIへのマッピング
+
+| CLIコマンド | APIエンドポイント |
+|-------------|-------------|
+| `jamjet run <wf> --input <json>` | `POST /executions` |
+| `jamjet inspect <exec_id>` | `GET /executions/:id` + `GET /executions/:id/events` |
+| `jamjet events <exec_id>` | `GET /executions/:id/events` |
+| `jamjet agents list` | `GET /agents` |
+| `jamjet agents inspect <id>` | `GET /agents/:id` |
+| `jamjet agents activate <id>` | `POST /agents/:id/activate` |
+| `jamjet agents deactivate <id>` | `POST /agents/:id/deactivate` |
+| `jamjet agents discover <url>` | `POST /agents/discover` |
+
+> **注：** 
+`jamjet dev`はランタイムサーバーをローカルで起動します。`jamjet validate`と`jamjet eval run`はクライアント側の操作であり、APIを呼び出しません。

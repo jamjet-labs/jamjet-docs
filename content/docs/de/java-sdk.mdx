@@ -1,0 +1,375 @@
+---
+title: Java SDK
+description: Schreiben Sie JamJet-Workflows und Agents in Java mit Builders,
+  Records und der @Tool-Annotation.
+---
+
+# Java SDK
+
+Das JamJet Java SDK ermöglicht es dir, Workflows, Agents und Tools in Java zu schreiben. Es kompiliert zur selben kanonischen IR und läuft auf derselben Rust-Runtime wie das Python SDK.
+
+## Installation
+
+Erfordert **Java 21+** (Virtual Threads).
+
+```xml
+<dependency>
+    <groupId>dev.jamjet</groupId>
+    <artifactId>jamjet-sdk</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
+## Schnellstart
+
+```java
+import dev.jamjet.agent.Agent;
+import dev.jamjet.ir.IrValidator;
+
+var agent = Agent.builder("hello-agent")
+    .model("claude-haiku-4-5-20251001")
+    .instructions("Beantworte Fragen klar und prägnant.")
+    .strategy("react")
+    .maxIterations(1)
+    .build();
+
+var ir = agent.compile();
+IrValidator.validateOrThrow(ir);
+
+var result = agent.run("Was ist JamJet?");
+System.out.println(result.output());
+```
+
+---
+
+## Workflows
+
+Erstelle gerichtete azyklische Workflows mit typisiertem State. State ist ein Java-Record – unveränderlich, validiert, serialisierbar.
+
+```java
+import dev.jamjet.workflow.Workflow;
+
+record ResearchState(String query, String results, String answer) {}
+
+var wf = Workflow.builder("research-flow")
+    .version("0.1.0")
+    .state(ResearchState.class)
+    .step("search", state ->
+        new ResearchState(state.query(), "[Suchergebnisse]", state.answer()))
+    .step("synthesize", state ->
+        new ResearchState(state.query(), state.results(), "Finale Antwort: ..."))
+    .build();
+
+var result = wf.run(new ResearchState("Neueste AI-Frameworks?", "", ""));
+System.out.println(result.state().answer());
+System.out.printf("Führte %d Schritte in %.1fms aus%n",
+    result.stepsExecuted(), result.totalDurationUs() / 1000.0);
+```
+
+### Bedingte Routing-Logik
+
+```java
+import dev.jamjet.workflow.Step;
+
+var route = Step.builder("route")
+    .handler(state -> state)
+    .when("approved", state -> state.approved())
+    .when("rejected", state -> !state.approved())
+    .defaultNext("escalate")
+    .timeout("30s")
+    .retryPolicy("exponential")
+    .build();
+```
+
+### Kompilierung zu IR
+
+Jeder Workflow kompiliert zu kanonischer IR für die Übergabe an die Runtime:
+
+```java
+var ir = wf.compile();
+System.out.println(ir.toJson());
+
+// Vor der Übergabe validieren
+var errors = IrValidator.validate(ir);
+errors.forEach(System.err::println);
+```
+
+---
+
+## Agents
+
+Agents kombinieren ein Modell, Tools und eine Reasoning-Strategie. Drei integrierte Strategien:
+
+| Strategie | Verhalten |
+|----------|----------|
+| `react` | Gedanke → Tool-Nutzung → Beobachtungsschleife |
+| `plan-and-execute` | Planen → Schritte ausführen → Synthetisieren |
+| `critic` | Entwurf → Kritik → Überarbeitungsschleife |
+
+```java
+import dev.jamjet.agent.Agent;
+
+var agent = Agent.builder("research-agent")
+    .model("claude-sonnet-4-6")
+    .tools(WebSearch.class, FetchPage.class)
+    .instructions("Du bist ein gründlicher Researcher.")
+    .strategy("plan-and-execute")
+    .maxIterations(8)
+    .maxCostUsd(0.50)
+    .timeoutSeconds(300)
+    .build();
+
+var result = agent.run("Vergleiche JamJet und LangGraph");
+System.out.println(result.output());
+System.out.printf("Dauer: %.1fms%n", result.durationUs() / 1000.0);
+```
+
+### Annotationsbasierte Agents
+
+Für einfache Agents verwenden Sie die `@Task`-Annotation auf einem Interface:
+
+```java
+import dev.jamjet.agent.JamjetAgent;
+import dev.jamjet.agent.Task;
+
+@Task(
+    model = "gpt-4o",
+    tools = { WebSearch.class },
+    strategy = "react",
+    maxIterations = 5,
+    instructions = "You are helpful.",
+    maxCostUsd = 1.0
+)
+interface ResearchTask {
+    String research(String topic);
+}
+
+// Direkt ausführen
+String result = JamjetAgent.run(ResearchTask.class, "Was ist JamJet?");
+
+// Oder einen wiederverwendbaren Proxy erhalten
+ResearchTask task = JamjetAgent.proxy(ResearchTask.class);
+String answer = task.research("Was ist JamJet?");
+```
+
+---
+
+## Tools
+
+Tools sind Java-Records, die mit `@Tool` annotiert sind und `ToolCall<T>` implementieren. Das SDK generiert automatisch JSON Schema aus den Record-Komponententypen.
+
+```java
+import dev.jamjet.tool.Tool;
+import dev.jamjet.tool.ToolCall;
+
+@Tool(description = "Search the web for information")
+record WebSearch(String query) implements ToolCall<String> {
+    @Override
+    public String execute() {
+        // Mit echter Implementierung ersetzen
+        return "Ergebnisse für: " + query;
+    }
+}
+
+@Tool(description = "Fetch page content from a URL")
+record FetchPage(String url) implements ToolCall<String> {
+    @Override
+    public String execute() {
+        return "Seiteninhalt für " + url;
+    }
+}
+```
+
+### Tool-Registry
+
+```java
+import dev.jamjet.tool.ToolRegistry;
+
+// Global registrieren
+ToolRegistry.global()
+    .register(WebSearch.class)
+    .register(FetchPage.class);
+
+// Abfragen
+ToolRegistry.global().names();          // ["web_search", "fetch_page"]
+ToolRegistry.global().toOpenAiFormat(); // OpenAI Function-Calling-Schema
+```
+
+Tool-Namen werden vom Record-Klassennamen abgeleitet (`WebSearch` → `web_search`).
+
+---
+
+## Runtime-Client
+
+Der `JamjetClient` ist ein blockierender HTTP-Client (verwendet Virtual Threads) für die JamJet-Runtime-API.
+
+```java
+import dev.jamjet.JamjetClient;
+import dev.jamjet.client.ClientConfig;
+
+var client = new JamjetClient(
+    ClientConfig.builder()
+        .baseUrl("http://localhost:7700")
+        .apiToken("YOUR_TOKEN")  // oder JAMJET_TOKEN Umgebungsvariable
+        .timeoutSeconds(30)
+        .build()
+);
+```
+
+### Workflow-Lebenszyklus
+
+```java
+// Workflow registrieren
+client.createWorkflow(ir.toMap());
+
+// Ausführung starten
+var execId = client.startExecution("research-flow", Map.of("query", "..."));
+
+// Status abfragen
+var status = client.getExecution(execId);
+System.out.println(status.get("status")); // running | completed | failed
+
+// Event-Timeline abrufen
+var events = client.getEvents(execId);
+```
+
+### Human-in-the-loop
+
+```java
+// Approve a paused execution
+client.approve(execId, "approved", "Looks good", Map.of("priority", "high"));
+
+// Send external event to wake a waiting execution
+client.sendExternalEvent(execId, "payment-received", Map.of("amount", 500));
+```
+
+### Agent-Verwaltung
+
+```java
+// Register agent
+client.registerAgent(agentCard);
+
+// Discovery
+client.discoverAgent("https://remote-agent.example.com");
+
+// Lifecycle
+client.activateAgent(agentId);
+client.deactivateAgent(agentId);
+
+// List with filters
+client.listAgents(); // all agents
+```
+
+---
+
+## State-Management
+
+State ist ein Java Record. Steps erhalten den aktuellen State und geben eine neue Instanz zurück — State ist immer unveränderlich.
+
+```java
+record OrderState(
+    String orderId,
+    double amount,
+    boolean approved,
+    String result
+) {}
+
+// Steps return new state instances
+.step("validate", state ->
+    new OrderState(state.orderId(), state.amount(), state.amount() < 10000, state.result()))
+```
+
+> **tip:** 
+Java Records bieten dir Unveränderlichkeit, equals/hashCode und toString kostenlos. Das SDK generiert automatisch JSON Schema aus Record-Komponenten-Typen für IR-Validierung.
+
+---
+
+## IR-Kompilierung und Validierung
+
+Sowohl Workflows als auch Agents kompilieren zu `WorkflowIr` — der kanonischen Zwischendarstellung, die mit dem Python SDK und YAML-Workflows geteilt wird.
+
+```java
+import dev.jamjet.ir.IrCompiler;
+import dev.jamjet.ir.IrValidator;
+
+// Compile
+var ir = IrCompiler.compileWorkflow(wf);
+// or: var ir = IrCompiler.compileAgent(agent);
+
+// Inspect
+System.out.println(ir.id());          // workflow name
+System.out.println(ir.version());     // version string
+System.out.println(ir.nodes());       // node definitions
+System.out.println(ir.toJson());      // canonical JSON
+
+// Validate
+var errors = IrValidator.validate(ir);
+if (!errors.isEmpty()) {
+    errors.forEach(System.err::println);
+    System.exit(1);
+}
+
+// Or throw on first error
+IrValidator.validateOrThrow(ir);
+```
+
+---
+
+## Evaluation
+
+Teste Agents und Workflows gegen Datensätze mit austauschbaren Scorern:
+
+```java
+import dev.jamjet.eval.EvalRunner;
+import dev.jamjet.eval.Scorer;
+
+var results = EvalRunner.builder()
+    .dataset(dataset)
+    .agent(myAgent)
+    .scorers(new Scorer.ExactMatchScorer("expected"))
+    .parallelism(4)
+    .failBelow(0.8)  // fail if mean score < 0.8
+    .build()
+    .run();
+```
+
+---
+
+## Python vs. Java Vergleich
+
+| Feature | Java SDK | Python SDK |
+|---------|----------|-----------|
+| Workflow-Definition | Fluent Builder + Records | Decorators + TypedDict |
+| Tool-Definition | `@Tool` Record + `ToolCall<T>` | `@tool` Decorator / MCP |
+| Agent-Definition | `Agent.builder()` | `@agent` Decorator |
+| State | Unveränderliche Java Records | TypedDict / Pydantic |
+| HTTP-Client | Blockierend (virtuelle Threads) | Asynchron (asyncio) |
+| IR-Kompilierung | `workflow.compile()` | `@workflow` Decorator |
+| Mindestversion | Java 21 | Python 3.10 |
+
+Beide kompilieren zu **identischer kanonischer IR** und laufen auf derselben Rust-Runtime.
+
+---
+
+## Beispiele
+
+Funktionierende Beispiele im [Examples-Repository](https://github.com/jamjet-labs/examples):
+
+| Beispiel | Was es zeigt |
+|---------|---------------------|
+| `java-hello-agent` | Minimaler Agent mit einem einzigen Modellaufruf |
+| `java-research-agent` | Tools + Plan-and-Execute-Strategie |
+| `java-support-bot` | Mehrstufiger Workflow mit bedingtem Routing |
+| `java-approval-workflow` | Runtime-Integration + Human-in-the-Loop |
+| `java-multi-tenant` | Mandantengetrennte Workflow-Ausführung |
+| `java-data-governance` | PII-Erkennung und Redaktionsmuster |
+| `java-oauth-agent` | OAuth-Delegation + Scope-Narrowing |
+
+```bash
+git clone https://github.com/jamjet-labs/examples
+cd examples/java-hello-agent
+mvn compile exec:java
+```
+
+> **Tipp:** 
+Jedes Java-Beispiel hat ein Python/YAML-Äquivalent im selben Repository.

@@ -1,0 +1,119 @@
+---
+title: Kernkonzepte
+description: Verstehen Sie Agents, Nodes, State und Durability in JamJet.
+---
+
+# Kernkonzepte
+
+JamJet ist eine **agenten-native Runtime** – speziell entwickelt für KI-Workflows, die Ausfälle überstehen, über Worker skalieren und sich mit anderen Agenten kombinieren lassen. Diese Seite behandelt die zentralen Primitives.
+
+## Workflows
+
+Ein **Workflow** ist ein gerichteter Graph aus Nodes. Er besitzt:
+
+- Eine eindeutige `id` und `version`
+- Ein `state_schema` – die typisierte Form der Daten, die durch den Graphen fließen
+- Einen `start`-Node, wo die Ausführung beginnt
+- Einen oder mehrere `end`-Nodes
+
+```yaml
+workflow:
+  id: my-agent
+  version: 0.1.0
+  state_schema:
+    query: str
+    answer: str
+    confidence: float
+  start: think
+```
+
+Workflows werden vor der Ausführung in einen **IR (Intermediate Representation)** Graphen kompiliert. Der IR ist das, was der Rust-Scheduler tatsächlich ausführt – YAML und Python sind lediglich Authoring-Oberflächen.
+
+## Nodes
+
+Nodes sind die Recheneinheiten eines Workflows. Jeder Node hat einen `type`, der bestimmt, was er tut:
+
+| Node-Typ | Was er tut |
+|-----------|-------------|
+| `model`   | Ruft ein LLM auf (Claude, GPT-4, Gemini, etc.) |
+| `tool`    | Ruft ein externes Tool via MCP auf |
+| `http`    | Führt eine HTTP-Anfrage aus |
+| `branch`  | Leitet die Ausführung basierend auf einer Bedingung weiter |
+| `parallel` | Verzweigt gleichzeitig in mehrere Branches |
+| `wait`    | Pausiert bis zu einem externen Event |
+| `eval`    | Bewertet die Ausgabequalität (Rubrik, Assertion, Latenz) |
+| `end`     | Beendet den Workflow |
+
+Jeder Node liest aus dem **State** und schreibt in ihn.
+
+## State
+
+State ist der geteilte Datenspeicher für eine Workflow-Ausführung. Er bleibt über Nodes hinweg und über Neustarts hinweg bestehen.
+
+```yaml
+state_schema:
+  query: str        # Eingabe vom Benutzer
+  search_results: list[str]  # Zwischendaten
+  answer: str       # finale Ausgabe
+```
+
+State ist **typisiert** – das Schema wird zur Kompilierzeit validiert. Zur Laufzeit kann jeder Node jeden State-Key lesen und in seinen `output_key` schreiben.
+
+> **Tipp:** 
+State wird in der Datenbank gespeichert, nicht im Arbeitsspeicher. Falls die Runtime mitten in der Ausführung abstürzt, wird der State vollständig wiederhergestellt und die Ausführung vom letzten Checkpoint aus fortgesetzt.
+
+## Ausführungen
+
+Eine **Ausführung** ist ein einzelner Durchlauf eines Workflows mit einer spezifischen Eingabe. Jede Ausführung erhält eine eindeutige ID (z. B. `exec_01JM4X8NKWP2`).
+
+Ausführungen sind:
+- **Dauerhaft** — in der Datenbank gespeichert, überstehen Neustarts
+- **Beobachtbar** — jede Zustandsänderung wird als Ereignis aufgezeichnet
+- **Inspizierbar** — vollständigen Zustand, Ereignis-Zeitachse und Token-Verbrauch mit `jamjet inspect` einsehen
+
+## Dauerhaftigkeit
+
+Dauerhaftigkeit ist JamJets zentrale Garantie: **Ausführungen werden immer abgeschlossen, selbst wenn die Runtime abstürzt**.
+
+Das funktioniert durch **Event Sourcing**:
+1. Bevor jeder Node läuft, wird ein `node_started`-Ereignis in die Datenbank geschrieben
+2. Nach Abschluss jedes Nodes wird ein `node_completed`-Ereignis mit dem State-Patch geschrieben
+3. Bei einem Neustart rekonstruiert der Scheduler aus dem Event-Log exakt die Stelle, an der die Ausführung gestoppt wurde
+4. Die Ausführung wird ab dem ersten unvollständigen Node fortgesetzt
+
+Keine Arbeit geht verloren. Kein Node wird zweimal ausgeführt.
+
+> **Hinweis:** 
+Das unterscheidet sich von "At-least-once"-Zustellung. JamJets Scheduler verwendet verteilte Locks, um sicherzustellen, dass jeder Node **genau einmal** läuft, selbst bei mehreren Worker-Prozessen.
+
+## Agents
+
+Ein **Agent** ist ein Workflow, der:
+- Von anderen Agents entdeckt und aufgerufen werden kann (über Agent Cards)
+- Aufgaben an andere Agents delegieren kann (über A2A-Protokoll)
+- Langlebigen Zustand über mehrere Benutzerinteraktionen hinweg beibehalten kann
+
+Jeder Agent hat eine **Agent Card** — eine maschinenlesbare Beschreibung seiner Fähigkeiten, Endpunkte und Input/Output-Schemas. Das ist die Grundlage für das [A2A-Protokoll](/a2a).
+
+## Der Scheduler
+
+Der JamJet-Scheduler ist in Rust geschrieben und läuft als Teil von `jamjet dev` (lokal) oder der gehosteten Runtime (in Produktion).
+
+Er:
+1. Pollt die Execution-Queue nach anstehender Arbeit
+2. Erwirbt einen Lock auf die Ausführung, um doppelte Durchläufe zu verhindern
+3. Verteilt Nodes an Worker-Threads
+4. Schreibt Checkpoints nach jedem Node
+
+Der Scheduler ist der Grund, warum JamJet-Workflows standardmäßig dauerhaft sind — er vergisst niemals eine Ausführung.
+
+## Lokal vs. Produktion
+
+| Feature | `jamjet dev` (lokal) | Gehostet / selbst gehostet |
+|---------|---------------------|---------------------|
+| Speicher | SQLite | PostgreSQL |
+| Workers | Einzelner Prozess | Verteilt |
+| MCP-Server | Lokales stdio | Remote SSE/HTTP |
+| Auth | Keine | mTLS / API-Schlüssel |
+
+Das Programmiermodell ist identisch — derselbe YAML- oder Python-Code läuft unverändert in beiden Umgebungen.

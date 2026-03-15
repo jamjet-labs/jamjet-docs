@@ -1,0 +1,189 @@
+---
+title: Enterprise Security
+description: Mandantenisolierung, PII-Redaktion, OAuth-Delegation,
+  mTLS-Föderation und Datenaufbewahrungsrichtlinien in JamJet.
+---
+
+# Enterprise-Sicherheit
+
+Die Enterprise-Funktionen von JamJet werden auf der Rust-Runtime-Ebene erzwungen – nicht durch Konventionen, nicht durch Middleware, die man vielleicht vergisst hinzuzufügen.
+
+## Mandantenisolierung
+
+Partitionieren Sie den gesamten Speicher nach Mandanten-ID. Workflow-Definitionen, Ausführungsstatus, Event-Logs, Audit-Trails und Snapshots sind pro Mandant eingegrenzt.
+
+```bash
+
+# Gleicher Workflow, verschiedene Mandanten – vollständig isoliert
+
+jamjet run workflow.yaml \
+  --input '{"invoice_id": "INV-001", "amount": 2500}' \
+  --tenant acme
+
+jamjet run workflow.yaml \
+  --input '{"invoice_id": "INV-042", "amount": 75000}' \
+  --tenant globex
+```
+
+Das `TenantScopedSqliteBackend` der Runtime umschließt jede Speicherabfrage mit `WHERE tenant_id = ?`. Die Workflow-Definitionstabelle verwendet einen zusammengesetzten Primärschlüssel `(tenant_id, workflow_id, version)`.
+
+---
+
+## PII-Schwärzung
+
+Deklarieren Sie eine `data_policy` in Ihrem Workflow. Die Runtime wendet sie an, bevor ein Status das Audit-Log erreicht.
+
+```yaml
+data_policy:
+  pii_detectors: [email, ssn, phone, credit_card, ip_address]
+  pii_fields: ["$.email", "$.ssn", "$.credit_card"]
+  redaction_mode: mask        # oder: hash, remove
+  retain_prompts: false       # Prompts aus Audit-Log entfernen
+  retain_outputs: false       # Modell-Outputs aus Audit-Log entfernen
+  retention_days: 90          # automatisches Löschen nach 90 Tagen
+```
+
+Drei Schwärzungsmodi:
+
+| Modus | Verhalten | Beispiel |
+|------|----------|---------|
+| `mask` | Teilweise sichtbar für Debugging | `***-**-6789` |
+| `hash` | SHA-256-Pseudonymisierung für Analysen | `a3f2c91b...e71b` |
+| `remove` | Vollständige Feldlöschung | *(Feld gelöscht)* |
+
+Python-SDK-Äquivalent:
+
+```python
+@workflow(
+    id="customer-onboarding",
+    version="0.1.0",
+    data_policy={
+        "pii_detectors": ["email", "ssn", "phone", "credit_card"],
+        "pii_fields": ["$.email", "$.ssn"],
+        "redaction_mode": "mask",
+        "retain_prompts": False,
+        "retain_outputs": False,
+        "retention_days": 90,
+    },
+)
+class CustomerOnboarding:
+    ...
+```
+
+---
+
+## Datenaufbewahrung
+
+`retention_days` setzt einen `expires_at`-Zeitstempel auf jeden Audit-Log-Eintrag. Die `purge_expired()`-Methode der Runtime läuft als Hintergrundaufgabe und löscht Einträge nach Ablauf ihres Verfallsdatums.
+
+Zusätzliche Kontrollen:
+
+- `retain_prompts: false` – entfernt Modell-Prompts aus Audit-Einträgen vor dem Schreiben
+- `retain_outputs: false` – dasselbe für Modell-Outputs
+
+Das Audit-Log behält Metadaten (Node-ID, Token-Anzahl, Zeitstempel) ohne den Inhalt bei.
+
+---
+
+## OAuth 2.0-Delegation
+
+RFC 8693 Token-Austausch. Das Token des Benutzers wird gegen ein eng begrenztes Agent-Token ausgetauscht.
+
+```yaml
+oauth:
+  token_endpoint: "${JAMJET_OAUTH_TOKEN_ENDPOINT}"
+  grant_type: "urn:ietf:params:oauth:grant-type:token-exchange"
+  client_id: "${JAMJET_OAUTH_CLIENT_ID}"
+  client_secret: "${JAMJET_OAUTH_CLIENT_SECRET}"
+  requested_scopes: ["expenses:read", "expenses:write"]
+```
+
+### Scope-Eingrenzung
+
+Die effektiven Scopes des Agents sind die Schnittmenge dessen, was er anfordert, und dessen, was der Benutzer hat. Ist die Schnittmenge leer, gibt die Runtime `OAuthError::ScopeNarrowingFailed` zurück.
+
+### Scoping pro Schritt
+
+Unterschiedliche Knoten können unterschiedliche Scope-Anforderungen deklarieren:
+
+```yaml
+nodes:
+  authenticate:
+    oauth_scopes:
+      required_scopes: ["expenses:read"]
+
+  submit-expense:
+    oauth_scopes:
+      required_scopes: ["expenses:read", "expenses:write"]
+```
+
+Die Runtime löst Scopes vor der Ausführung jedes Knotens auf — nicht einmalig beim Workflow-Start.
+
+### Token-Gültigkeit
+
+`check_token_validity()` wird vor jedem Tool- und Modell-Aufruf ausgeführt. Abgelaufene oder widerrufene Token erzeugen saubere Fehler (`OAuthError::TokenExpired`, `OAuthError::TokenRevoked`) und eskalieren an einen Menschen.
+
+---
+
+## mTLS und A2A-Federation
+
+Für agentenübergreifende Kommunikation zwischen Organisationen:
+
+**Transport:** Mutual TLS. Beide Seiten präsentieren Zertifikate, beide Seiten verifizieren.
+
+```bash
+export JAMJET_TLS_CERT=/etc/certs/agent.pem
+export JAMJET_TLS_KEY=/etc/certs/agent-key.pem
+export JAMJET_TLS_CA_CERT=/etc/certs/ca.pem
+export JAMJET_MTLS_REQUIRED=true
+```
+
+**Anwendungsebene:** Capability-basierte Bearer-Token mit Agent-Allowlists.
+
+```yaml
+federation:
+  require_auth: true
+  public_agent_card: true
+  tokens:
+    - token: "tok-alpha"
+      name: "Research Agent"
+      agent_id: "agent-alpha"
+      scopes: ["read", "write"]
+  allowed_agents: ["agent-alpha"]
+  method_scopes:
+    "tasks/send": ["write"]
+    "tasks/get": ["read"]
+```
+
+Die `federation_auth_layer`-Middleware validiert jede eingehende A2A-Anfrage. Unautorisierte Requests erhalten einen JSON-RPC-Fehler, bevor sie den Handler erreichen.
+
+---
+
+## Pluggable Secret Backends
+
+Mehrere Secret-Quellen mit Prioritätsreihenfolge verketten:
+
+| Backend | Anwendungsfall |
+|---------|----------------|
+| Umgebungsvariablen | Lokale Entwicklung, CI |
+| Dateibasiert | Kubernetes Secrets, gemountete Volumes |
+| HashiCorp Vault | Produktions-Secret-Management |
+| AWS Secrets Manager | AWS-native Deployments |
+
+Die Runtime löst Secrets beim Start auf, indem sie die Backends in Prioritätsreihenfolge prüft.
+
+---
+
+## Beispiele
+
+Ausführbare Beispiele für jede Enterprise-Funktion:
+
+```bash
+git clone https://github.com/jamjet-labs/examples
+cd examples/multi-tenant       # Mandantenisolierung
+cd examples/data-governance    # PII-Redaktion + Aufbewahrung
+cd examples/oauth-delegation   # OAuth 2.0 + Scope-Einschränkung
+```
+
+> **tip:** 
+Lesen Sie die vollständigen Detailanalysen: [Data Governance und PII-Redaktion](/blog/data-governance-pii-retention/), [OAuth-Delegation und föderierte Authentifizierung](/blog/oauth-federation-agent-auth/).

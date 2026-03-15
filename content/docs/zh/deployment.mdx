@@ -1,0 +1,249 @@
+---
+title: 部署
+description: 将 JamJet 部署到生产环境 — 使用 PostgreSQL 自托管或使用托管服务。
+---
+
+# 部署
+
+JamJet 在本地使用 SQLite，在生产环境使用 PostgreSQL。相同的工作流代码在两种环境中都能不经修改地运行。
+
+## 配置
+
+生产环境配置位于 `jamjet.toml`：
+
+```toml
+[runtime]
+port = 7700
+workers = 8              # concurrent worker threads
+
+[database]
+url = "postgresql://user:password@db:5432/jamjet"
+pool_size = 10
+max_overflow = 20
+
+[telemetry]
+enabled = true
+service_name = "my-agent"
+
+[telemetry.otlp]
+endpoint = "http://otel-collector:4317"
+
+[auth]
+enabled = true
+method = "api_key"       # api_key | mtls | jwt
+```
+
+所有值都可以通过环境变量覆盖：
+
+```bash
+JAMJET_DATABASE_URL=postgresql://...
+JAMJET_RUNTIME_PORT=7700
+JAMJET_RUNTIME_WORKERS=16
+JAMJET_AUTH_API_KEY=sk-...
+```
+
+## Docker
+
+```dockerfile
+FROM python:3.11-slim
+
+RUN pip install jamjet
+
+COPY jamjet.toml .
+COPY workflow.yaml .
+
+EXPOSE 7700
+
+CMD ["jamjet", "serve"]
+```
+
+```bash
+docker build -t my-agent .
+docker run -p 7700:7700 \
+  -e JAMJET_DATABASE_URL=postgresql://... \
+  -e ANTHROPIC_API_KEY=YOUR_ANTHROPIC_API_KEY \
+  my-agent
+```
+
+## Docker Compose（完整堆栈）
+
+```yaml
+version: "3.9"
+
+services:
+  runtime:
+    image: my-agent
+    ports:
+      - "7700:7700"
+    environment:
+      JAMJET_DATABASE_URL: postgresql://jamjet:secret@db:5432/jamjet
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jamjet
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: jamjet
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jamjet"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - ./otel-config.yaml:/etc/otel/config.yaml
+    command: ["--config=/etc/otel/config.yaml"]
+
+volumes:
+  pg_data:
+```
+
+## Kubernetes
+
+1. **为凭证创建 Secret：**
+
+   ```bash
+   kubectl create secret generic jamjet-secrets \
+     --from-literal=database-url="postgresql://..." \
+    --from-literal=anthropic-api-key="YOUR_ANTHROPIC_API_KEY"
+   ```
+
+2. **部署运行时：**
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: jamjet-runtime
+   spec:
+     replicas: 3
+     selector:
+       matchLabels:
+         app: jamjet-runtime
+     template:
+       metadata:
+         labels:
+           app: jamjet-runtime
+       spec:
+         containers:
+           - name: runtime
+             image: my-agent:latest
+             ports:
+               - containerPort: 7700
+             env:
+               - name: JAMJET_DATABASE_URL
+                 valueFrom:
+                   secretKeyRef:
+                     name: jamjet-secrets
+                     key: database-url
+               - name: ANTHROPIC_API_KEY
+                 valueFrom:
+                   secretKeyRef:
+                     name: jamjet-secrets
+                     key: anthropic-api-key
+             resources:
+               requests:
+                 memory: "256Mi"
+                 cpu: "250m"
+               limits:
+                 memory: "1Gi"
+                 cpu: "2"
+   ```
+
+3. **通过 Service 公开：**
+
+   ```yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: jamjet-runtime
+   spec:
+     selector:
+       app: jamjet-runtime
+     ports:
+       - port: 80
+         targetPort: 7700
+     type: ClusterIP
+   ```
+
+## 数据库迁移
+
+在启动运行时之前运行迁移：
+
+```bash
+jamjet db migrate
+```
+
+或在启动时自动迁移（适用于更简单的部署）：
+
+```toml
+[database]
+auto_migrate = true
+```
+
+## 扩展工作进程
+
+JamJet 运行时支持水平扩展——针对同一个 PostgreSQL 数据库运行多个实例：
+
+```bash
+
+# 实例 1
+
+jamjet serve --port 7700
+
+# 实例 2（相同数据库，不同端口）
+
+jamjet serve --port 7701
+```
+
+分布式调度器使用数据库级锁来防止节点重复执行，因此多个实例无需消息代理即可安全协调。
+
+> **注意：** 
+对于高吞吐量场景（数千个并发执行），可以用专用消息队列（NATS 或 Kafka）替换基于数据库的队列。此功能在 v2 版本中作为配置选项提供。
+
+## 健康检查
+
+```bash
+
+# 存活检查
+
+curl http://localhost:7700/health
+
+# 就绪检查（检查数据库连接）
+
+curl http://localhost:7700/ready
+```
+
+```json
+{ "status": "ok", "version": "0.1.0", "db": "connected" }
+```
+
+## 安全检查清单
+
+- 设置 `JAMJET_AUTH_API_KEY` 并在所有 API 调用中要求使用
+- 在负载均衡器处使用 TLS 终止（或直接配置 mTLS）
+- 定期轮换 API 密钥
+- 将 PostgreSQL 用户权限限制在 `jamjet` 数据库
+- 如果状态包含个人信息，生产环境不要记录完整状态——使用 `logging.redact_state = true`
+- 尽可能将模型 API 密钥固定到最小权限范围
+
+## 环境变量参考
+
+| 变量 | 默认值 | 描述 |
+|----------|---------|-------------|
+| `JAMJET_DATABASE_URL` | `.jamjet/dev.db`（SQLite） | 数据库连接字符串 |
+| `JAMJET_RUNTIME_PORT` | `7700` | HTTP 端口 |
+| `JAMJET_RUNTIME_WORKERS` | `4` | 工作线程数 |
+| `JAMJET_AUTH_API_KEY` | （无） | 用于身份验证的 API 密钥 |
+| `JAMJET_LOG_LEVEL` | `info` | 日志级别 |
+| `JAMJET_LOG_FORMAT` | `json` | 日志格式 |
+| `ANTHROPIC_API_KEY` | （无） | 用于 Claude 模型 |
+| `OPENAI_API_KEY` | （无） | 用于 GPT 模型 |

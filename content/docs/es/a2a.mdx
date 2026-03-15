@@ -1,0 +1,228 @@
+---
+title: Integración A2A
+description: Delega a otros agentes y sirve usando el protocolo Agent-to-Agent.
+---
+
+# Integración A2A
+
+JamJet implementa el [protocolo Agent-to-Agent (A2A)](https://google.github.io/A2A/) — un estándar abierto para que los agentes se descubran, se llamen y colaboren entre sí a través de frameworks y organizaciones.
+
+## ¿Qué es A2A?
+
+A2A define cómo los agentes:
+- **Anuncian** sus capacidades mediante una **Agent Card** (un archivo `.well-known/agent.json`)
+- **Aceptan tareas** de otros agentes (formato estructurado de solicitud/respuesta)
+- **Transmiten progreso** de vuelta (flujo de eventos basado en SSE)
+- **Intercambian artefactos** (archivos, datos estructurados, texto)
+
+Los agentes de JamJet son nativos de A2A — cada agente obtiene automáticamente una Agent Card y puede aceptar tareas A2A de otros frameworks (LangChain, CrewAI, AutoGen, etc.).
+
+## Agent Cards
+
+Una Agent Card es una descripción legible por máquina de tu agente:
+
+```json
+{
+  "id": "research-agent",
+  "name": "Research Agent",
+  "description": "Searches the web and synthesizes research reports.",
+  "version": "0.2.0",
+  "url": "https://agents.example.com/research-agent",
+  "capabilities": {
+    "streaming": true,
+    "push_notifications": false
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": { "type": "string" }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "answer": { "type": "string" },
+      "sources": { "type": "array" }
+    }
+  }
+}
+```
+
+JamJet lo genera automáticamente a partir del esquema de tu flujo de trabajo. Puedes personalizarlo en `jamjet.toml`:
+
+```toml
+[agent]
+name = "Research Agent"
+description = "Searches the web and synthesizes research reports."
+url = "https://agents.example.com/research-agent"
+```
+
+## Llamar a otros agentes
+
+Usa un nodo `a2a_task` para delegar trabajo a otro agente:
+
+### YAML
+
+```yaml
+nodes:
+  delegate-research:
+    type: a2a_task
+    agent_url: "https://agents.example.com/research-agent"
+    input:
+      query: "{{ state.query }}"
+    output_key: research_result
+    next: synthesize
+```
+
+### Python SDK
+
+```python
+@node
+async def delegate_research(self, state: State) -> State:
+    result = await self.a2a(
+        agent_url="https://agents.example.com/research-agent",
+        input={"query": state["query"]},
+    )
+    return {"research_result": result.state}
+```
+
+## Descubriendo agentes
+
+Si los agentes publican sus URLs, puedes descubrirlos obteniendo su Agent Card:
+
+```bash
+jamjet agents inspect https://agents.example.com/research-agent
+```
+
+```
+Agent: Research Agent (research-agent v0.2.0)
+  URL: https://agents.example.com/research-agent
+  Streaming: yes
+
+  Input schema:
+    query: string (required)
+
+  Output schema:
+    answer: string
+    sources: array
+```
+
+## Sirviendo tu agente como A2A
+
+Cualquier flujo de trabajo de JamJet es automáticamente servible como agente A2A. Activa el servidor A2A:
+
+```toml
+[a2a.server]
+enabled = true
+port = 7702
+expose = ["research-agent", "summarizer"]
+```
+
+```bash
+jamjet dev --with-a2a-server
+```
+
+Tu agent card estará disponible en:
+```
+http://localhost:7702/.well-known/agent.json
+```
+
+Otros agentes (en cualquier framework) ahora pueden llamar a tu flujo de trabajo como tarea A2A.
+
+## Streaming de respuestas A2A
+
+JamJet soporta streaming basado en SSE para tareas A2A. Activa el streaming en el nodo `a2a_task`:
+
+```yaml
+  delegate-research:
+    type: a2a_task
+    agent_url: "https://agents.example.com/research-agent"
+    input:
+      query: "{{ state.query }}"
+    stream: true              # recibe eventos conforme ocurren
+    output_key: research_result
+    next: synthesize
+```
+
+```python
+
+# Python SDK
+
+async for event in self.a2a_stream(
+    agent_url="https://agents.example.com/research-agent",
+    input={"query": state["query"]},
+):
+    print(event.type, event.data)
+```
+
+## Compatibilidad entre frameworks
+
+La implementación A2A de JamJet es compatible con:
+
+| Framework | Soporte A2A |
+|-----------|------------|
+| JamJet | Nativo (cliente + servidor) |
+| LangChain | Via `langchain-a2a` |
+| CrewAI | Via adaptador A2A |
+| AutoGen | Via adaptador A2A |
+| Vertex AI | Nativo |
+| Cualquier cliente HTTP | Llamadas REST directas |
+
+> **nota:** 
+A2A es agnóstico al framework por diseño. Un agente JamJet y un agente LangChain pueden colaborar directamente — ninguno necesita saber qué framework usa el otro.
+
+## Seguridad
+
+Los endpoints de tareas A2A deben protegerse en producción. JamJet soporta:
+
+```toml
+[a2a.server]
+enabled = true
+auth = "api_key"              # o mtls, jwt
+api_keys = ["${AGENT_API_KEY}"]
+```
+
+Para mTLS en entornos zero-trust:
+
+```toml
+[a2a.server]
+auth = "mtls"
+ca_cert = "/path/to/ca.crt"
+server_cert = "/path/to/server.crt"
+server_key = "/path/to/server.key"
+```
+
+## Modos de autonomía
+
+Los agentes JamJet tienen un nivel de autonomía configurable que controla cuánta supervisión humana se requiere:
+
+| Modo | Descripción |
+|------|-------------|
+| `guided` (predeterminado) | Pausa en puntos de decisión clave para aprobación humana |
+| `supervised` | Se ejecuta autónomamente pero registra todas las decisiones para revisión |
+| `autonomous` | Totalmente autónomo — sin humano en el bucle |
+
+```toml
+[agent]
+autonomy = "guided"    # guided | supervised | autonomous
+```
+
+Para agentes `guided`, usa nodos `wait` para pausar en puntos de aprobación:
+
+```yaml
+nodes:
+  propose-action:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: "Proponer un plan para: {{ state.task }}"
+    output_key: plan
+    next: await-approval
+
+  await-approval:
+    type: wait
+    event: human_approved
+    timeout_hours: 24
+    on_timeout: escalate
+    next: execute
+```

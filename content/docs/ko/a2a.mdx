@@ -1,0 +1,228 @@
+---
+title: A2A 통합
+description: Agent-to-Agent 프로토콜을 사용하여 다른 에이전트에 작업을 위임하고 서비스를 제공합니다.
+---
+
+# A2A 통합
+
+JamJet은 [Agent-to-Agent (A2A) 프로토콜](https://google.github.io/A2A/)을 구현합니다 — 에이전트가 프레임워크와 조직을 넘어 서로를 발견하고, 호출하며, 협업할 수 있는 개방형 표준입니다.
+
+## A2A란?
+
+A2A는 에이전트가 다음을 수행하는 방법을 정의합니다:
+- **Agent Card**를 통해 기능을 **광고** (`.well-known/agent.json` 파일)
+- 다른 에이전트로부터 **작업 수락** (구조화된 요청/응답 형식)
+- **진행 상황 스트리밍** (SSE 기반 이벤트 스트림)
+- **아티팩트 교환** (파일, 구조화된 데이터, 텍스트)
+
+JamJet 에이전트는 A2A 네이티브입니다 — 모든 에이전트는 자동으로 Agent Card를 받으며 다른 프레임워크(LangChain, CrewAI, AutoGen 등)로부터 A2A 작업을 수락할 수 있습니다.
+
+## Agent Card
+
+Agent Card는 에이전트에 대한 기계 판독 가능한 설명입니다:
+
+```json
+{
+  "id": "research-agent",
+  "name": "Research Agent",
+  "description": "Searches the web and synthesizes research reports.",
+  "version": "0.2.0",
+  "url": "https://agents.example.com/research-agent",
+  "capabilities": {
+    "streaming": true,
+    "push_notifications": false
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": { "type": "string" }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "answer": { "type": "string" },
+      "sources": { "type": "array" }
+    }
+  }
+}
+```
+
+JamJet은 워크플로우 스키마에서 이를 자동으로 생성합니다. `jamjet.toml`에서 커스터마이징할 수 있습니다:
+
+```toml
+[agent]
+name = "Research Agent"
+description = "Searches the web and synthesizes research reports."
+url = "https://agents.example.com/research-agent"
+```
+
+## 다른 에이전트 호출
+
+`a2a_task` 노드를 사용하여 다른 에이전트에게 작업을 위임하세요:
+
+### YAML
+
+```yaml
+nodes:
+  delegate-research:
+    type: a2a_task
+    agent_url: "https://agents.example.com/research-agent"
+    input:
+      query: "{{ state.query }}"
+    output_key: research_result
+    next: synthesize
+```
+
+### Python SDK
+
+```python
+@node
+async def delegate_research(self, state: State) -> State:
+    result = await self.a2a(
+        agent_url="https://agents.example.com/research-agent",
+        input={"query": state["query"]},
+    )
+    return {"research_result": result.state}
+```
+
+## 에이전트 검색
+
+에이전트가 URL을 공개한 경우, Agent Card를 가져와서 검색할 수 있습니다:
+
+```bash
+jamjet agents inspect https://agents.example.com/research-agent
+```
+
+```
+Agent: Research Agent (research-agent v0.2.0)
+  URL: https://agents.example.com/research-agent
+  Streaming: yes
+
+  Input schema:
+    query: string (required)
+
+  Output schema:
+    answer: string
+    sources: array
+```
+
+## A2A로 에이전트 제공하기
+
+모든 JamJet 워크플로는 자동으로 A2A 에이전트로 제공될 수 있습니다. A2A 서버를 활성화하세요:
+
+```toml
+[a2a.server]
+enabled = true
+port = 7702
+expose = ["research-agent", "summarizer"]
+```
+
+```bash
+jamjet dev --with-a2a-server
+```
+
+에이전트 카드는 다음 위치에서 확인할 수 있습니다:
+```
+http://localhost:7702/.well-known/agent.json
+```
+
+이제 다른 에이전트(모든 프레임워크)가 워크플로를 A2A 작업으로 호출할 수 있습니다.
+
+## A2A 응답 스트리밍
+
+JamJet은 A2A 작업에 대한 SSE 기반 스트리밍을 지원합니다. `a2a_task` 노드에서 스트리밍을 활성화하세요:
+
+```yaml
+  delegate-research:
+    type: a2a_task
+    agent_url: "https://agents.example.com/research-agent"
+    input:
+      query: "{{ state.query }}"
+    stream: true              # 이벤트가 발생하는 즉시 수신
+    output_key: research_result
+    next: synthesize
+```
+
+```python
+
+# Python SDK
+
+async for event in self.a2a_stream(
+    agent_url="https://agents.example.com/research-agent",
+    input={"query": state["query"]},
+):
+    print(event.type, event.data)
+```
+
+## 프레임워크 간 호환성
+
+JamJet의 A2A 구현은 다음과 호환됩니다:
+
+| 프레임워크 | A2A 지원 |
+|-----------|------------|
+| JamJet | 네이티브 (클라이언트 + 서버) |
+| LangChain | `langchain-a2a`를 통해 |
+| CrewAI | A2A 어댑터를 통해 |
+| AutoGen | A2A 어댑터를 통해 |
+| Vertex AI | 네이티브 |
+| 모든 HTTP 클라이언트 | 직접 REST 호출 |
+
+> **note:** 
+A2A는 설계상 프레임워크 독립적입니다. JamJet 에이전트와 LangChain 에이전트는 직접 협력할 수 있으며, 어느 쪽도 상대방이 어떤 프레임워크를 사용하는지 알 필요가 없습니다.
+
+## 보안
+
+프로덕션 환경에서는 A2A 작업 엔드포인트를 보호해야 합니다. JamJet는 다음을 지원합니다:
+
+```toml
+[a2a.server]
+enabled = true
+auth = "api_key"              # or mtls, jwt
+api_keys = ["${AGENT_API_KEY}"]
+```
+
+제로 트러스트 환경에서 mTLS 사용:
+
+```toml
+[a2a.server]
+auth = "mtls"
+ca_cert = "/path/to/ca.crt"
+server_cert = "/path/to/server.crt"
+server_key = "/path/to/server.key"
+```
+
+## 자율성 모드
+
+JamJet 에이전트는 사람의 감독이 얼마나 필요한지를 제어하는 자율성 수준을 설정할 수 있습니다:
+
+| 모드 | 설명 |
+|------|-------------|
+| `guided` (기본값) | 주요 의사결정 지점에서 사람의 승인을 위해 일시 중지 |
+| `supervised` | 자율적으로 실행되지만 모든 의사결정을 검토용으로 기록 |
+| `autonomous` | 완전 자율 — 사람의 개입 없음 |
+
+```toml
+[agent]
+autonomy = "guided"    # guided | supervised | autonomous
+```
+
+`guided` 에이전트의 경우 승인 지점에서 일시 중지하려면 `wait` 노드를 사용하세요:
+
+```yaml
+nodes:
+  propose-action:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: "Propose a plan for: {{ state.task }}"
+    output_key: plan
+    next: await-approval
+
+  await-approval:
+    type: wait
+    event: human_approved
+    timeout_hours: 24
+    on_timeout: escalate
+    next: execute
+```

@@ -1,0 +1,105 @@
+---
+title: フレームワーク比較
+description: JamJet vs LangGraph vs CrewAI vs AutoGen — 実行、永続性、可観測性、評価、スケールにおける機能比較表。
+---
+
+export const Y = () => <span class="ic ic-y">✓</span>;
+export const N = () => <span class="ic ic-n">—</span>;
+export const P = () => <span class="ic ic-p">~</span>;
+export const E = () => <span class="ic ic-e">⚙</span>;
+export const W = () => <span class="ic ic-w">…</span>;
+
+> 最終更新: 2026-03-08 · JamJet v0.1.1 · [修正はこちら](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
+
+<div style={{fontSize: "0.82rem", color: "#8b8578", marginBottom: "1.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap"}}>
+  <span><span class="ic ic-y">✓</span> 組み込み</span>
+  <span><span class="ic ic-e">⚙</span> プラグイン経由</span>
+  <span><span class="ic ic-p">~</span> 部分的</span>
+  <span><span class="ic ic-n">—</span> 非対応</span>
+  <span><span class="ic ic-w">…</span> 開発中</span>
+</div>
+
+## コア実行機能
+
+| 機能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| グラフベースのワークフロー | <Y/> | <Y/> | <P/> シーケンシャル/階層型 | <Y/> |
+| 非同期実行 | <Y/> | <Y/> | <Y/> | <Y/> |
+| ローカルインプロセス実行 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 型付き状態 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
+| 各ステップでの状態検証 | <Y/> | <N/> | <N/> | <N/> |
+| 条件分岐 | <Y/> インライン述語 | <Y/> エッジ関数 | <P/> プロセスタイプ | <Y/> |
+| 並列分岐 | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
+| サイクル/ループ対応 | <Y/> | <Y/> | <P/> | <Y/> |
+
+## 耐久性と信頼性
+
+| 機能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 耐久性のある実行(クラッシュリカバリ) | <Y/> Rustランタイム | <E/> チェックポインター | <N/> | <N/> |
+| イベントソーシング | <Y/> ネイティブ対応 | <N/> | <N/> | <N/> |
+| バックオフ付き自動リトライ | <Y/> YAML設定 | <E/> 手動 | <E/> 手動 | <E/> 手動 |
+| ヒューマンインザループ/一時停止 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
+| 任意のチェックポイントからの再開 | <Y/> | <E/> セーバーが必要 | <N/> | <N/> |
+| ステップごとのタイムアウト | <Y/> | <P/> | <N/> | <P/> |
+
+## 可観測性
+
+| 機能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 構造化イベントログ | <Y/> ステップごとのイベント | <P/> コールバック | <P/> 詳細テキスト | <P/> |
+| 実行検査CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
+| イベントタイムライン | <Y/> | <N/> | <N/> | <N/> |
+| OpenTelemetryトレーシング | <W/> | <E/> LangSmith | <E/> | <N/> |
+| タイムトラベルデバッグ | <W/> | <N/> | <N/> | <N/> |
+
+## ツール・プロトコル統合
+
+| 機能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| MCPクライアント（任意のMCPサーバーを使用） | <Y/> ネイティブ | <E/> アダプタ経由 | <E/> アダプタ経由 | <E/> アダプタ経由 |
+| MCPサーバー（ツールを公開） | <W/> | <N/> | <N/> | <N/> |
+| A2Aクロスエージェント呼び出し | <Y/> クライアント + サーバー | <N/> | <N/> | <N/> |
+| OpenAI関数呼び出し | <Y/> | <Y/> | <Y/> | <Y/> |
+| カスタムPythonツール | <Y/> `@tool`デコレータ | <Y/> | <Y/> | <Y/> |
+| エラー時のツールリトライ | <Y/> ノードレベル設定 | <E/> 手動 | <E/> 手動 | <E/> 手動 |
+
+## 評価・テスト
+
+| 機能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| 組み込み評価ハーネス | <Y/> | <N/> | <N/> | <N/> |
+| LLM審査員スコアリング | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
+| アサーションスコアリング | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
+| レイテンシ予算 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
+| コスト予算 | <Y/> `CostScorer` | <N/> | <N/> | <N/> |
+| データセット形式（JSONL） | <Y/> | <N/> | <N/> | <N/> |
+| リグレッション時のCI終了コード | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
+| ワークフローノードとしての評価 | <Y/> `type: eval` | <N/> | <N/> | <N/> |
+
+## 開発者体験
+
+| 機能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| YAMLワークフロー記述 | <Y/> | <N/> | <N/> | <N/> |
+| Pythonデコレータ API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> |
+| プロジェクトテンプレート | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> |
+| ローカル開発サーバー | <Y/> `jamjet dev` | <N/> | <N/> | <N/> |
+| ワークフロー検証CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> |
+| マルチモデル対応 | <Y/> 任意のOpenAI互換 | <Y/> | <Y/> | <Y/> |
+| ローカルモデル (Ollama等) | <Y/> | <Y/> | <Y/> | <Y/> |
+
+## 本番環境とスケール
+
+| 機能 | JamJet | LangGraph | CrewAI | AutoGen |
+|---|---|---|---|---|
+| ランタイム言語 | **Rust** | Python | Python | Python |
+| ポリグロットSDK | Python (TS <W/>) | Python, JS | Python | Python, .NET |
+| Kubernetes対応 | <Y/> ステートレスバイナリ | <E/> | <E/> | <E/> |
+| マネージドクラウド | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
+| オープンソース | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 |
+
+---
+
+> **注記:** 
+計測手法と生データを含むレイテンシ比較については[ベンチマーク](/benchmarks)を参照してください。移行ガイド: [LangGraphから](/migrate/from-langgraph)、[CrewAIから](/migrate/from-crewai)、[OpenAI SDKから](/migrate/from-openai-direct)。

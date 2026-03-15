@@ -1,0 +1,250 @@
+---
+title: Deployment
+description: Stellen Sie JamJet in der Produktion bereit – selbst gehostet mit
+  PostgreSQL oder als gehostete Lösung.
+---
+
+# Deployment
+
+JamJet verwendet SQLite lokal und PostgreSQL in der Produktion. Derselbe Workflow-Code läuft unverändert in beiden Umgebungen.
+
+## Konfiguration
+
+Die Produktionskonfiguration befindet sich in `jamjet.toml`:
+
+```toml
+[runtime]
+port = 7700
+workers = 8              # concurrent worker threads
+
+[database]
+url = "postgresql://user:password@db:5432/jamjet"
+pool_size = 10
+max_overflow = 20
+
+[telemetry]
+enabled = true
+service_name = "my-agent"
+
+[telemetry.otlp]
+endpoint = "http://otel-collector:4317"
+
+[auth]
+enabled = true
+method = "api_key"       # api_key | mtls | jwt
+```
+
+Alle Werte können mit Umgebungsvariablen überschrieben werden:
+
+```bash
+JAMJET_DATABASE_URL=postgresql://...
+JAMJET_RUNTIME_PORT=7700
+JAMJET_RUNTIME_WORKERS=16
+JAMJET_AUTH_API_KEY=sk-...
+```
+
+## Docker
+
+```dockerfile
+FROM python:3.11-slim
+
+RUN pip install jamjet
+
+COPY jamjet.toml .
+COPY workflow.yaml .
+
+EXPOSE 7700
+
+CMD ["jamjet", "serve"]
+```
+
+```bash
+docker build -t my-agent .
+docker run -p 7700:7700 \
+  -e JAMJET_DATABASE_URL=postgresql://... \
+  -e ANTHROPIC_API_KEY=YOUR_ANTHROPIC_API_KEY \
+  my-agent
+```
+
+## Docker Compose (vollständiger Stack)
+
+```yaml
+version: "3.9"
+
+services:
+  runtime:
+    image: my-agent
+    ports:
+      - "7700:7700"
+    environment:
+      JAMJET_DATABASE_URL: postgresql://jamjet:secret@db:5432/jamjet
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jamjet
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: jamjet
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jamjet"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - ./otel-config.yaml:/etc/otel/config.yaml
+    command: ["--config=/etc/otel/config.yaml"]
+
+volumes:
+  pg_data:
+```
+
+## Kubernetes
+
+1. **Secret für Zugangsdaten erstellen:**
+
+   ```bash
+   kubectl create secret generic jamjet-secrets \
+     --from-literal=database-url="postgresql://..." \
+    --from-literal=anthropic-api-key="YOUR_ANTHROPIC_API_KEY"
+   ```
+
+2. **Runtime deployen:**
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: jamjet-runtime
+   spec:
+     replicas: 3
+     selector:
+       matchLabels:
+         app: jamjet-runtime
+     template:
+       metadata:
+         labels:
+           app: jamjet-runtime
+       spec:
+         containers:
+           - name: runtime
+             image: my-agent:latest
+             ports:
+               - containerPort: 7700
+             env:
+               - name: JAMJET_DATABASE_URL
+                 valueFrom:
+                   secretKeyRef:
+                     name: jamjet-secrets
+                     key: database-url
+               - name: ANTHROPIC_API_KEY
+                 valueFrom:
+                   secretKeyRef:
+                     name: jamjet-secrets
+                     key: anthropic-api-key
+             resources:
+               requests:
+                 memory: "256Mi"
+                 cpu: "250m"
+               limits:
+                 memory: "1Gi"
+                 cpu: "2"
+   ```
+
+3. **Mit einem Service bereitstellen:**
+
+   ```yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: jamjet-runtime
+   spec:
+     selector:
+       app: jamjet-runtime
+     ports:
+       - port: 80
+         targetPort: 7700
+     type: ClusterIP
+   ```
+
+## Datenbank-Migrationen
+
+Migrationen vor dem Start der Runtime ausführen:
+
+```bash
+jamjet db migrate
+```
+
+Oder automatisch beim Start (für einfachere Deployments):
+
+```toml
+[database]
+auto_migrate = true
+```
+
+## Worker skalieren
+
+Die JamJet-Runtime ist horizontal skalierbar — mehrere Instanzen können gegen dieselbe PostgreSQL-Datenbank laufen:
+
+```bash
+
+# Instanz 1
+
+jamjet serve --port 7700
+
+# Instanz 2 (gleiche DB, anderer Port)
+
+jamjet serve --port 7701
+```
+
+Der verteilte Scheduler nutzt Locks auf Datenbankebene, um doppelte Ausführung von Nodes zu verhindern — mehrere Instanzen koordinieren sich sicher ohne Message Broker.
+
+> **note:** 
+Für hohen Durchsatz (tausende gleichzeitige Ausführungen) kann eine dedizierte Message Queue (NATS oder Kafka) die datenbankbasierte Queue ersetzen. Dies ist in v2 als Konfigurationsoption verfügbar.
+
+## Health Checks
+
+```bash
+
+# Liveness
+
+curl http://localhost:7700/health
+
+# Readiness (prüft DB-Verbindung)
+
+curl http://localhost:7700/ready
+```
+
+```json
+{ "status": "ok", "version": "0.1.0", "db": "connected" }
+```
+
+## Sicherheits-Checkliste
+
+- `JAMJET_AUTH_API_KEY` setzen und bei allen API-Calls verlangen
+- TLS-Terminierung am Load Balancer nutzen (oder mTLS direkt konfigurieren)
+- API-Keys regelmäßig rotieren
+- PostgreSQL-User nur auf die `jamjet`-Datenbank beschränken
+- Vollständigen State nicht in Production loggen, wenn er PII enthält — `logging.redact_state = true` verwenden
+- Model-API-Keys wo möglich auf Scopes mit minimalen Rechten beschränken
+
+## Referenz der Umgebungsvariablen
+
+| Variable | Standard | Beschreibung |
+|----------|---------|-------------|
+| `JAMJET_DATABASE_URL` | `.jamjet/dev.db` (SQLite) | Datenbank-Verbindungsstring |
+| `JAMJET_RUNTIME_PORT` | `7700` | HTTP-Port |
+| `JAMJET_RUNTIME_WORKERS` | `4` | Anzahl Worker-Threads |
+| `JAMJET_AUTH_API_KEY` | (keine) | API-Key für Authentifizierung |
+| `JAMJET_LOG_LEVEL` | `info` | Log-Level |
+| `JAMJET_LOG_FORMAT` | `json` | Log-Format |
+| `ANTHROPIC_API_KEY` | (keine) | Für Claude-Modelle |
+| `OPENAI_API_KEY` | (keine) | Für GPT-Modelle |

@@ -1,0 +1,183 @@
+---
+title: MCP-Integration
+description: Verbinden Sie JamJet mit externen Tool-Servern über das Model Context Protocol.
+---
+
+# MCP-Integration
+
+JamJet bietet erstklassige Unterstützung für das [Model Context Protocol (MCP)](https://modelcontextprotocol.io) — der offene Standard zur Verbindung von KI-Agenten mit externen Tools, Datenquellen und Services.
+
+## Was ist MCP?
+
+MCP definiert eine standardisierte Methode, wie KI-Agenten externe Tools erkennen und aufrufen können. Ein **MCP-Server** stellt Tools mit typisierten Schemas bereit; ein **MCP-Client** (JamJet) erkennt diese Tools und ruft sie auf.
+
+Das bedeutet, du kannst JamJet mit jedem MCP-kompatiblen Tool-Server verbinden — und es gibt [hunderte Community-Server](https://github.com/modelcontextprotocol/servers) für Websuche, Datenbanken, GitHub, Slack, Dateisysteme und mehr.
+
+## MCP-Server konfigurieren
+
+Füge Server zur `jamjet.toml` im Projektstammverzeichnis hinzu:
+
+```toml
+
+# Lokaler stdio-Server (am häufigsten für Entwicklung)
+
+[[mcp.servers]]
+name = "brave-search"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-brave-search"]
+env = { BRAVE_API_KEY = "${BRAVE_API_KEY}" }
+
+# Lokaler Python-Server
+
+[[mcp.servers]]
+name = "my-tools"
+command = "python"
+args = ["-m", "my_tools.server"]
+
+# Remote-HTTP-Server (SSE-Transport)
+
+[[mcp.servers]]
+name = "remote-api"
+url = "https://tools.example.com/mcp"
+headers = { Authorization = "Bearer ${TOOLS_API_KEY}" }
+```
+
+JamJet verbindet sich mit allen konfigurierten Servern, wenn `jamjet dev` startet.
+
+## Tools in Workflows verwenden
+
+### YAML
+
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search        # entspricht `name` in jamjet.toml
+    tool: web_search            # Tool-Name vom MCP-Server
+    arguments:
+      query: "{{ state.query }}"
+      count: 10
+    output_key: search_results
+    next: summarize
+```
+
+### Python SDK
+
+```python
+@node
+async def search(self, state: State) -> State:
+    result = await self.tool(
+        server="brave-search",
+        tool="web_search",
+        arguments={"query": state["query"], "count": 10},
+    )
+    return {"search_results": result.content}
+```
+
+## Verfügbare Tools entdecken
+
+Liste alle Tools von verbundenen Servern auf:
+
+```bash
+jamjet tools list
+```
+
+```
+Server: brave-search
+  web_search(query: str, count: int) → list[SearchResult]
+  news_search(query: str, freshness: str) → list[NewsItem]
+
+Server: my-tools
+  run_query(sql: str) → list[dict]
+  get_schema(table: str) → dict
+```
+
+Teste ein Tool direkt:
+
+```bash
+jamjet tools call brave-search web_search --args '{"query": "JamJet runtime", "count": 3}'
+```
+
+## Einen MCP-Server erstellen
+
+JamJet kann Tools auch über MCP **bereitstellen** und deine Workflows als aufrufbare Tools für andere Agenten verfügbar machen.
+
+Füge dies zu `jamjet.toml` hinzu:
+
+```toml
+[mcp.server]
+enabled = true
+port = 7701
+workflows = ["my-agent", "research-agent"]   # diese als Tools verfügbar machen
+```
+
+Jeder Workflow, den du verfügbar machst, wird zu einem aufrufbaren MCP-Tool. Andere Agenten können ihn entdecken, sein Input-/Output-Schema einsehen und ihn aufrufen — ohne zu wissen, dass darunter JamJet läuft.
+
+```bash
+
+# MCP-Server zusammen mit der Runtime starten
+
+jamjet dev --with-mcp-server
+```
+
+## Beliebte MCP-Server
+
+| Server | Package | Was es bereitstellt |
+|--------|---------|-----------------|
+| Brave Search | `@modelcontextprotocol/server-brave-search` | Web- + Nachrichtensuche |
+| GitHub | `@modelcontextprotocol/server-github` | Repos, Issues, PRs |
+| Filesystem | `@modelcontextprotocol/server-filesystem` | Lokale Dateien lesen/schreiben |
+| PostgreSQL | `@modelcontextprotocol/server-postgres` | SQL-Abfragen |
+| Slack | `@modelcontextprotocol/server-slack` | Nachrichten, Kanäle |
+| Memory | `@modelcontextprotocol/server-memory` | Persistenter Key-Value-Store |
+
+> **tip:** 
+Die vollständige Liste der Community-MCP-Server findest du unter [github.com/modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers).
+
+## Tool-Output
+
+Tool-Ergebnisse sind im State unter `output_key` verfügbar. Die Struktur hängt vom Tool ab — prüfe das Schema mit `jamjet tools list`.
+
+Bei mehrstufigen Workflows sammeln sich Zwischenergebnisse von Tools im State an:
+
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    output_key: search_results   # → state.search_results = [...]
+    next: docs
+
+  docs:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }} documentation"
+    output_key: doc_results      # → state.doc_results = [...]
+    next: synthesize
+```
+
+## Fehlerbehandlung
+
+Tool-Aufrufe können aus vielen Gründen fehlschlagen — Netzwerkfehler, ungültige Argumente, Rate Limits. Konfiguriere das Retry-Verhalten pro Node:
+
+```yaml
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    output_key: search_results
+    retry:
+      max_attempts: 3
+      backoff: exponential
+      delay_ms: 1000
+    next: summarize
+```
+
+Wenn alle Wiederholungsversuche fehlschlagen, wird die Ausführung als `failed` markiert und kann manuell fortgesetzt oder wiederholt werden.

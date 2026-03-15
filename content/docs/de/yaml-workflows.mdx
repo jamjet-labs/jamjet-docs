@@ -1,0 +1,283 @@
+---
+title: Workflow-Erstellung (YAML)
+description: Alle Knotentypen, Wiederholungsrichtlinien, Bedingungen und
+  parallele Verzweigungen für YAML-Workflows.
+---
+
+# Workflow-Erstellung (YAML)
+
+YAML ist das primäre Erstellungsformat für JamJet-Workflows. Diese Seite behandelt jeden Knotentyp, jede Kontrollfluss-Option und jeden Konfigurationsparameter.
+
+## Workflow-Header
+
+```yaml
+workflow:
+  id: my-workflow          # unique identifier (slug format)
+  version: 0.1.0           # semver
+  state_schema:            # typed state (all keys optional at start)
+    query: str
+    results: list[str]
+    answer: str
+    score: float
+  start: first-node        # entry node id
+```
+
+## Model-Knoten
+
+Ruft ein LLM auf und schreibt die Antwort in einen State-Key.
+
+```yaml
+nodes:
+  think:
+    type: model
+    model: claude-haiku-4-5-20251001       # or gpt-4o, gemini-2.0-flash, etc.
+    prompt: |
+      You are a helpful assistant.
+      Answer this question: {{ state.query }}
+    output_key: answer          # writes model response here
+    next: end
+
+    # Optional
+    system: "You are concise and precise."
+    temperature: 0.3
+    max_tokens: 1024
+    retry:
+      max_attempts: 3
+      backoff: exponential      # or linear, constant
+      delay_ms: 500
+```
+
+**Unterstützte Modelle:**
+
+| Provider | Model IDs |
+|----------|-----------|
+| Anthropic | `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-6` |
+| OpenAI | `gpt-4o`, `gpt-4o-mini`, `o3-mini` |
+| Google | `gemini-2.0-flash`, `gemini-2.5-pro` |
+
+## Tool-Knoten (MCP)
+
+Ruft ein Tool von einem verbundenen MCP-Server auf.
+
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search        # MCP server name (from jamjet.toml)
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+      count: 5
+    output_key: search_results
+    next: summarize
+```
+
+MCP-Server werden in `jamjet.toml` konfiguriert:
+
+```toml
+[[mcp.servers]]
+name = "brave-search"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-brave-search"]
+env = { BRAVE_API_KEY = "${BRAVE_API_KEY}" }
+```
+
+## HTTP-Knoten
+
+Führt eine HTTP-Anfrage aus und schreibt den Response-Body in den State.
+
+```yaml
+nodes:
+  fetch-data:
+    type: http
+    method: GET
+    url: "https://api.example.com/data/{{ state.item_id }}"
+    headers:
+      Authorization: "Bearer {{ env.API_KEY }}"
+    output_key: raw_data
+    next: process
+```
+
+Für `POST`/`PUT` ein `body`-Feld hinzufügen:
+
+```yaml
+    method: POST
+    body:
+      query: "{{ state.query }}"
+      format: json
+```
+
+## Branch-Knoten
+
+Leitet die Ausführung basierend auf einer Bedingung weiter.
+
+```yaml
+nodes:
+  route:
+    type: branch
+    conditions:
+      - if: "state.confidence >= 0.9"
+        next: done
+      - if: "state.confidence >= 0.5"
+        next: refine
+    default: escalate        # Fallback, wenn keine Bedingung zutrifft
+```
+
+Bedingungen werden der Reihe nach ausgewertet – die erste Übereinstimmung gewinnt. Ausdrücke verwenden eine einfache Teilmenge der Python-Syntax mit verfügbaren `state.*` und `env.*` Werten.
+
+## Parallel-Knoten
+
+Verzweigt in mehrere Pfade, wartet auf deren Abschluss und fährt dann fort.
+
+```yaml
+nodes:
+  gather:
+    type: parallel
+    branches:
+      - search
+      - fetch-docs
+      - check-cache
+    join: synthesize         # Knoten, der nach Abschluss aller Zweige ausgeführt wird
+```
+
+Jeder Zweig läuft nebenläufig. State-Schreibvorgänge aus parallelen Zweigen werden zusammengeführt; wenn zwei Zweige denselben Schlüssel schreiben, gewinnt der letzte Schreibvorgang.
+
+## Wait-Knoten
+
+Hält die Ausführung an, bis ein externes Event eintrifft.
+
+```yaml
+nodes:
+  await-approval:
+    type: wait
+    event: human_approved    # Name des Events, auf das gewartet wird
+    timeout_hours: 24
+    on_timeout: escalate     # Knoten, der bei Timeout ausgeführt wird
+    next: continue
+```
+
+Fortsetzen einer wartenden Ausführung mit:
+
+```bash
+jamjet resume exec_01JM4X8NKWP2 --event human_approved --data '{"approved": true}'
+```
+
+## Eval-Knoten
+
+Bewertet die Ausgabequalität inline. Nützlich für selbstheilende Schleifen.
+
+```yaml
+nodes:
+  check-quality:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "Ist die Antwort akkurat, vollständig und unter 200 Wörtern?"
+        min_score: 4          # Skala 1-5
+        model: claude-haiku-4-5-20251001
+      - type: assertion
+        check: "len(output.answer) > 0"
+      - type: latency
+        max_ms: 5000
+    on_fail: retry_with_feedback   # oder escalate, halt, log_and_continue
+    max_retries: 2
+    next: end
+```
+
+`on_fail`-Optionen:
+- `retry_with_feedback` — führt den vorherigen Model-Knoten mit in den Prompt injiziertem Scorer-Feedback erneut aus
+- `escalate` — leitet zu einem Eskalationsknoten weiter (definiere `escalate:` im Workflow-Header)
+- `halt` — stoppt die Ausführung mit einem Fehler
+- `log_and_continue` — protokolliert den Fehler, fährt aber trotzdem fort
+
+## End-Knoten
+
+Beendet die Ausführung. Jeder Workflow benötigt mindestens einen.
+
+```yaml
+nodes:
+  end:
+    type: end
+```
+
+Sie können mehrere benannte End-Knoten haben (z. B. `success`, `failure`, `escalated`) — sie alle beenden die Ausführung sauber.
+
+## Retry-Policies
+
+Jeder Knoten kann eine Retry-Policy haben:
+
+```yaml
+    retry:
+      max_attempts: 3
+      backoff: exponential    # linear | constant | exponential
+      delay_ms: 200           # initiale Verzögerung
+      max_delay_ms: 10000     # Obergrenze für exponentielles Backoff
+      retry_on:               # optional: nur bei diesen Fehlern wiederholen
+        - model_overloaded
+        - rate_limited
+        - timeout
+```
+
+## Template-Ausdrücke
+
+Prompts, URLs, Header und Argumente unterstützen `{{ }}`-Template-Ausdrücke:
+
+| Ausdruck | Wert |
+|-----------|-------|
+| `{{ state.key }}` | Ein State-Wert |
+| `{{ env.KEY }}` | Eine Umgebungsvariable |
+| `{{ execution.id }}` | Aktuelle Execution-ID |
+| `{{ execution.workflow_id }}` | Workflow-ID |
+| `{{ node.id }}` | Aktuelle Node-ID |
+
+## Vollständiges Beispiel
+
+```yaml
+workflow:
+  id: research-agent
+  version: 0.2.0
+  state_schema:
+    query: str
+    search_results: list[str]
+    draft: str
+    answer: str
+  start: search
+
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+      count: 10
+    output_key: search_results
+    next: draft
+
+  draft:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: |
+      Basierend auf diesen Suchergebnissen:
+      {{ state.search_results | join('\n') }}
+
+      Schreibe eine umfassende Antwort auf: {{ state.query }}
+    output_key: draft
+    next: evaluate
+
+  evaluate:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "Ist diese Antwort faktisch in den Suchergebnissen verankert, vollständig und gut strukturiert?"
+        min_score: 4
+        model: claude-haiku-4-5-20251001
+      - type: assertion
+        check: "len(output.draft) >= 100"
+    on_fail: retry_with_feedback
+    max_retries: 2
+    next: done
+
+  done:
+    type: end
+```

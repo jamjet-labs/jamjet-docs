@@ -1,0 +1,249 @@
+---
+title: デプロイ
+description: JamJetを本番環境にデプロイ — PostgreSQLでセルフホスト、またはホスティングサービスを利用。
+---
+
+# デプロイ
+
+JamJetはローカルではSQLite、本番環境ではPostgreSQLを使用します。同じワークフローコードが両環境で変更なしに動作します。
+
+## 設定
+
+本番環境の設定は `jamjet.toml` に記述します:
+
+```toml
+[runtime]
+port = 7700
+workers = 8              # concurrent worker threads
+
+[database]
+url = "postgresql://user:password@db:5432/jamjet"
+pool_size = 10
+max_overflow = 20
+
+[telemetry]
+enabled = true
+service_name = "my-agent"
+
+[telemetry.otlp]
+endpoint = "http://otel-collector:4317"
+
+[auth]
+enabled = true
+method = "api_key"       # api_key | mtls | jwt
+```
+
+すべての値は環境変数で上書き可能です:
+
+```bash
+JAMJET_DATABASE_URL=postgresql://...
+JAMJET_RUNTIME_PORT=7700
+JAMJET_RUNTIME_WORKERS=16
+JAMJET_AUTH_API_KEY=sk-...
+```
+
+## Docker
+
+```dockerfile
+FROM python:3.11-slim
+
+RUN pip install jamjet
+
+COPY jamjet.toml .
+COPY workflow.yaml .
+
+EXPOSE 7700
+
+CMD ["jamjet", "serve"]
+```
+
+```bash
+docker build -t my-agent .
+docker run -p 7700:7700 \
+  -e JAMJET_DATABASE_URL=postgresql://... \
+  -e ANTHROPIC_API_KEY=YOUR_ANTHROPIC_API_KEY \
+  my-agent
+```
+
+## Docker Compose(フルスタック)
+
+```yaml
+version: "3.9"
+
+services:
+  runtime:
+    image: my-agent
+    ports:
+      - "7700:7700"
+    environment:
+      JAMJET_DATABASE_URL: postgresql://jamjet:secret@db:5432/jamjet
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jamjet
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: jamjet
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jamjet"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - ./otel-config.yaml:/etc/otel/config.yaml
+    command: ["--config=/etc/otel/config.yaml"]
+
+volumes:
+  pg_data:
+```
+
+## Kubernetes
+
+1. **認証情報用のSecretを作成:**
+
+   ```bash
+   kubectl create secret generic jamjet-secrets \
+     --from-literal=database-url="postgresql://..." \
+    --from-literal=anthropic-api-key="YOUR_ANTHROPIC_API_KEY"
+   ```
+
+2. **ランタイムをデプロイ:**
+
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: jamjet-runtime
+   spec:
+     replicas: 3
+     selector:
+       matchLabels:
+         app: jamjet-runtime
+     template:
+       metadata:
+         labels:
+           app: jamjet-runtime
+       spec:
+         containers:
+           - name: runtime
+             image: my-agent:latest
+             ports:
+               - containerPort: 7700
+             env:
+               - name: JAMJET_DATABASE_URL
+                 valueFrom:
+                   secretKeyRef:
+                     name: jamjet-secrets
+                     key: database-url
+               - name: ANTHROPIC_API_KEY
+                 valueFrom:
+                   secretKeyRef:
+                     name: jamjet-secrets
+                     key: anthropic-api-key
+             resources:
+               requests:
+                 memory: "256Mi"
+                 cpu: "250m"
+               limits:
+                 memory: "1Gi"
+                 cpu: "2"
+   ```
+
+3. **Serviceで公開:**
+
+   ```yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: jamjet-runtime
+   spec:
+     selector:
+       app: jamjet-runtime
+     ports:
+       - port: 80
+         targetPort: 7700
+     type: ClusterIP
+   ```
+
+## データベースマイグレーション
+
+ランタイム起動前にマイグレーションを実行:
+
+```bash
+jamjet db migrate
+```
+
+起動時に自動実行する場合（シンプルなデプロイ向け）:
+
+```toml
+[database]
+auto_migrate = true
+```
+
+## ワーカーのスケーリング
+
+JamJetランタイムは水平スケール可能 — 同一のPostgreSQLデータベースに対して複数インスタンスを実行:
+
+```bash
+
+# インスタンス1
+
+jamjet serve --port 7700
+
+# インスタンス2（同じDB、異なるポート）
+
+jamjet serve --port 7701
+```
+
+分散スケジューラはデータベースレベルのロックを使用してノードの重複実行を防ぐため、メッセージブローカーなしで複数インスタンスが安全に連携できます。
+
+> **note:** 
+高スループット（数千の同時実行）では、専用メッセージキュー（NATSまたはKafka）でデータベースベースのキューを置き換えることができます。v2で設定オプションとして利用可能です。
+
+## ヘルスチェック
+
+```bash
+
+# Liveness
+
+curl http://localhost:7700/health
+
+# Readiness（DB接続確認）
+
+curl http://localhost:7700/ready
+```
+
+```json
+{ "status": "ok", "version": "0.1.0", "db": "connected" }
+```
+
+## セキュリティチェックリスト
+
+- `JAMJET_AUTH_API_KEY`を設定し、すべてのAPI呼び出しで必須とする
+- ロードバランサーでTLS終端を使用（またはmTLSを直接設定）
+- APIキーを定期的にローテーション
+- PostgreSQLユーザーを`jamjet`データベースのみに制限
+- 本番環境でPIIを含む完全な状態をログに記録しない — `logging.redact_state = true`を使用
+- モデルAPIキーを可能な限り最小権限スコープに固定
+
+## 環境変数リファレンス
+
+| 変数 | デフォルト | 説明 |
+|----------|---------|-------------|
+| `JAMJET_DATABASE_URL` | `.jamjet/dev.db` (SQLite) | データベース接続文字列 |
+| `JAMJET_RUNTIME_PORT` | `7700` | HTTPポート |
+| `JAMJET_RUNTIME_WORKERS` | `4` | ワーカースレッド数 |
+| `JAMJET_AUTH_API_KEY` | (なし) | 認証用APIキー |
+| `JAMJET_LOG_LEVEL` | `info` | ログレベル |
+| `JAMJET_LOG_FORMAT` | `json` | ログフォーマット |
+| `ANTHROPIC_API_KEY` | (なし) | Claudeモデル用 |
+| `OPENAI_API_KEY` | (なし) | GPTモデル用 |

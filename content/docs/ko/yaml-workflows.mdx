@@ -1,0 +1,282 @@
+---
+title: 워크플로우 작성 (YAML)
+description: YAML 워크플로우를 위한 모든 노드 타입, 재시도 정책, 조건 및 병렬 분기.
+---
+
+# 워크플로우 작성 (YAML)
+
+YAML은 JamJet 워크플로우의 주요 작성 형식입니다. 이 페이지는 모든 노드 타입, 제어 흐름 옵션 및 구성 설정을 다룹니다.
+
+## 워크플로우 헤더
+
+```yaml
+workflow:
+  id: my-workflow          # 고유 식별자 (슬러그 형식)
+  version: 0.1.0           # 유의적 버전
+  state_schema:            # 타입이 지정된 상태 (시작 시 모든 키는 선택 사항)
+    query: str
+    results: list[str]
+    answer: str
+    score: float
+  start: first-node        # 진입 노드 ID
+```
+
+## 모델 노드
+
+LLM을 호출하고 응답을 상태 키에 작성합니다.
+
+```yaml
+nodes:
+  think:
+    type: model
+    model: claude-haiku-4-5-20251001       # 또는 gpt-4o, gemini-2.0-flash 등
+    prompt: |
+      당신은 도움이 되는 어시스턴트입니다.
+      이 질문에 답하세요: {{ state.query }}
+    output_key: answer          # 모델 응답을 여기에 작성
+    next: end
+
+    # 선택 사항
+    system: "당신은 간결하고 정확합니다."
+    temperature: 0.3
+    max_tokens: 1024
+    retry:
+      max_attempts: 3
+      backoff: exponential      # 또는 linear, constant
+      delay_ms: 500
+```
+
+**지원되는 모델:**
+
+| 제공자 | 모델 ID |
+|----------|-----------|
+| Anthropic | `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-6` |
+| OpenAI | `gpt-4o`, `gpt-4o-mini`, `o3-mini` |
+| Google | `gemini-2.0-flash`, `gemini-2.5-pro` |
+
+## 도구 노드 (MCP)
+
+연결된 MCP 서버에서 도구를 호출합니다.
+
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search        # MCP 서버 이름 (jamjet.toml에서 설정)
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+      count: 5
+    output_key: search_results
+    next: summarize
+```
+
+MCP 서버는 `jamjet.toml`에서 구성됩니다:
+
+```toml
+[[mcp.servers]]
+name = "brave-search"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-brave-search"]
+env = { BRAVE_API_KEY = "${BRAVE_API_KEY}" }
+```
+
+## HTTP 노드
+
+HTTP 요청을 수행하고 응답 본문을 상태에 작성합니다.
+
+```yaml
+nodes:
+  fetch-data:
+    type: http
+    method: GET
+    url: "https://api.example.com/data/{{ state.item_id }}"
+    headers:
+      Authorization: "Bearer {{ env.API_KEY }}"
+    output_key: raw_data
+    next: process
+```
+
+`POST`/`PUT`의 경우 `body` 필드를 추가하세요:
+
+```yaml
+    method: POST
+    body:
+      query: "{{ state.query }}"
+      format: json
+```
+
+## Branch 노드
+
+조건에 따라 실행을 라우팅합니다.
+
+```yaml
+nodes:
+  route:
+    type: branch
+    conditions:
+      - if: "state.confidence >= 0.9"
+        next: done
+      - if: "state.confidence >= 0.5"
+        next: refine
+    default: escalate        # 어떤 조건도 일치하지 않을 때의 대체 경로
+```
+
+조건은 순서대로 평가되며, 첫 번째로 일치하는 조건이 적용됩니다. 표현식은 `state.*`와 `env.*`를 사용할 수 있는 Python 구문의 단순한 부분 집합을 사용합니다.
+
+## Parallel 노드
+
+여러 분기로 분산되고, 모든 분기가 완료될 때까지 대기한 후 계속됩니다.
+
+```yaml
+nodes:
+  gather:
+    type: parallel
+    branches:
+      - search
+      - fetch-docs
+      - check-cache
+    join: synthesize         # 모든 분기 완료 후 실행할 노드
+```
+
+각 분기는 동시에 실행됩니다. parallel 분기에서의 state 쓰기는 병합되며, 두 분기가 동일한 키에 쓰는 경우 마지막 쓰기가 적용됩니다.
+
+## Wait 노드
+
+외부 이벤트를 받을 때까지 실행을 일시 중지합니다.
+
+```yaml
+nodes:
+  await-approval:
+    type: wait
+    event: human_approved    # 대기할 이벤트 이름
+    timeout_hours: 24
+    on_timeout: escalate     # 타임아웃 발생 시 실행할 노드
+    next: continue
+```
+
+대기 중인 실행을 재개하려면:
+
+```bash
+jamjet resume exec_01JM4X8NKWP2 --event human_approved --data '{"approved": true}'
+```
+
+## Eval 노드
+
+출력 품질을 인라인으로 평가합니다. 자가 복구 루프에 유용합니다.
+
+```yaml
+nodes:
+  check-quality:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "답변이 정확하고 완전하며 200단어 이하인가?"
+        min_score: 4          # 1-5 척도
+        model: claude-haiku-4-5-20251001
+      - type: assertion
+        check: "len(output.answer) > 0"
+      - type: latency
+        max_ms: 5000
+    on_fail: retry_with_feedback   # 또는 escalate, halt, log_and_continue
+    max_retries: 2
+    next: end
+```
+
+`on_fail` 옵션:
+- `retry_with_feedback` — 이전 모델 노드를 scorer 피드백을 프롬프트에 주입하여 재실행
+- `escalate` — 에스컬레이션 노드로 라우팅(워크플로우 헤더에서 `escalate:` 정의)
+- `halt` — 오류와 함께 실행 중지
+- `log_and_continue` — 실패를 기록하지만 계속 진행
+
+## End 노드
+
+실행을 종료합니다. 모든 워크플로우는 최소 하나 이상이 필요합니다.
+
+```yaml
+nodes:
+  end:
+    type: end
+```
+
+여러 개의 명명된 end 노드(예: `success`, `failure`, `escalated`)를 가질 수 있으며, 모두 실행을 정상적으로 종료합니다.
+
+## 재시도 정책
+
+모든 노드는 재시도 정책을 가질 수 있습니다:
+
+```yaml
+    retry:
+      max_attempts: 3
+      backoff: exponential    # linear | constant | exponential
+      delay_ms: 200           # 초기 지연
+      max_delay_ms: 10000     # 지수 백오프의 상한
+      retry_on:               # 선택사항: 이러한 오류에서만 재시도
+        - model_overloaded
+        - rate_limited
+        - timeout
+```
+
+## 템플릿 표현식
+
+프롬프트, URL, 헤더, 인자는 `{{ }}` 템플릿 표현식을 지원합니다:
+
+| 표현식 | 값 |
+|-----------|-------|
+| `{{ state.key }}` | 상태 값 |
+| `{{ env.KEY }}` | 환경 변수 |
+| `{{ execution.id }}` | 현재 실행 ID |
+| `{{ execution.workflow_id }}` | 워크플로우 ID |
+| `{{ node.id }}` | 현재 노드 ID |
+
+## 전체 예제
+
+```yaml
+workflow:
+  id: research-agent
+  version: 0.2.0
+  state_schema:
+    query: str
+    search_results: list[str]
+    draft: str
+    answer: str
+  start: search
+
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+      count: 10
+    output_key: search_results
+    next: draft
+
+  draft:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: |
+      다음 검색 결과를 바탕으로:
+      {{ state.search_results | join('\n') }}
+
+      다음 질문에 대한 포괄적인 답변을 작성하세요: {{ state.query }}
+    output_key: draft
+    next: evaluate
+
+  evaluate:
+    type: eval
+    scorers:
+      - type: llm_judge
+        rubric: "이 답변이 검색 결과에 사실적으로 근거하고 있으며, 완전하고 잘 구조화되어 있는가?"
+        min_score: 4
+        model: claude-haiku-4-5-20251001
+      - type: assertion
+        check: "len(output.draft) >= 100"
+    on_fail: retry_with_feedback
+    max_retries: 2
+    next: done
+
+  done:
+    type: end
+```

@@ -1,0 +1,183 @@
+---
+title: MCP統合
+description: Model Context Protocolを使用してJamJetを外部ツールサーバーに接続します。
+---
+
+# MCP統合
+
+JamJetは[Model Context Protocol (MCP)](https://modelcontextprotocol.io)を第一級でサポートしています。MCPは、AIエージェントを外部ツール、データソース、サービスに接続するためのオープン標準です。
+
+## MCPとは?
+
+MCPは、AIエージェントが外部ツールを検出して呼び出すための標準的な方法を定義します。**MCPサーバー**は型付きスキーマでツールを公開し、**MCPクライアント**(JamJet)はそれらのツールを検出して呼び出します。
+
+つまり、JamJetをあらゆるMCP互換ツールサーバーに接続できます。Web検索、データベース、GitHub、Slack、ファイルシステムなどに対応した[数百のコミュニティサーバー](https://github.com/modelcontextprotocol/servers)が利用可能です。
+
+## MCPサーバーの設定
+
+プロジェクトルートの`jamjet.toml`にサーバーを追加します:
+
+```toml
+
+# ローカルstdioサーバー(開発環境で最も一般的)
+
+[[mcp.servers]]
+name = "brave-search"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-brave-search"]
+env = { BRAVE_API_KEY = "${BRAVE_API_KEY}" }
+
+# ローカルPythonサーバー
+
+[[mcp.servers]]
+name = "my-tools"
+command = "python"
+args = ["-m", "my_tools.server"]
+
+# リモートHTTPサーバー(SSEトランスポート)
+
+[[mcp.servers]]
+name = "remote-api"
+url = "https://tools.example.com/mcp"
+headers = { Authorization = "Bearer ${TOOLS_API_KEY}" }
+```
+
+JamJetは`jamjet dev`の起動時に設定された全サーバーに接続します。
+
+## ワークフロー内でツールを使用する
+
+### YAML
+
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search        # jamjet.tomlの`name`と一致
+    tool: web_search            # MCPサーバーのツール名
+    arguments:
+      query: "{{ state.query }}"
+      count: 10
+    output_key: search_results
+    next: summarize
+```
+
+### Python SDK
+
+```python
+@node
+async def search(self, state: State) -> State:
+    result = await self.tool(
+        server="brave-search",
+        tool="web_search",
+        arguments={"query": state["query"], "count": 10},
+    )
+    return {"search_results": result.content}
+```
+
+## 利用可能なツールの検出
+
+接続されたサーバーの全ツールをリスト表示:
+
+```bash
+jamjet tools list
+```
+
+```
+Server: brave-search
+  web_search(query: str, count: int) → list[SearchResult]
+  news_search(query: str, freshness: str) → list[NewsItem]
+
+Server: my-tools
+  run_query(sql: str) → list[dict]
+  get_schema(table: str) → dict
+```
+
+ツールを直接テスト:
+
+```bash
+jamjet tools call brave-search web_search --args '{"query": "JamJet runtime", "count": 3}'
+```
+
+## MCPサーバーの構築
+
+JamJetはMCP経由でツールを**提供**することもでき、ワークフローを他のエージェントから呼び出し可能なツールとして公開できます。
+
+`jamjet.toml`に以下を追加してください:
+
+```toml
+[mcp.server]
+enabled = true
+port = 7701
+workflows = ["my-agent", "research-agent"]   # これらをツールとして公開
+```
+
+公開したワークフローはすべて、呼び出し可能なMCPツールになります。他のエージェントはそれを発見し、入出力スキーマを確認し、実行できます — 内部でJamJetが動いていることを知る必要はありません。
+
+```bash
+
+# ランタイムと同時にMCPサーバーを起動
+
+jamjet dev --with-mcp-server
+```
+
+## 主要なMCPサーバー
+
+| サーバー | パッケージ | 提供機能 |
+|--------|---------|-----------------|
+| Brave Search | `@modelcontextprotocol/server-brave-search` | Web + ニュース検索 |
+| GitHub | `@modelcontextprotocol/server-github` | リポジトリ、Issue、PR |
+| Filesystem | `@modelcontextprotocol/server-filesystem` | ローカルファイルの読み書き |
+| PostgreSQL | `@modelcontextprotocol/server-postgres` | SQLクエリ |
+| Slack | `@modelcontextprotocol/server-slack` | メッセージ、チャンネル |
+| Memory | `@modelcontextprotocol/server-memory` | 永続的なキーバリューストア |
+
+> **tip:** 
+コミュニティMCPサーバーの完全なリストは [github.com/modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers) で確認できます。
+
+## ツールの出力
+
+ツールの結果は`output_key`の下のstateで利用できます。形式はツールによって異なります — スキーマは`jamjet tools list`で確認してください。
+
+複数ステップのワークフローでは、中間ツールの結果がstateに蓄積されます:
+
+```yaml
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    output_key: search_results   # → state.search_results = [...]
+    next: docs
+
+  docs:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }} documentation"
+    output_key: doc_results      # → state.doc_results = [...]
+    next: synthesize
+```
+
+## エラー処理
+
+ツール呼び出しはネットワークエラー、無効な引数、レート制限など、さまざまな理由で失敗する可能性があります。ノードごとにリトライ動作を設定できます:
+
+```yaml
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    output_key: search_results
+    retry:
+      max_attempts: 3
+      backoff: exponential
+      delay_ms: 1000
+    next: summarize
+```
+
+すべてのリトライが失敗した場合、実行は`failed`としてマークされ、手動で再開または再試行できます。

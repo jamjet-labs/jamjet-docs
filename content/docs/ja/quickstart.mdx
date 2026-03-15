@@ -1,0 +1,208 @@
+---
+title: クイックスタート
+description: 60秒でJamJetワークフローを実行 — サーバー不要、設定不要、Pythonのみ。
+---
+
+# クイックスタート
+
+## 60秒で開始
+
+サーバー不要。設定不要。Pydantic不要。Pythonだけ。
+
+```bash
+pip install jamjet
+```
+
+```python
+
+# agent.py
+
+from jamjet import task, tool
+
+@tool
+async def web_search(query: str) -> str:
+    """現在の情報をWeb検索します。"""
+    # 実際の検索実装をここに接続
+    return f"Results for: {query}"
+
+@task(model="claude-sonnet-4-6", tools=[web_search])
+async def research(question: str) -> str:
+    """リサーチアシスタントです。まず検索し、明確に要約してください。"""
+
+import asyncio
+result = asyncio.run(research("JamJetとは?"))
+print(result)
+```
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-... python agent.py
+```
+
+これだけです。`@tool`デコレータで任意のPython関数をエージェントに公開できます。`@task`のdocstringがエージェントの指示になります。OpenAI、Anthropic、Ollama、Groqなど、どのモデルでも動作します。
+
+> **tip:** 
+**Ollamaをローカルで使用する場合、APIキーは不要:**
+```bash
+OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
+```
+`model=`を任意のOllamaモデル(例: `"llama3.2"`)に変更してください。
+
+---
+
+## 提供される機能
+
+- **`@tool`** — 任意の非同期Python関数をエージェントツールに変換し、スキーマを自動生成
+- **`@task`** — docstring = エージェントの指示、関数シグネチャ = 入力契約
+- **永続的な実行** — クラッシュしても停止した場所から再開(`jamjet dev`使用時)
+- **制限の強制** — `max_iterations`、`max_cost_usd`、`timeout_seconds`は第一級パラメータ
+
+ボイラープレート不要。状態クラス不要。依存性注入不要。
+
+> **note:** 
+完全なグラフ制御が必要な場合 — マルチステップパイプライン、条件付きルーティング、ヒューマンインザループ?
+複雑なオーケストレーションには[`Workflow` API](/python-sdk)または[YAMLワークフロー](/yaml-workflows)を使用してください。
+
+---
+
+## サンプルを試す
+
+[jamjet-benchmarksリポジトリ](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples)に4つの独立したサンプル — すべてOllamaでローカル実行可能:
+
+| サンプル | 内容 |
+|---------|--------------|
+| [01 — タイムライン付きパイプライン](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/01_pipeline_with_timeline) | ステップごとの実行タイムライン、自動 |
+| [02 — 条件付きルーティング](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/02_conditional_routing) | 純粋なPython述語としてのルーティング |
+| [03 — 評価ハーネス](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/03_eval_harness) | 組み込みスコアリング、LLM-as-judge |
+| [04 — 自己評価ワークフロー](https://github.com/jamjet-labs/jamjet-benchmarks/tree/main/examples/04_self_evaluating_workflow) | ドラフト → 判定 → リトライループ |
+
+```bash
+git clone https://github.com/jamjet-labs/jamjet-benchmarks
+cd jamjet-benchmarks/examples/01_pipeline_with_timeline
+pip install -r requirements.txt
+OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 MODEL_NAME=llama3.2 python main.py
+```
+
+---
+
+## 完全なプロジェクトのスキャフォールディング
+
+テンプレートを使用して、より完全なプロジェクトを開始できます：
+
+```bash
+jamjet init my-agent --template hello-agent
+cd my-agent
+```
+
+利用可能なテンプレート：
+
+```bash
+jamjet init my-agent --list-templates
+
+# hello-agent           最小限のQ&Aワークフロー
+
+# research-agent        ウェブ検索 + 統合（Brave Search MCP）
+
+# rag-assistant         ファイルシステムMCPを使用したRAG
+
+# mcp-tool-consumer     任意のMCPツールサーバーに接続
+
+# mcp-tool-provider     Python関数をMCPツールとして公開
+
+# code-reviewer         品質スコアリング付きGitHub PRレビュー
+
+# hitl-approval         人間参加型の承認ゲート
+
+# multi-agent-review    ライター + クリティックのレビューループ
+
+# a2a-delegator         A2Aプロトコル経由でタスクを委任
+
+# a2a-server            外部エージェントからのA2Aリクエストを処理
+
+# approval-workflow     24時間タイムアウト付きの永続的な承認
+
+```
+
+---
+
+## 永続ランタイムの追加（本番環境）
+
+インプロセスエグゼキュータ（`wf.run_sync`）は開発に最適です。本番環境では、クラッシュ復旧、マルチインスタンススケジューリング、永続的な状態管理のために、ランタイムサーバーを起動します：
+
+```bash
+jamjet dev
+```
+
+```
+▶ JamJet Dev Runtime
+  Port:  7700
+  Mode:  local (SQLite)
+  API:   http://localhost:7700
+```
+
+その後、ワークフローを実行します：
+
+```bash
+jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
+```
+
+```
+✓ node_completed   think   gpt-4o-mini  512ms
+✓ Execution completed.
+```
+
+実行中にクラッシュしても、中断した箇所から正確に再開できます。以前のステップの再実行や無駄なAPI呼び出しは不要です。
+
+---
+
+## APIキーの設定
+
+#### OpenAI
+
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+#### Anthropic
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+#### Ollama（無料・ローカル）
+
+```bash
+export OPENAI_API_KEY=ollama
+export OPENAI_BASE_URL=http://localhost:11434/v1
+
+# ollama pull llama3.2
+
+```
+
+#### Groq
+
+```bash
+export OPENAI_API_KEY=gsk_...
+export OPENAI_BASE_URL=https://api.groq.com/openai/v1
+```
+
+---
+
+## 次のステップ
+
+1. [コアコンセプト](/concepts) — エージェント、ノード、ステート、永続性
+2. [Python SDK](/python-sdk) — デコレーター、ルーティング、並列ステップ
+3. [ワークフロー作成](/yaml-workflows) — 全ノードタイプ、リトライポリシー、条件
+4. [MCP統合](/mcp) — 外部ツールサーバーへ1行で接続
+5. [評価ハーネス](/eval) — エージェントをソフトウェアのようにテスト
+
+---
+
+## トラブルシューティング
+
+**インストール後に`jamjet`が見つからない場合**
+PythonスクリプトディレクトリがPATHに含まれているか確認してください。`python -m jamjet`を試してみてください。
+
+**ポート7700で接続拒否される場合**
+`jamjet run`を使用する前に`jamjet dev`が実行されている必要があります。インプロセスの`wf.run_sync()`パスではサーバーは不要です。
+
+**サポートが必要な場合** [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions)を開くか、[Issue を報告](https://github.com/jamjet-labs/jamjet/issues)してください。

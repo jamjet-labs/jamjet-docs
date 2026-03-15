@@ -7,6 +7,14 @@ import {
 } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
 import { source } from '@/lib/source';
+import type { ComponentType } from 'react';
+interface MdxPageData {
+  title?: string;
+  description?: string;
+  body: ComponentType<{ components?: Record<string, ComponentType> }>;
+  toc: { title: string; url: string; depth: number }[];
+  full?: boolean;
+}
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -15,14 +23,15 @@ export default async function Page(props: {
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
-  const MDX = page.data.body;
+  const data = page.data as unknown as MdxPageData;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
+    <DocsPage toc={data.toc} full={data.full}>
+      <DocsTitle>{data.title}</DocsTitle>
+      <DocsDescription>{data.description}</DocsDescription>
       <DocsBody>
-        <MDX components={{ ...defaultMdxComponents }} />
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <data.body components={defaultMdxComponents as any} />
       </DocsBody>
     </DocsPage>
   );

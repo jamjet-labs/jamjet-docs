@@ -10,15 +10,15 @@ JamJet gives researchers a complete experiment infrastructure out of the box: du
 
 This guide walks through a complete research workflow — from project scaffold to paper-ready results.
 
-<Aside type="tip">
+> **Tip:** 
 Already familiar with JamJet? Jump to [Run experiments](#run-experiments) or [Export for publication](#export-for-publication).
-</Aside>
+
 
 ---
 
 ## Setup
 
-<Steps>
+
 
 1. **Install JamJet**
 
@@ -52,7 +52,7 @@ Already familiar with JamJet? Jump to [Run experiments](#run-experiments) or [Ex
    └── README.md
    ```
 
-</Steps>
+
 
 ---
 
@@ -122,9 +122,9 @@ results.summary()  # Rich table in terminal
 
 This runs 6 strategies x 2 models x 3 seeds = **36 durable executions**, each with full event traces and checkpoints.
 
-<Aside type="note">
+> **Note:** 
 Every execution is event-sourced. If the experiment crashes at run 22 of 36, it resumes from run 22 — no tokens wasted re-running completed conditions.
-</Aside>
+
 
 ---
 
@@ -274,9 +274,9 @@ Every node completion in JamJet carries `ProvenanceMetadata`:
 
 Provenance is attached automatically — no extra configuration needed. It flows through to event traces, audit logs, and exported results.
 
-<Aside type="tip">
+> **Tip:** 
 Provenance metadata is especially valuable for multi-model experiments where you need to attribute which model produced which intermediate result.
-</Aside>
+
 
 ---
 

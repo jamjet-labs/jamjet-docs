@@ -8,7 +8,14 @@ export default function Layout({ children }: { children: ReactNode }) {
       tree={source.pageTree}
       nav={{
         title: (
-          <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+          <span
+            style={{
+              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontWeight: 800,
+              fontSize: '1.15rem',
+              letterSpacing: '-0.03em',
+            }}
+          >
             JamJet
           </span>
         ),

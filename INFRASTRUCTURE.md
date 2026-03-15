@@ -6,10 +6,10 @@
 ## Architecture
 
 ```
-content/docs/*.mdx (English source)
+content/docs/en/*.mdx (English source — contributors edit here)
         │
-        ├──► Crowdin (auto-translates to ja, zh, ko, es, de)
-        │       └──► PR with content/docs/{locale}/*.mdx
+        ├──► Lingo.dev (auto-translates to ja, zh, ko, es, de)
+        │       └──► commits translated files to content/docs/{locale}/
         │
         ▼
   Fumadocs (Next.js) builds all locales
@@ -29,9 +29,9 @@ content/docs/*.mdx (English source)
 | Styling | Tailwind CSS v4 | Utility CSS |
 | Fonts | Source Serif 4 + Plus Jakarta Sans + IBM Plex Mono | Editorial Engineering theme |
 | i18n routing | Fumadocs built-in | `/en/docs/...`, `/ja/docs/...` |
-| Translation | Crowdin (free OSS) | Auto-translates MDX on push |
+| Translation | Lingo.dev (free for OSS) | Auto-translates MDX on push via GitHub Actions |
 | Hosting | Cloudflare Pages | Free, unlimited bandwidth, global CDN |
-| CI/CD | GitHub Actions | Build + deploy on push to main |
+| CI/CD | GitHub Actions | translate.yml + deploy.yml on push to main |
 
 ## For contributors
 
@@ -95,33 +95,44 @@ Add CNAME record in your DNS provider:
 docs.jamjet.dev  CNAME  jamjet-docs.pages.dev
 ```
 
-## Translation (Crowdin)
+## Translation (Lingo.dev)
 
 ### Setup (one-time)
 
-1. Create project at [crowdin.com](https://crowdin.com) (free for OSS)
-2. Target languages: Japanese, Chinese Simplified, Korean, Spanish, German
-3. Install [Crowdin GitHub Integration](https://crowdin.com/integrations/github)
-4. Connect to `jamjet-labs/jamjet-docs` repo
-5. Enable machine translation pre-translation (Settings → Machine Translation)
+1. Sign up at [lingo.dev](https://lingo.dev) (free for OSS)
+2. Get your API key from the dashboard
+3. Add `LINGODOTDEV_API_KEY` as a GitHub repo secret
 
 ### How it works
 
-1. You push English MDX to `content/docs/`
-2. Crowdin detects changes, runs AI translation
-3. Crowdin opens a PR with translated files at `content/docs/{locale}/`
-4. Auto-merge or review, then merge
-5. Cloudflare Pages rebuilds with all locales
+1. You push English MDX to `content/docs/en/`
+2. The `translate.yml` workflow triggers automatically
+3. Lingo.dev translates changed files to ja, zh, ko, es, de
+4. Translated files are committed to `content/docs/{locale}/`
+5. The `deploy.yml` workflow rebuilds and deploys
+
+### Configuration
+
+`i18n.json` at repo root:
+```json
+{
+  "locale": {
+    "source": "en",
+    "targets": ["ja", "zh", "ko", "es", "de"]
+  },
+  "buckets": {
+    "markdown": {
+      "include": ["content/docs/[locale]/**/*.mdx", "content/docs/[locale]/**/*.md"]
+    }
+  }
+}
+```
 
 ### Adding a new language
 
-1. Add locale to `src/lib/i18n.ts`:
-   ```typescript
-   { locale: 'fr', name: 'French' },
-   ```
-2. Add language in `src/lib/source.ts` `languages` array
-3. Add language in Crowdin project settings
-4. Crowdin starts translating automatically
+1. Add locale to `i18n.json` targets array
+2. Add locale to `src/lib/i18n.ts`
+3. Next push triggers translation automatically
 
 ## Troubleshooting
 

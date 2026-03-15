@@ -8,6 +8,7 @@ import {
 import { notFound } from 'next/navigation';
 import { getSource } from '@/lib/source';
 import type { ComponentType } from 'react';
+import type { Metadata } from 'next';
 import { locales } from '@/lib/i18n';
 
 interface MdxPageData {
@@ -54,14 +55,46 @@ export function generateStaticParams() {
 
 export async function generateMetadata(props: {
   params: Promise<{ lang: string; slug?: string[] }>;
-}) {
-  const params = await props.params;
-  const localSource = getSource(params.lang);
-  const page = localSource.getPage(params.slug);
-  if (!page) notFound();
+}): Promise<Metadata> {
+  const { lang, slug } = await props.params;
+  const localSource = getSource(lang);
+  const page = localSource.getPage(slug);
+  if (!page) return {};
+
+  const url = slug
+    ? `https://docs.jamjet.dev/${lang}/docs/${slug.join('/')}`
+    : `https://docs.jamjet.dev/${lang}/docs`;
+
+  // Build hreflang alternates
+  const languages: Record<string, string> = {};
+  for (const locale of locales) {
+    const altPath = slug
+      ? `/${locale.locale}/docs/${slug.join('/')}`
+      : `/${locale.locale}/docs`;
+    languages[locale.locale] = `https://docs.jamjet.dev${altPath}`;
+  }
+  languages['x-default'] = slug
+    ? `https://docs.jamjet.dev/en/docs/${slug.join('/')}`
+    : `https://docs.jamjet.dev/en/docs`;
 
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: {
+      canonical: url,
+      languages,
+    },
+    openGraph: {
+      title: page.data.title as string | undefined,
+      description: page.data.description as string | undefined,
+      url,
+      siteName: 'JamJet Docs',
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary',
+      title: page.data.title as string | undefined,
+      description: page.data.description as string | undefined,
+    },
   };
 }

@@ -1,0 +1,1258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://docs.jamjet.dev/en</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/a2a</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/a2a"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/a2a</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/a2a"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/a2a</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/a2a"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/a2a</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/a2a"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/a2a</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/a2a"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/a2a</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/a2a"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/a2a"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/api-reference</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/api-reference</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/api-reference</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/api-reference</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/api-reference</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/api-reference</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/api-reference"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/api-reference"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/cli</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/cli"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/cli</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/cli"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/cli</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/cli"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/cli</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/cli"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/cli</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/cli"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/cli</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/cli"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/cli"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/compare</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/compare"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/compare</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/compare"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/compare</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/compare"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/compare</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/compare"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/compare</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/compare"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/compare</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/compare"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/concepts</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/concepts"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/concepts</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/concepts"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/concepts</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/concepts"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/concepts</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/concepts"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/concepts</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/concepts"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/concepts</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/concepts"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/concepts"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/deployment</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/deployment"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/deployment</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/deployment"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/deployment</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/deployment"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/deployment</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/deployment"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/deployment</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/deployment"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/deployment</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/deployment"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/deployment"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/enterprise</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/enterprise</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/enterprise</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/enterprise</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/enterprise</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/enterprise</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/enterprise"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/enterprise"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/eval</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/eval"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/eval</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/eval"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/eval</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/eval"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/eval</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/eval"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/eval</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/eval"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/eval</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/eval"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/eval"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/java-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/java-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/java-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/java-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/java-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/java-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/java-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/java-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/mcp</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/mcp"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/mcp</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/mcp"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/mcp</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/mcp"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/mcp</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/mcp"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/mcp</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/mcp"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/mcp</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/mcp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/mcp"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/migrate/from-crewai</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/migrate/from-crewai</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/migrate/from-crewai</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/migrate/from-crewai</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/migrate/from-crewai</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/migrate/from-crewai</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-crewai"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-crewai"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/migrate/from-langgraph</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/migrate/from-langgraph</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/migrate/from-langgraph</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/migrate/from-langgraph</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/migrate/from-langgraph</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/migrate/from-langgraph</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-langgraph"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-langgraph"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/migrate/from-openai-direct</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/migrate/from-openai-direct</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/migrate/from-openai-direct</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/migrate/from-openai-direct</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/migrate/from-openai-direct</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/migrate/from-openai-direct</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/migrate/from-openai-direct"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/migrate/from-openai-direct"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/observability</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/observability"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/observability</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/observability"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/observability</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/observability"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/observability</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/observability"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/observability</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/observability"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/observability</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/observability"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/observability"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/python-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/python-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/python-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/python-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/python-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/python-sdk</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/python-sdk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/python-sdk"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/quickstart</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/quickstart</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/quickstart</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/quickstart</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/quickstart</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/quickstart</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/quickstart"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/quickstart"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/research-guide</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/research-guide</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/research-guide</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/research-guide</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/research-guide</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/research-guide</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/research-guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/research-guide"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/en/docs/yaml-workflows</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ja/docs/yaml-workflows</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/zh/docs/yaml-workflows</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/ko/docs/yaml-workflows</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/es/docs/yaml-workflows</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+  </url>
+  <url>
+    <loc>https://docs.jamjet.dev/de/docs/yaml-workflows</loc>
+    <lastmod>2026-03-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://docs.jamjet.dev/ja/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://docs.jamjet.dev/zh/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://docs.jamjet.dev/ko/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://docs.jamjet.dev/es/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://docs.jamjet.dev/de/docs/yaml-workflows"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://docs.jamjet.dev/en/docs/yaml-workflows"/>
+  </url>
+</urlset>

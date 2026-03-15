@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://docs.jamjet.dev/sitemap.xml
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /

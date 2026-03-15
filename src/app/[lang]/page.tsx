@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { locales } from '@/lib/i18n';
 
 const sections = [
@@ -147,4 +148,41 @@ export default async function LangHome({
 
 export function generateStaticParams() {
   return locales.map((l) => ({ lang: l.locale }));
+}
+
+export async function generateMetadata(props: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await props.params;
+  const url = `https://docs.jamjet.dev/${lang}`;
+
+  const languages: Record<string, string> = {};
+  for (const locale of locales) {
+    languages[locale.locale] = `https://docs.jamjet.dev/${locale.locale}`;
+  }
+  languages['x-default'] = 'https://docs.jamjet.dev/en';
+
+  return {
+    title: 'JamJet Documentation',
+    description:
+      'The agent-native runtime. Durable execution, native MCP + A2A, built-in eval. Authored in Python. Powered by Rust.',
+    alternates: {
+      canonical: url,
+      languages,
+    },
+    openGraph: {
+      title: 'JamJet Documentation',
+      description:
+        'The agent-native runtime. Durable execution, native MCP + A2A, built-in eval. Authored in Python. Powered by Rust.',
+      url,
+      siteName: 'JamJet Docs',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title: 'JamJet Documentation',
+      description:
+        'The agent-native runtime. Durable execution, native MCP + A2A, built-in eval. Authored in Python. Powered by Rust.',
+    },
+  };
 }

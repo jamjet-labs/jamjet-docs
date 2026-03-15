@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   },
   description:
     'Documentation for JamJet: durable execution, native MCP + A2A, eval harness, and polyglot SDKs for production AI agents.',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default async function LangLayout({

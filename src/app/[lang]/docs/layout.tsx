@@ -17,15 +17,22 @@ export default async function Layout({
       tree={localSource.pageTree}
       nav={{
         title: (
-          <span
-            style={{
-              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-              fontWeight: 800,
-              fontSize: '1.15rem',
-              letterSpacing: '-0.03em',
-            }}
-          >
-            JamJet
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="30" height="30" rx="3" fill="#141413"/>
+              <path d="M12.5 8.5v12c0 1.66-1.34 3-3 3" stroke="#f6f5f1" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <line x1="17" y1="8" x2="22.5" y2="14" stroke="#f6f5f1" strokeWidth="2.5" strokeLinecap="round"/>
+            </svg>
+            <span
+              style={{
+                fontFamily: "'DM Mono', 'JetBrains Mono', monospace",
+                fontWeight: 500,
+                fontSize: '1rem',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              JamJet
+            </span>
           </span>
         ),
         url: `/${lang}`,

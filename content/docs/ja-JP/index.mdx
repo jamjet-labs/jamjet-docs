@@ -1,0 +1,40 @@
+---
+title: JamJet Documentation
+description: The agent-native runtime — durable execution, native MCP + A2A, full observability. Built in Rust. Authored in Python.
+---
+
+# JamJet Documentation
+
+Welcome to JamJet — the production-grade runtime for AI agents.
+
+## What is JamJet?
+
+JamJet is an open-source, durable workflow runtime built specifically for AI agents. The core is Rust (for performance). The authoring surface is Python and Java (for ergonomics). Every execution is event-sourced, checkpointed, and replayable.
+
+## Quick links
+
+* **[Quickstart](/docs/quickstart)** — Get a durable agent running in under 5 minutes
+* **[Concepts](/docs/concepts)** — Understand the architecture
+* **[Python SDK](/docs/python-sdk)** — `@task`, `Agent`, `Workflow` API reference
+* **[Research Guide](/docs/research-guide)** — Run reproducible multi-agent experiments
+* **[MCP Guide](/docs/mcp)** — Connect to any MCP tool server
+* **[A2A Guide](/docs/a2a)** — Agent-to-agent communication
+
+## Install
+
+```bash
+pip install jamjet
+```
+
+## Key capabilities
+
+| Capability            | Description                                                    |
+| --------------------- | -------------------------------------------------------------- |
+| **Durable execution** | Event-sourced, crash-recoverable, checkpoint replay            |
+| **Native MCP + A2A**  | Client and server for both protocols                           |
+| **Six strategies**    | react, plan-and-execute, critic, reflection, consensus, debate |
+| **Built-in eval**     | LLM-judge, assertions, cost/latency scorers, custom `@scorer`  |
+| **ExperimentGrid**    | Parameter sweeps with LaTeX/CSV/JSON export                    |
+| **Rust core**         | Async scheduler, microsecond dispatch, real parallelism        |
+| **Polyglot SDKs**     | Python, Java, Go (coming)                                      |
+| **Policy engine**     | Token/cost limits, PII redaction, autonomy levels              |

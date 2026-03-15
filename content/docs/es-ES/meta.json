@@ -1,0 +1,27 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "quickstart",
+    "concepts",
+    "---Getting Started---",
+    "python-sdk",
+    "java-sdk",
+    "cli",
+    "yaml-workflows",
+    "---Guides---",
+    "eval",
+    "research-guide",
+    "observability",
+    "deployment",
+    "enterprise",
+    "---Protocols---",
+    "mcp",
+    "a2a",
+    "---Reference---",
+    "api-reference",
+    "compare",
+    "---Migration---",
+    "...migrate"
+  ]
+}

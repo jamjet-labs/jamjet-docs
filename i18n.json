@@ -1,11 +1,22 @@
 {
+  "version": 0,
   "locale": {
     "source": "en",
-    "targets": ["ja", "zh", "ko", "es", "de"]
+    "targets": [
+      "ja",
+      "zh",
+      "ko",
+      "es",
+      "de"
+    ]
   },
   "buckets": {
     "markdown": {
-      "include": ["content/docs/[locale]/**/*.mdx", "content/docs/[locale]/**/*.md"]
+      "include": [
+        "content/docs/[locale]/**/*.mdx",
+        "content/docs/[locale]/**/*.md"
+      ]
     }
-  }
+  },
+  "$schema": "https://lingo.dev/schema/i18n.json"
 }

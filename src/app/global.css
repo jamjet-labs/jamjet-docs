@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+:root {
+  --fd-background: 250 250 248;
+  --fd-foreground: 28 25 23;
+  --fd-muted: 120 113 108;
+  --fd-muted-foreground: 87 83 78;
+  --fd-border: 231 229 228;
+  --fd-primary: 139 115 85;
+  --fd-primary-foreground: 255 255 255;
+  --fd-ring: 139 115 85;
+}
+
+.dark {
+  --fd-background: 28 25 23;
+  --fd-foreground: 245 245 244;
+  --fd-muted: 87 83 78;
+  --fd-muted-foreground: 168 162 158;
+  --fd-border: 68 64 60;
+  --fd-primary: 180 155 120;
+  --fd-primary-foreground: 28 25 23;
+  --fd-ring: 180 155 120;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+code, pre, kbd {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}

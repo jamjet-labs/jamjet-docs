@@ -6,7 +6,7 @@ import {
   DocsTitle,
 } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
-import { source } from '@/lib/source';
+import { getSource } from '@/lib/source';
 import type { ComponentType } from 'react';
 import { locales } from '@/lib/i18n';
 
@@ -22,8 +22,8 @@ export default async function Page(props: {
   params: Promise<{ lang: string; slug?: string[] }>;
 }) {
   const params = await props.params;
-  // All locales serve from English source until translations land
-  const page = source.getPage(params.slug);
+  const localSource = getSource(params.lang);
+  const page = localSource.getPage(params.slug);
   if (!page) notFound();
 
   const data = page.data as unknown as MdxPageData;
@@ -41,7 +41,9 @@ export default async function Page(props: {
 }
 
 export function generateStaticParams() {
-  const enParams = source.generateParams();
+  // Generate params from English source for all locales
+  const enSource = getSource('en');
+  const enParams = enSource.generateParams();
   return locales.flatMap((l) =>
     enParams.map((p) => ({
       ...p,
@@ -54,7 +56,8 @@ export async function generateMetadata(props: {
   params: Promise<{ lang: string; slug?: string[] }>;
 }) {
   const params = await props.params;
-  const page = source.getPage(params.slug);
+  const localSource = getSource(params.lang);
+  const page = localSource.getPage(params.slug);
   if (!page) notFound();
 
   return {

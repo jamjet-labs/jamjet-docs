@@ -1,6 +1,6 @@
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
 import type { ReactNode } from 'react';
-import { source } from '@/lib/source';
+import { getSource } from '@/lib/source';
 
 export default async function Layout({
   children,
@@ -10,10 +10,11 @@ export default async function Layout({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const localSource = getSource(lang);
 
   return (
     <DocsLayout
-      tree={source.pageTree}
+      tree={localSource.pageTree}
       nav={{
         title: (
           <span

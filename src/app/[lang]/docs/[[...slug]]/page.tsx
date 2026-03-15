@@ -8,6 +8,8 @@ import {
 import { notFound } from 'next/navigation';
 import { source } from '@/lib/source';
 import type { ComponentType } from 'react';
+import { locales } from '@/lib/i18n';
+
 interface MdxPageData {
   title?: string;
   description?: string;
@@ -17,9 +19,10 @@ interface MdxPageData {
 }
 
 export default async function Page(props: {
-  params: Promise<{ slug?: string[] }>;
+  params: Promise<{ lang: string; slug?: string[] }>;
 }) {
   const params = await props.params;
+  // All locales serve from English source until translations land
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
@@ -37,12 +40,18 @@ export default async function Page(props: {
   );
 }
 
-export async function generateStaticParams() {
-  return source.generateParams();
+export function generateStaticParams() {
+  const enParams = source.generateParams();
+  return locales.flatMap((l) =>
+    enParams.map((p) => ({
+      ...p,
+      lang: l.locale,
+    })),
+  );
 }
 
 export async function generateMetadata(props: {
-  params: Promise<{ slug?: string[] }>;
+  params: Promise<{ lang: string; slug?: string[] }>;
 }) {
   const params = await props.params;
   const page = source.getPage(params.slug);

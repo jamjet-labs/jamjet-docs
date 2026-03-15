@@ -1,10 +1,9 @@
 import { docs } from '../../.source/server';
 import { loader } from 'fumadocs-core/source';
+import { defaultLocale } from './i18n';
 
-// No i18n in the loader — locale routing is handled by the [lang] app segment.
-// Content files in content/docs/ serve all locales (English source).
-// When Crowdin adds content/docs/ja/*.mdx, we can add i18n here.
+// baseUrl includes the default locale since all routes are under /[lang]/docs/
 export const source = loader({
-  baseUrl: '/docs',
+  baseUrl: `/${defaultLocale}/docs`,
   source: docs.toFumadocsSource(),
 });

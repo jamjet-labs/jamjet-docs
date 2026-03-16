@@ -21,6 +21,15 @@ export const W = () => <span class="ic ic-w">…</span>;
   <span><span class="ic ic-w">…</span> In progress</span>
 </div>
 
+## Which one is best for what?
+
+- **Plain Python** — fastest start, lowest guarantees. Great for prototypes and one-off scripts.
+- **LangGraph** — graph orchestration, familiar patterns, optional durability via checkpointers.
+- **JamJet** — Python mental model with durability by default and stronger runtime guarantees.
+- **CrewAI / AutoGen** — useful abstractions for some multi-agent patterns, but different emphasis on reliability.
+
+> If you like LangGraph's Python workflow model but want durability, replay, typed validation, and runtime-enforced limits built in, JamJet is the closest conceptual move. See the [LangGraph migration guide](/migrate/from-langgraph).
+
 ## Core execution
 
 | Feature | JamJet | LangGraph | CrewAI | AutoGen |

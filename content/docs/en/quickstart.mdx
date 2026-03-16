@@ -52,10 +52,10 @@ Change `model=` to any Ollama model (e.g. `"llama3.2"`).
 
 ## What you get
 
-- **`@tool`** — turns any async Python function into an agent tool, with automatic schema generation
-- **`@task`** — docstring = agent instructions, function signature = input contract
-- **Durable execution** — crash and resume from where it stopped (with `jamjet dev`)
-- **Enforced limits** — `max_iterations`, `max_cost_usd`, `timeout_seconds` are first-class params
+- **`@tool`** — expose any async Python function as a tool with automatic schema generation
+- **`@task`** — use plain Python functions as durable agent steps
+- **Durable execution** — resume from failure with `jamjet dev`
+- **Runtime-enforced limits** — iterations, cost, and timeouts as first-class controls
 
 No boilerplate. No state classes. No dependency injection.
 
@@ -141,6 +141,31 @@ jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
 ```
 
 Crash mid-execution? Resume from exactly where it stopped — no re-running earlier steps, no wasted API calls.
+
+---
+
+## Try crash recovery in 90 seconds
+
+1. **Start the runtime:**
+   ```bash
+   jamjet dev
+   ```
+
+2. **Run a multi-step workflow:**
+   ```bash
+   jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
+   ```
+
+3. **Kill the worker during execution** (Ctrl+C mid-run, or kill the process)
+
+4. **Restart the runtime:**
+   ```bash
+   jamjet dev
+   ```
+
+5. **Watch the workflow resume from the last completed checkpoint**
+
+**Result:** No re-running earlier steps. No wasted API calls. No lost state.
 
 ---
 

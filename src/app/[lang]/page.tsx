@@ -4,7 +4,7 @@ import { locales } from '@/lib/i18n';
 
 const sections = [
   {
-    label: 'Start here',
+    label: 'Get started',
     items: [
       { title: 'Quickstart', slug: 'quickstart', desc: 'First agent in 5 minutes' },
       { title: 'Concepts', slug: 'concepts', desc: 'Architecture and mental model' },
@@ -58,8 +58,7 @@ export default async function LangHome({
           <span className="home-badge">Documentation</span>
           <h1 className="home-title">JamJet</h1>
           <p className="home-subtitle">
-            The agent-native runtime. Durable execution, native MCP&nbsp;+&nbsp;A2A,
-            built-in eval. Authored in Python. Powered by Rust.
+            Build durable AI agents with checkpoint replay, traces, runtime-enforced limits, and protocol-native interoperability.
           </p>
           <div className="home-actions">
             <Link href={`/${lang}/docs/quickstart`} className="home-btn-primary">
@@ -67,6 +66,20 @@ export default async function LangHome({
             </Link>
             <Link href={`/${lang}/docs`} className="home-btn-secondary">
               Browse docs
+            </Link>
+          </div>
+          <div className="home-paths">
+            <Link href={`/${lang}/docs/quickstart`} className="home-path">
+              Start in 60 seconds
+            </Link>
+            <Link href={`/${lang}/docs/quickstart#try-crash-recovery-in-90-seconds`} className="home-path">
+              See crash recovery
+            </Link>
+            <Link href={`/${lang}/docs/compare`} className="home-path">
+              Compare frameworks
+            </Link>
+            <Link href={`/${lang}/docs/migrate/from-langgraph`} className="home-path">
+              Migrate from LangGraph
             </Link>
           </div>
           <div className="home-install">
@@ -112,6 +125,9 @@ export default async function LangHome({
         .home-title{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:clamp(2.8rem,7vw,4.5rem);font-weight:800;letter-spacing:-0.045em;line-height:1.05;color:rgb(var(--fd-foreground));margin:0 0 20px}
         .home-subtitle{font-family:'Source Serif 4',Georgia,serif;font-size:clamp(1.05rem,2vw,1.2rem);color:rgb(var(--fd-muted-foreground));line-height:1.7;max-width:560px;margin:0 auto 36px}
         .home-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:28px}
+        .home-paths{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+        .home-path{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:0.78rem;font-weight:600;padding:6px 16px;border-radius:100px;border:1px solid rgb(var(--fd-border));color:rgb(var(--fd-muted-foreground));text-decoration:none;transition:border-color 0.2s,color 0.2s}
+        .home-path:hover{border-color:var(--j-amber);color:var(--j-amber)}
         .home-btn-primary{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:0.88rem;font-weight:600;padding:10px 28px;border-radius:8px;background:var(--j-amber);color:#fff;text-decoration:none;transition:opacity 0.2s,transform 0.15s}
         .home-btn-primary:hover{opacity:0.9;transform:translateY(-1px)}
         .home-btn-secondary{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:0.88rem;font-weight:600;padding:10px 28px;border-radius:8px;background:transparent;color:rgb(var(--fd-foreground));border:1px solid rgb(var(--fd-border));text-decoration:none;transition:background 0.2s,border-color 0.2s}
@@ -165,7 +181,7 @@ export async function generateMetadata(props: {
   return {
     title: 'JamJet Documentation',
     description:
-      'The agent-native runtime. Durable execution, native MCP + A2A, built-in eval. Authored in Python. Powered by Rust.',
+      'The durable runtime for AI agents. Checkpoint replay, traces, runtime-enforced limits. Write Python, run with Rust reliability.',
     alternates: {
       canonical: url,
       languages,
@@ -173,7 +189,7 @@ export async function generateMetadata(props: {
     openGraph: {
       title: 'JamJet Documentation',
       description:
-        'The agent-native runtime. Durable execution, native MCP + A2A, built-in eval. Authored in Python. Powered by Rust.',
+        'The durable runtime for AI agents. Checkpoint replay, traces, runtime-enforced limits. Write Python, run with Rust reliability.',
       url,
       siteName: 'JamJet Docs',
       type: 'website',
@@ -182,7 +198,7 @@ export async function generateMetadata(props: {
       card: 'summary',
       title: 'JamJet Documentation',
       description:
-        'The agent-native runtime. Durable execution, native MCP + A2A, built-in eval. Authored in Python. Powered by Rust.',
+        'The durable runtime for AI agents. Checkpoint replay, traces, runtime-enforced limits. Write Python, run with Rust reliability.',
     },
   };
 }

@@ -7,7 +7,7 @@ description: Understand agents, nodes, state, and durability in JamJet.
 
 # Core Concepts
 
-JamJet is an **agent-native runtime** — purpose-built for AI workflows that need to survive failures, scale across workers, and compose with other agents. This page covers the key primitives.
+JamJet is a **durable runtime for AI agents**. The key idea is simple: workflows are executed as recoverable state transitions, not ephemeral function calls. That is what makes replay, crash recovery, approval pauses, and exact traces possible. This page covers the key primitives.
 
 ## Workflows
 
@@ -121,3 +121,11 @@ The scheduler is the reason JamJet workflows are durable by default — it never
 | Auth | None | mTLS / API keys |
 
 The programming model is identical — the same YAML or Python code runs unchanged in both environments.
+
+---
+
+## Next steps
+
+- [Quickstart](/docs/quickstart) — build your first durable agent
+- [Python SDK](/docs/python-sdk) — decorators, routing, parallel steps
+- [Try crash recovery](/docs/quickstart#try-crash-recovery-in-90-seconds) — see durability in action

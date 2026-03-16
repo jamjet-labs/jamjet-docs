@@ -9,6 +9,8 @@ description: Connect JamJet to external tool servers using the Model Context Pro
 
 JamJet has first-class support for the [Model Context Protocol (MCP)](https://modelcontextprotocol.io) — the open standard for connecting AI agents to external tools, data sources, and services.
 
+> **Key difference:** JamJet treats MCP tool calls as part of a durable workflow, not just ephemeral tool invocations. That means tool use remains checkpointed, replayable, and observable — even if the process crashes mid-call.
+
 ## What is MCP?
 
 MCP defines a standard way for AI agents to discover and call external tools. A **MCP server** exposes tools with typed schemas; a **MCP client** (JamJet) discovers those tools and calls them.
@@ -178,3 +180,11 @@ Tool calls can fail for many reasons — network errors, invalid arguments, rate
 ```
 
 If all retries fail, the execution is marked `failed` and can be manually resumed or retried.
+
+---
+
+## Next steps
+
+- [Quickstart](/docs/quickstart) — get a workflow running first
+- [A2A Integration](/docs/a2a) — delegate tasks to other agents
+- [Showcase](https://jamjet.dev/showcase) — see MCP patterns in production examples

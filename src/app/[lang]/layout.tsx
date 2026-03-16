@@ -1,5 +1,6 @@
 import '../global.css';
 import { RootProvider } from 'fumadocs-ui/provider/next';
+import Script from 'next/script';
 import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { locales, defaultLocale } from '@/lib/i18n';
@@ -27,6 +28,18 @@ export default async function LangLayout({
   return (
     <html lang={lang} suppressHydrationWarning>
       <head>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-1VK3ZE2VHJ"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-1VK3ZE2VHJ');
+          `}
+        </Script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

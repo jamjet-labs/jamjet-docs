@@ -167,10 +167,8 @@ article :not(pre) > code {
   color: rgb(var(--fd-foreground) / 0.85);
 }
 
-/* ── Code blocks — warm dark theme ── */
+/* ── Code blocks ── */
 pre {
-  background: rgb(var(--j-code-bg)) !important;
-  border: 1px solid rgb(var(--j-code-border)) !important;
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
   font-size: 0.84rem;
@@ -180,7 +178,6 @@ pre {
 }
 
 pre code {
-  color: rgb(var(--j-code-fg));
   background: none !important;
   border: none !important;
   padding: 0 !important;

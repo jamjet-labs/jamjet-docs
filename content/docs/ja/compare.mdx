@@ -19,59 +19,68 @@ export const W = () => <span class="ic ic-w">…</span>;
   <span><span class="ic ic-w">…</span> 開発中</span>
 </div>
 
+## どれがどのような用途に最適か？
+
+- **Plain Python** — 最も早く始められ、保証は最小限。プロトタイプや単発スクリプトに最適。
+- **LangGraph** — グラフオーケストレーション、慣れ親しんだパターン、チェックポインタによるオプションの耐久性。
+- **JamJet** — Pythonの思考モデルにデフォルトで耐久性と強力なランタイム保証を組み込み。
+- **CrewAI / AutoGen** — 一部のマルチエージェントパターンに有用な抽象化を提供するが、信頼性への重点が異なる。
+
+> LangGraphのPythonワークフローモデルが気に入っているが、耐久性、リプレイ、型付きバリデーション、ランタイムで強制される制限を組み込みで必要とする場合、JamJetは最も近い概念的な選択肢です。[LangGraph移行ガイド](/migrate/from-langgraph)を参照してください。
+
 ## コア実行機能
 
 | 機能 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| グラフベースのワークフロー | <Y/> | <Y/> | <P/> シーケンシャル/階層型 | <Y/> |
+| グラフベースのワークフロー | <Y/> | <Y/> | <P/> シーケンシャル/階層的 | <Y/> |
 | 非同期実行 | <Y/> | <Y/> | <Y/> | <Y/> |
-| ローカルインプロセス実行 | <Y/> | <Y/> | <Y/> | <Y/> |
+| ローカルインプロセスランナー | <Y/> | <Y/> | <Y/> | <Y/> |
 | 型付き状態 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
-| 各ステップでの状態検証 | <Y/> | <N/> | <N/> | <N/> |
-| 条件分岐 | <Y/> インライン述語 | <Y/> エッジ関数 | <P/> プロセスタイプ | <Y/> |
-| 並列分岐 | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
-| サイクル/ループ対応 | <Y/> | <Y/> | <P/> | <Y/> |
+| ステップごとの状態検証 | <Y/> | <N/> | <N/> | <N/> |
+| 条件付きルーティング | <Y/> インライン述語 | <Y/> エッジ関数 | <P/> プロセスタイプ | <Y/> |
+| 並列ブランチ | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
+| サイクル/ループサポート | <Y/> | <Y/> | <P/> | <Y/> |
 
 ## 耐久性と信頼性
 
 | 機能 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| 耐久性のある実行(クラッシュリカバリ) | <Y/> Rustランタイム | <E/> チェックポインター | <N/> | <N/> |
-| イベントソーシング | <Y/> ネイティブ対応 | <N/> | <N/> | <N/> |
+| 耐久実行（クラッシュ回復） | <Y/> Rustランタイム | <E/> チェックポインタ | <N/> | <N/> |
+| イベントソーシング | <Y/> ネイティブ | <N/> | <N/> | <N/> |
 | バックオフ付き自動リトライ | <Y/> YAML設定 | <E/> 手動 | <E/> 手動 | <E/> 手動 |
-| ヒューマンインザループ/一時停止 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
-| 任意のチェックポイントからの再開 | <Y/> | <E/> セーバーが必要 | <N/> | <N/> |
+| Human-in-the-loop / 一時停止 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
+| 任意のチェックポイントから再開 | <Y/> | <E/> セーバーが必要 | <N/> | <N/> |
 | ステップごとのタイムアウト | <Y/> | <P/> | <N/> | <P/> |
 
-## 可観測性
+## オブザーバビリティ
 
 | 機能 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| 構造化イベントログ | <Y/> ステップごとのイベント | <P/> コールバック | <P/> 詳細テキスト | <P/> |
+| 構造化イベントログ | <Y/> ステップごとのイベント | <P/> コールバック | <P/> 冗長テキスト | <P/> |
 | 実行検査CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
 | イベントタイムライン | <Y/> | <N/> | <N/> | <N/> |
 | OpenTelemetryトレーシング | <W/> | <E/> LangSmith | <E/> | <N/> |
 | タイムトラベルデバッグ | <W/> | <N/> | <N/> | <N/> |
 
-## ツール・プロトコル統合
+## ツール・プロトコル連携
 
 | 機能 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| MCPクライアント（任意のMCPサーバーを使用） | <Y/> ネイティブ | <E/> アダプタ経由 | <E/> アダプタ経由 | <E/> アダプタ経由 |
+| MCPクライアント（任意のMCPサーバーを使用） | <Y/> ネイティブ | <E/> アダプター経由 | <E/> アダプター経由 | <E/> アダプター経由 |
 | MCPサーバー（ツールを公開） | <W/> | <N/> | <N/> | <N/> |
 | A2Aクロスエージェント呼び出し | <Y/> クライアント + サーバー | <N/> | <N/> | <N/> |
 | OpenAI関数呼び出し | <Y/> | <Y/> | <Y/> | <Y/> |
-| カスタムPythonツール | <Y/> `@tool`デコレータ | <Y/> | <Y/> | <Y/> |
+| カスタムPythonツール | <Y/> `@tool`デコレーター | <Y/> | <Y/> | <Y/> |
 | エラー時のツールリトライ | <Y/> ノードレベル設定 | <E/> 手動 | <E/> 手動 | <E/> 手動 |
 
 ## 評価・テスト
 
 | 機能 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| 組み込み評価ハーネス | <Y/> | <N/> | <N/> | <N/> |
-| LLM審査員スコアリング | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
+| ビルトイン評価ハーネス | <Y/> | <N/> | <N/> | <N/> |
+| LLM判定スコアリング | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
 | アサーションスコアリング | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
-| レイテンシ予算 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
+| レイテンシー予算 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
 | コスト予算 | <Y/> `CostScorer` | <N/> | <N/> | <N/> |
 | データセット形式（JSONL） | <Y/> | <N/> | <N/> | <N/> |
 | リグレッション時のCI終了コード | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
@@ -81,25 +90,25 @@ export const W = () => <span class="ic ic-w">…</span>;
 
 | 機能 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| YAMLワークフロー記述 | <Y/> | <N/> | <N/> | <N/> |
-| Pythonデコレータ API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> |
+| YAMLワークフロー作成 | <Y/> | <N/> | <N/> | <N/> |
+| Pythonデコレータ―API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> |
 | プロジェクトテンプレート | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> |
 | ローカル開発サーバー | <Y/> `jamjet dev` | <N/> | <N/> | <N/> |
 | ワークフロー検証CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> |
 | マルチモデル対応 | <Y/> 任意のOpenAI互換 | <Y/> | <Y/> | <Y/> |
-| ローカルモデル (Ollama等) | <Y/> | <Y/> | <Y/> | <Y/> |
+| ローカルモデル（Ollama等） | <Y/> | <Y/> | <Y/> | <Y/> |
 
-## 本番環境とスケール
+## 本番運用とスケール
 
 | 機能 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
 | ランタイム言語 | **Rust** | Python | Python | Python |
-| ポリグロットSDK | Python (TS <W/>) | Python, JS | Python | Python, .NET |
+| 多言語SDK | Python（TS <W/>） | Python、JS | Python | Python、.NET |
 | Kubernetes対応 | <Y/> ステートレスバイナリ | <E/> | <E/> | <E/> |
 | マネージドクラウド | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
 | オープンソース | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 |
 
 ---
 
-> **注記:** 
-計測手法と生データを含むレイテンシ比較については[ベンチマーク](/benchmarks)を参照してください。移行ガイド: [LangGraphから](/migrate/from-langgraph)、[CrewAIから](/migrate/from-crewai)、[OpenAI SDKから](/migrate/from-openai-direct)。
+> **注記：** 
+測定されたレイテンシー比較については、方法論と生データを含む[ベンチマーク](/benchmarks)をご覧ください。移行ガイド：[LangGraphから](/migrate/from-langgraph)、[CrewAIから](/migrate/from-crewai)、[OpenAI SDKから](/migrate/from-openai-direct)。

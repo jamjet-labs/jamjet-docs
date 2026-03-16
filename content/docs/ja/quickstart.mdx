@@ -51,16 +51,15 @@ OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
 
 ## 提供される機能
 
-- **`@tool`** — 任意の非同期Python関数をエージェントツールに変換し、スキーマを自動生成
-- **`@task`** — docstring = エージェントの指示、関数シグネチャ = 入力契約
-- **永続的な実行** — クラッシュしても停止した場所から再開(`jamjet dev`使用時)
-- **制限の強制** — `max_iterations`、`max_cost_usd`、`timeout_seconds`は第一級パラメータ
+- **`@tool`** — 任意の非同期Python関数を自動スキーマ生成付きのツールとして公開
+- **`@task`** — 通常のPython関数を永続的なエージェントステップとして使用
+- **永続的実行** — `jamjet dev`で障害から再開
+- **ランタイム強制制限** — イテレーション、コスト、タイムアウトをファーストクラスの制御として実装
 
 ボイラープレート不要。状態クラス不要。依存性注入不要。
 
-> **note:** 
-完全なグラフ制御が必要な場合 — マルチステップパイプライン、条件付きルーティング、ヒューマンインザループ?
-複雑なオーケストレーションには[`Workflow` API](/python-sdk)または[YAMLワークフロー](/yaml-workflows)を使用してください。
+> **注意:** 
+完全なグラフ制御が必要な場合（マルチステップパイプライン、条件分岐、ヒューマンインザループなど）は、複雑なオーケストレーションに[`Workflow` API](/python-sdk)または[YAMLワークフロー](/yaml-workflows)を使用してください。
 
 ---
 
@@ -154,7 +153,32 @@ jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
 
 ---
 
-## APIキーの設定
+## 90秒でクラッシュリカバリを試す
+
+1. **ランタイムを起動:**
+   ```bash
+   jamjet dev
+   ```
+
+2. **マルチステップワークフローを実行:**
+   ```bash
+   jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
+   ```
+
+3. **実行中にワーカーを強制終了**（実行中にCtrl+Cを押すか、プロセスをkill）
+
+4. **ランタイムを再起動:**
+   ```bash
+   jamjet dev
+   ```
+
+5. **最後に完了したチェックポイントからワークフローが再開されることを確認**
+
+**結果:** 以前のステップの再実行なし。無駄なAPI呼び出しなし。状態の損失なし。
+
+---
+
+## APIキーを設定
 
 #### OpenAI
 
@@ -168,7 +192,7 @@ export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-#### Ollama（無料・ローカル）
+#### Ollama（無料、ローカル）
 
 ```bash
 export OPENAI_API_KEY=ollama
@@ -189,20 +213,20 @@ export OPENAI_BASE_URL=https://api.groq.com/openai/v1
 
 ## 次のステップ
 
-1. [コアコンセプト](/concepts) — エージェント、ノード、ステート、永続性
-2. [Python SDK](/python-sdk) — デコレーター、ルーティング、並列ステップ
+1. [コア概念](/concepts) — エージェント、ノード、状態、永続性
+2. [Python SDK](/python-sdk) — デコレータ、ルーティング、並列ステップ
 3. [ワークフロー作成](/yaml-workflows) — 全ノードタイプ、リトライポリシー、条件
-4. [MCP統合](/mcp) — 外部ツールサーバーへ1行で接続
-5. [評価ハーネス](/eval) — エージェントをソフトウェアのようにテスト
+4. [MCP統合](/mcp) — 1行で外部ツールサーバーに接続
+5. [評価ハーネス](/eval) — ソフトウェアのようにエージェントをテスト
 
 ---
 
 ## トラブルシューティング
 
-**インストール後に`jamjet`が見つからない場合**
-PythonスクリプトディレクトリがPATHに含まれているか確認してください。`python -m jamjet`を試してみてください。
+**インストール後に`jamjet`が見つからない場合は？**
+PythonスクリプトディレクトリがPATHに含まれていることを確認してください。`python -m jamjet`を試してください。
 
-**ポート7700で接続拒否される場合**
+**ポート7700で接続が拒否される場合は？**
 `jamjet run`を使用する前に`jamjet dev`が実行されている必要があります。インプロセスの`wf.run_sync()`パスではサーバーは不要です。
 
-**サポートが必要な場合** [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions)を開くか、[Issue を報告](https://github.com/jamjet-labs/jamjet/issues)してください。
+**サポートが必要ですか？** [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions)を開くか、[issueを作成](https://github.com/jamjet-labs/jamjet/issues)してください。

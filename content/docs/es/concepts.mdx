@@ -5,7 +5,7 @@ description: Comprende agentes, nodos, estado y durabilidad en JamJet.
 
 # Conceptos Fundamentales
 
-JamJet es un **runtime nativo para agentes** — diseñado específicamente para flujos de trabajo de IA que necesitan sobrevivir a fallos, escalar a través de workers y componerse con otros agentes. Esta página cubre las primitivas clave.
+JamJet es un **runtime duradero para agentes de IA**. La idea clave es simple: los flujos de trabajo se ejecutan como transiciones de estado recuperables, no como llamadas de función efímeras. Eso es lo que hace posible la reproducción, la recuperación ante fallos, las pausas de aprobación y los rastreos exactos. Esta página cubre los primitivos clave.
 
 ## Workflows
 
@@ -117,3 +117,11 @@ El scheduler es la razón por la que los workflows de JamJet son durables por de
 | Autenticación | Ninguna | mTLS / claves API |
 
 El modelo de programación es idéntico — el mismo código YAML o Python se ejecuta sin cambios en ambos entornos.
+
+---
+
+## Próximos pasos
+
+- [Inicio rápido](/docs/quickstart) — construye tu primer agente duradero
+- [SDK de Python](/docs/python-sdk) — decoradores, enrutamiento, pasos paralelos
+- [Prueba la recuperación ante fallos](/docs/quickstart#try-crash-recovery-in-90-seconds) — observa la durabilidad en acción

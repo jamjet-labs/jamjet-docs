@@ -52,14 +52,14 @@ Cambia `model=` a cualquier modelo de Ollama (ej. `"llama3.2"`).
 
 ## Qué obtienes
 
-- **`@tool`** — convierte cualquier función async de Python en una herramienta de agente, con generación automática de esquema
-- **`@task`** — docstring = instrucciones del agente, firma de función = contrato de entrada
-- **Ejecución durable** — falla y reanuda desde donde se detuvo (con `jamjet dev`)
-- **Límites forzados** — `max_iterations`, `max_cost_usd`, `timeout_seconds` son parámetros de primera clase
+- **`@tool`** — expone cualquier función asíncrona de Python como herramienta con generación automática de esquemas
+- **`@task`** — usa funciones Python simples como pasos de agente duraderos
+- **Ejecución duradera** — reanuda desde fallos con `jamjet dev`
+- **Límites reforzados en tiempo de ejecución** — iteraciones, costos y timeouts como controles de primera clase
 
 Sin código repetitivo. Sin clases de estado. Sin inyección de dependencias.
 
-> **note:** 
+> **nota:** 
 ¿Necesitas control total del grafo — pipelines multi-paso, enrutamiento condicional, human-in-the-loop?
 Usa la [API `Workflow`](/python-sdk) o [workflows YAML](/yaml-workflows) para orquestación compleja.
 
@@ -155,6 +155,31 @@ jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
 
 ---
 
+## Prueba la recuperación ante fallos en 90 segundos
+
+1. **Inicia el runtime:**
+   ```bash
+   jamjet dev
+   ```
+
+2. **Ejecuta un workflow multi-paso:**
+   ```bash
+   jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
+   ```
+
+3. **Detén el worker durante la ejecución** (Ctrl+C a mitad de ejecución, o mata el proceso)
+
+4. **Reinicia el runtime:**
+   ```bash
+   jamjet dev
+   ```
+
+5. **Observa cómo el workflow se reanuda desde el último checkpoint completado**
+
+**Resultado:** Sin reejecutar pasos anteriores. Sin desperdiciar llamadas a API. Sin perder estado.
+
+---
+
 ## Configura tu clave API
 
 #### OpenAI
@@ -188,22 +213,22 @@ export OPENAI_BASE_URL=https://api.groq.com/openai/v1
 
 ---
 
-## Siguientes pasos
+## Próximos pasos
 
-1. [Conceptos Fundamentales](/concepts) — agentes, nodos, estado y durabilidad
+1. [Conceptos Básicos](/concepts) — agentes, nodos, estado y durabilidad
 2. [SDK de Python](/python-sdk) — decoradores, enrutamiento, pasos paralelos
-3. [Creación de Workflows](/yaml-workflows) — todos los tipos de nodos, políticas de reintentos, condiciones
-4. [Integración MCP](/mcp) — conéctate a servidores de herramientas externos en una línea
-5. [Eval Harness](/eval) — prueba tus agentes como software
+3. [Creación de Workflows](/yaml-workflows) — todos los tipos de nodos, políticas de reintento, condiciones
+4. [Integración MCP](/mcp) — conecta con servidores de herramientas externos en una línea
+5. [Harness de Evaluación](/eval) — prueba tus agentes como software
 
 ---
 
 ## Solución de problemas
 
-**¿No se encuentra `jamjet` después de la instalación?**
+**¿No se encuentra `jamjet` después de instalar?**
 Asegúrate de que el directorio de scripts de Python esté en tu PATH. Prueba con `python -m jamjet`.
 
 **¿Conexión rechazada en el puerto 7700?**
-`jamjet dev` debe estar en ejecución antes de usar `jamjet run`. La ruta `wf.run_sync()` en proceso no necesita servidor.
+`jamjet dev` debe estar ejecutándose antes de usar `jamjet run`. El método `wf.run_sync()` en proceso no necesita servidor.
 
-**¿Necesitas ayuda?** Abre una [Discusión en GitHub](https://github.com/jamjet-labs/jamjet/discussions) o [reporta un problema](https://github.com/jamjet-labs/jamjet/issues).
+**¿Necesitas ayuda?** Abre una [Discusión en GitHub](https://github.com/jamjet-labs/jamjet/discussions) o [reporta un issue](https://github.com/jamjet-labs/jamjet/issues).

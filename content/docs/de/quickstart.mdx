@@ -52,16 +52,16 @@ OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
 
 ## Was du bekommst
 
-- **`@tool`** — macht jede async Python-Funktion zu einem Agenten-Tool mit automatischer Schema-Generierung
-- **`@task`** — Docstring = Agenten-Anweisungen, Funktionssignatur = Eingabevertrag
-- **Dauerhafte Ausführung** — Absturz und Fortsetzung ab Unterbrechungspunkt (mit `jamjet dev`)
-- **Durchgesetzte Limits** — `max_iterations`, `max_cost_usd`, `timeout_seconds` sind First-Class-Parameter
+- **`@tool`** — jede async Python-Funktion als Tool mit automatischer Schema-Generierung verfügbar machen
+- **`@task`** — einfache Python-Funktionen als dauerhafte Agent-Schritte verwenden
+- **Dauerhafte Ausführung** — nach Fehler mit `jamjet dev` fortsetzen
+- **Runtime-erzwungene Limits** — Iterationen, Kosten und Timeouts als First-Class-Steuerelemente
 
 Kein Boilerplate. Keine State-Klassen. Keine Dependency Injection.
 
-> **note:** 
-Brauchst du vollständige Graph-Kontrolle — mehrstufige Pipelines, bedingte Weiterleitung, Human-in-the-Loop?
-Verwende die [`Workflow`-API](/python-sdk) oder [YAML-Workflows](/yaml-workflows) für komplexe Orchestrierung.
+> **Hinweis:** 
+Benötigen Sie vollständige Graph-Kontrolle — mehrstufige Pipelines, bedingte Verzweigungen, Human-in-the-Loop?
+Nutzen Sie die [`Workflow`-API](/python-sdk) oder [YAML-Workflows](/yaml-workflows) für komplexe Orchestrierung.
 
 ---
 
@@ -155,7 +155,32 @@ Absturz während der Ausführung? Setze exakt an der Stelle fort, an der es gest
 
 ---
 
-## API-Key setzen
+## Crash Recovery in 90 Sekunden ausprobieren
+
+1. **Runtime starten:**
+   ```bash
+   jamjet dev
+   ```
+
+2. **Einen mehrstufigen Workflow ausführen:**
+   ```bash
+   jamjet run workflow.yaml --input '{"query": "Was ist JamJet?"}'
+   ```
+
+3. **Worker während der Ausführung beenden** (Strg+C während der Ausführung oder Prozess killen)
+
+4. **Runtime neu starten:**
+   ```bash
+   jamjet dev
+   ```
+
+5. **Workflow setzt ab dem letzten abgeschlossenen Checkpoint fort**
+
+**Ergebnis:** Keine Wiederholung früherer Schritte. Keine verschwendeten API-Calls. Kein verlorener State.
+
+---
+
+## API-Schlüssel setzen
 
 #### OpenAI
 
@@ -190,20 +215,20 @@ export OPENAI_BASE_URL=https://api.groq.com/openai/v1
 
 ## Nächste Schritte
 
-1. [Kernkonzepte](/concepts) — Agenten, Nodes, State und Persistenz
+1. [Grundkonzepte](/concepts) — Agents, Nodes, State und Dauerhaftigkeit
 2. [Python SDK](/python-sdk) — Decorators, Routing, parallele Schritte
-3. [Workflow-Entwicklung](/yaml-workflows) — alle Node-Typen, Retry-Policies, Bedingungen
-4. [MCP-Integration](/mcp) — Verbindung zu externen Tool-Servern in einer Zeile
-5. [Eval Harness](/eval) — Teste deine Agenten wie Software
+3. [Workflow-Erstellung](/yaml-workflows) — alle Node-Typen, Retry-Policies, Bedingungen
+4. [MCP-Integration](/mcp) — externe Tool-Server in einer Zeile verbinden
+5. [Eval Harness](/eval) — Agents wie Software testen
 
 ---
 
 ## Fehlerbehebung
 
-**`jamjet` nach Installation nicht gefunden?**
-Stelle sicher, dass dein Python-Skriptverzeichnis in deinem PATH ist. Versuche `python -m jamjet`.
+**`jamjet` nach der Installation nicht gefunden?**
+Stellen Sie sicher, dass Ihr Python-Skript-Verzeichnis in Ihrem PATH ist. Versuchen Sie `python -m jamjet`.
 
-**Connection refused an Port 7700?**
-`jamjet dev` muss laufen, bevor du `jamjet run` verwendest. Der In-Process-Pfad `wf.run_sync()` benötigt keinen Server.
+**Verbindung zu Port 7700 abgelehnt?**
+`jamjet dev` muss laufen, bevor Sie `jamjet run` verwenden. Der In-Process-Pfad `wf.run_sync()` benötigt keinen Server.
 
-**Brauchst du Hilfe?** Eröffne eine [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions) oder [erstelle ein Issue](https://github.com/jamjet-labs/jamjet/issues).
+**Hilfe benötigt?** Eröffnen Sie eine [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions) oder [erstellen Sie ein Issue](https://github.com/jamjet-labs/jamjet/issues).

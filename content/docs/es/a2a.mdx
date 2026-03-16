@@ -5,7 +5,9 @@ description: Delega a otros agentes y sirve usando el protocolo Agent-to-Agent.
 
 # Integración A2A
 
-JamJet implementa el [protocolo Agent-to-Agent (A2A)](https://google.github.io/A2A/) — un estándar abierto para que los agentes se descubran, se llamen y colaboren entre sí a través de frameworks y organizaciones.
+JamJet implementa el [protocolo Agent-to-Agent (A2A)](https://google.github.io/A2A/) — un estándar abierto para que los agentes se descubran, invoquen y colaboren entre sí a través de frameworks y organizaciones.
+
+> **Diferencia clave:** JamJet hace que la colaboración A2A sea parte del modelo de runtime duradero, de modo que la delegación entre agentes permanece rastreable, reproducible y aplicable bajo los límites del runtime.
 
 ## ¿Qué es A2A?
 
@@ -226,3 +228,11 @@ nodes:
     on_timeout: escalate
     next: execute
 ```
+
+---
+
+## Próximos pasos
+
+- [Inicio rápido](/docs/quickstart) — ejecuta un workflow primero
+- [Integración con MCP](/docs/mcp) — conéctate a servidores de herramientas externos
+- [Seguridad empresarial](/docs/enterprise) — controles de mTLS, OAuth y federación para A2A

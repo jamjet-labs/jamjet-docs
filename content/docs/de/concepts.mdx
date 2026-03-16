@@ -5,7 +5,7 @@ description: Verstehen Sie Agents, Nodes, State und Durability in JamJet.
 
 # Kernkonzepte
 
-JamJet ist eine **agenten-native Runtime** – speziell entwickelt für KI-Workflows, die Ausfälle überstehen, über Worker skalieren und sich mit anderen Agenten kombinieren lassen. Diese Seite behandelt die zentralen Primitives.
+JamJet ist eine **dauerhafte Laufzeitumgebung für KI-Agenten**. Die Kernidee ist einfach: Workflows werden als wiederherstellbare Zustandsübergänge ausgeführt, nicht als flüchtige Funktionsaufrufe. Das ermöglicht Replay, Crash-Recovery, Freigabepausen und exakte Traces. Diese Seite behandelt die wichtigsten Grundbausteine.
 
 ## Workflows
 
@@ -117,3 +117,11 @@ Der Scheduler ist der Grund, warum JamJet-Workflows standardmäßig dauerhaft si
 | Auth | Keine | mTLS / API-Schlüssel |
 
 Das Programmiermodell ist identisch — derselbe YAML- oder Python-Code läuft unverändert in beiden Umgebungen.
+
+---
+
+## Nächste Schritte
+
+- [Quickstart](/docs/quickstart) — erstelle deinen ersten dauerhaften Agenten
+- [Python SDK](/docs/python-sdk) — Dekoratoren, Routing, parallele Schritte
+- [Crash-Recovery ausprobieren](/docs/quickstart#try-crash-recovery-in-90-seconds) — sieh Dauerhaftigkeit in Aktion

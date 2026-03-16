@@ -5,7 +5,9 @@ description: 使用 Agent-to-Agent 协议委派给其他代理或为其他代理
 
 # A2A 集成
 
-JamJet 实现了 [Agent-to-Agent (A2A) 协议](https://google.github.io/A2A/) —— 一个开放标准,允许代理跨框架和组织相互发现、调用和协作。
+JamJet 实现了 [Agent-to-Agent (A2A) 协议](https://google.github.io/A2A/) —— 这是一个开放标准,允许代理跨框架和组织相互发现、调用和协作。
+
+> **关键区别:** JamJet 将 A2A 协作纳入持久化运行时模型,使代理之间的委托保持可追溯、可重放,并可在运行时限制下强制执行。
 
 ## 什么是 A2A?
 
@@ -226,3 +228,11 @@ nodes:
     on_timeout: escalate
     next: execute
 ```
+
+---
+
+## 下一步
+
+- [快速开始](/docs/quickstart) —— 先运行一个工作流
+- [MCP 集成](/docs/mcp) —— 连接到外部工具服务器
+- [企业安全](/docs/enterprise) —— A2A 的 mTLS、OAuth 和联邦控制

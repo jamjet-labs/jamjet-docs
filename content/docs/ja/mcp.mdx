@@ -5,7 +5,9 @@ description: Model Context Protocolを使用してJamJetを外部ツールサー
 
 # MCP統合
 
-JamJetは[Model Context Protocol (MCP)](https://modelcontextprotocol.io)を第一級でサポートしています。MCPは、AIエージェントを外部ツール、データソース、サービスに接続するためのオープン標準です。
+JamJetは[Model Context Protocol (MCP)](https://modelcontextprotocol.io)を第一級にサポートしています。MCPは、AIエージェントを外部ツール、データソース、サービスに接続するためのオープン標準です。
+
+> **重要な違い：** JamJetはMCPツール呼び出しを、単なる一時的なツール実行ではなく、永続的なワークフローの一部として扱います。つまり、ツールの使用は、呼び出し中にプロセスがクラッシュしても、チェックポイント化され、再生可能で、観測可能な状態を維持します。
 
 ## MCPとは?
 
@@ -181,3 +183,11 @@ nodes:
 ```
 
 すべてのリトライが失敗した場合、実行は`failed`としてマークされ、手動で再開または再試行できます。
+
+---
+
+## 次のステップ
+
+- [クイックスタート](/docs/quickstart) — まずワークフローを実行する
+- [A2A統合](/docs/a2a) — 他のエージェントにタスクを委譲する
+- [ショーケース](https://jamjet.dev/showcase) — 本番環境でのMCPパターンを確認する

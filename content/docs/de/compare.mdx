@@ -20,7 +20,16 @@ export const W = () => <span class="ic ic-w">…</span>;
   <span><span class="ic ic-w">…</span> In Bearbeitung</span>
 </div>
 
-## Kern-Ausführung
+## Welches ist wofür am besten geeignet?
+
+- **Plain Python** — schnellster Einstieg, geringste Garantien. Ideal für Prototypen und einmalige Skripte.
+- **LangGraph** — Graph-Orchestrierung, vertraute Muster, optionale Dauerhaftigkeit über Checkpointers.
+- **JamJet** — Python-Denkmodell mit standardmäßiger Dauerhaftigkeit und stärkeren Laufzeitgarantien.
+- **CrewAI / AutoGen** — nützliche Abstraktionen für bestimmte Multi-Agent-Muster, aber andere Schwerpunktsetzung bei Zuverlässigkeit.
+
+> Wenn dir das Python-Workflow-Modell von LangGraph gefällt, du aber Dauerhaftigkeit, Replay, typisierte Validierung und laufzeitgesteuerte Limits integriert haben möchtest, ist JamJet der naheliegendste konzeptionelle Schritt. Siehe den [LangGraph-Migrationsleitfaden](/migrate/from-langgraph).
+
+## Kernausführung
 
 | Feature | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
@@ -29,27 +38,27 @@ export const W = () => <span class="ic ic-w">…</span>;
 | Lokaler In-Process-Runner | <Y/> | <Y/> | <Y/> | <Y/> |
 | Typisierter State | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
 | State-Validierung bei jedem Schritt | <Y/> | <N/> | <N/> | <N/> |
-| Bedingte Weiterleitung | <Y/> Inline-Prädikate | <Y/> Edge-Funktionen | <P/> Prozesstyp | <Y/> |
+| Bedingte Verzweigung | <Y/> Inline-Prädikate | <Y/> Edge-Funktionen | <P/> Prozesstyp | <Y/> |
 | Parallele Zweige | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
-| Zyklen-/Schleifen-Unterstützung | <Y/> | <Y/> | <P/> | <Y/> |
+| Zyklen-/Loop-Unterstützung | <Y/> | <Y/> | <P/> | <Y/> |
 
-## Haltbarkeit & Zuverlässigkeit
+## Dauerhaftigkeit & Zuverlässigkeit
 
 | Feature | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| Dauerhafte Ausführung (Absturz-Wiederherstellung) | <Y/> Rust-Runtime | <E/> Checkpointers | <N/> | <N/> |
+| Dauerhafte Ausführung (Crash-Recovery) | <Y/> Rust-Laufzeit | <E/> Checkpointers | <N/> | <N/> |
 | Event Sourcing | <Y/> Nativ | <N/> | <N/> | <N/> |
-| Automatischer Retry mit Backoff | <Y/> YAML-Konfiguration | <E/> Manuell | <E/> Manuell | <E/> Manuell |
+| Automatisches Retry mit Backoff | <Y/> YAML-Konfiguration | <E/> Manuell | <E/> Manuell | <E/> Manuell |
 | Human-in-the-Loop / Pause | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
-| Fortsetzen von beliebigem Checkpoint | <Y/> | <E/> Erfordert Saver | <N/> | <N/> |
+| Wiederaufnahme von beliebigem Checkpoint | <Y/> | <E/> Benötigt Saver | <N/> | <N/> |
 | Timeout pro Schritt | <Y/> | <P/> | <N/> | <P/> |
 
 ## Observability
 
 | Feature | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| Strukturiertes Event-Log | <Y/> Pro-Schritt-Events | <P/> Callbacks | <P/> Verbose-Text | <P/> |
-| CLI zur Ausführungsinspektion | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
+| Strukturiertes Event-Log | <Y/> Events pro Schritt | <P/> Callbacks | <P/> verbose text | <P/> |
+| CLI für Execution-Inspektion | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
 | Event-Timeline | <Y/> | <N/> | <N/> | <N/> |
 | OpenTelemetry-Tracing | <W/> | <E/> LangSmith | <E/> | <N/> |
 | Time-Travel-Debugging | <W/> | <N/> | <N/> | <N/> |
@@ -58,11 +67,11 @@ export const W = () => <span class="ic ic-w">…</span>;
 
 | Feature | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| MCP-Client (beliebige MCP-Server nutzen) | <Y/> Nativ | <E/> Via Adapter | <E/> Via Adapter | <E/> Via Adapter |
+| MCP-Client (alle MCP-Server nutzen) | <Y/> Nativ | <E/> Via Adapter | <E/> Via Adapter | <E/> Via Adapter |
 | MCP-Server (eigene Tools bereitstellen) | <W/> | <N/> | <N/> | <N/> |
-| A2A-Cross-Agent-Calls | <Y/> Client + Server | <N/> | <N/> | <N/> |
+| A2A Cross-Agent-Calls | <Y/> Client + Server | <N/> | <N/> | <N/> |
 | OpenAI Function Calling | <Y/> | <Y/> | <Y/> | <Y/> |
-| Custom Python Tools | <Y/> `@tool`-Decorator | <Y/> | <Y/> | <Y/> |
+| Custom Python-Tools | <Y/> `@tool`-Decorator | <Y/> | <Y/> | <Y/> |
 | Tool-Retry bei Fehler | <Y/> Node-Level-Config | <E/> Manuell | <E/> Manuell | <E/> Manuell |
 
 ## Eval & Testing
@@ -78,7 +87,7 @@ export const W = () => <span class="ic ic-w">…</span>;
 | CI-Exit-Code bei Regression | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
 | Eval als Workflow-Node | <Y/> `type: eval` | <N/> | <N/> | <N/> |
 
-## Developer Experience
+## Entwicklererfahrung
 
 | Feature | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
@@ -87,7 +96,7 @@ export const W = () => <span class="ic ic-w">…</span>;
 | Projektvorlagen | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> |
 | Lokaler Dev-Server | <Y/> `jamjet dev` | <N/> | <N/> | <N/> |
 | Workflow-Validierung CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> |
-| Multi-Modell-Support | <Y/> Beliebige OpenAI-kompatible Modelle | <Y/> | <Y/> | <Y/> |
+| Multi-Modell-Unterstützung | <Y/> Jede OpenAI-kompatible API | <Y/> | <Y/> | <Y/> |
 | Lokale Modelle (Ollama, etc.) | <Y/> | <Y/> | <Y/> | <Y/> |
 
 ## Produktion & Skalierung
@@ -97,10 +106,10 @@ export const W = () => <span class="ic ic-w">…</span>;
 | Runtime-Sprache | **Rust** | Python | Python | Python |
 | Polyglot SDK | Python (TS <W/>) | Python, JS | Python | Python, .NET |
 | Kubernetes-ready | <Y/> Stateless Binary | <E/> | <E/> | <E/> |
-| Managed Cloud Offering | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
+| Managed Cloud-Angebot | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
 | Open Source | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 |
 
 ---
 
-> **Hinweis:** 
-Siehe [Benchmarks](/benchmarks) für gemessene Latenzvergleiche mit Methodik und Rohergebnissen. Migrations-Guides: [von LangGraph](/migrate/from-langgraph), [von CrewAI](/migrate/from-crewai), [von OpenAI SDK](/migrate/from-openai-direct).
+> **note:** 
+Siehe [Benchmarks](/benchmarks) für gemessene Latenzvergleiche mit Methodik und Rohdaten. Migrationsleitfäden: [von LangGraph](/migrate/from-langgraph), [von CrewAI](/migrate/from-crewai), [von OpenAI SDK](/migrate/from-openai-direct).

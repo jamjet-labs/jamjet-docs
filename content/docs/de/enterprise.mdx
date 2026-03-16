@@ -6,7 +6,15 @@ description: Mandantenisolierung, PII-Redaktion, OAuth-Delegation,
 
 # Enterprise-Sicherheit
 
-Die Enterprise-Funktionen von JamJet werden auf der Rust-Runtime-Ebene erzwungen – nicht durch Konventionen, nicht durch Middleware, die man vielleicht vergisst hinzuzufügen.
+JamJet bietet zur Laufzeit durchgesetzte Kontrollen für Teams, die Zuverlässigkeit und Governance zusammen benötigen: Mandantenisolierung, PII-Redaktion, OAuth-Delegation mit beschränktem Geltungsbereich, mTLS-Föderation und aufbewahrungsbewusste Ausführungsprotokolle.
+
+Durchgesetzt auf der Rust-Runtime-Ebene — nicht durch Konvention und nicht durch Middleware, die Sie möglicherweise vergessen hinzuzufügen.
+
+> **Am besten geeignet für:**
+> - Regulierte interne Plattformen
+> - Multi-Tenant-Agenteninfrastruktur
+> - Audit-intensive Enterprise-Workflows
+> - Teams, die Replay, Traces und Policy-Kontrollen zusammen benötigen
 
 ## Mandantenisolierung
 

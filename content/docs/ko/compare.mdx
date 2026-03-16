@@ -20,16 +20,25 @@ export const W = () => <span class="ic ic-w">…</span>;
   <span><span class="ic ic-w">…</span> 개발 중</span>
 </div>
 
+## 무엇에 가장 적합한가요?
+
+- **Plain Python** — 가장 빠른 시작, 최소한의 보장. 프로토타입과 일회성 스크립트에 적합합니다.
+- **LangGraph** — 그래프 오케스트레이션, 익숙한 패턴, 체크포인터를 통한 선택적 내구성.
+- **JamJet** — 기본적으로 내구성과 더 강력한 런타임 보장을 제공하는 Python 멘탈 모델.
+- **CrewAI / AutoGen** — 일부 멀티 에이전트 패턴에 유용한 추상화이지만, 안정성에 대한 강조점이 다릅니다.
+
+> LangGraph의 Python 워크플로우 모델을 좋아하지만 내구성, 리플레이, 타입 검증, 런타임에서 강제되는 제한이 기본 제공되길 원한다면, JamJet이 개념적으로 가장 가까운 선택입니다. [LangGraph 마이그레이션 가이드](/migrate/from-langgraph)를 참고하세요.
+
 ## 핵심 실행
 
 | 기능 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| 그래프 기반 워크플로우 | <Y/> | <Y/> | <P/> 순차/계층형 | <Y/> |
+| 그래프 기반 워크플로우 | <Y/> | <Y/> | <P/> 순차적/계층적 | <Y/> |
 | 비동기 실행 | <Y/> | <Y/> | <Y/> | <Y/> |
 | 로컬 인프로세스 러너 | <Y/> | <Y/> | <Y/> | <Y/> |
-| 타입 지정 상태 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
-| 매 단계 상태 검증 | <Y/> | <N/> | <N/> | <N/> |
-| 조건부 라우팅 | <Y/> 인라인 조건자 | <Y/> 엣지 함수 | <P/> 프로세스 타입 | <Y/> |
+| 타입이 지정된 상태 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
+| 모든 단계에서 상태 검증 | <Y/> | <N/> | <N/> | <N/> |
+| 조건부 라우팅 | <Y/> 인라인 술어 | <Y/> 엣지 함수 | <P/> 프로세스 타입 | <Y/> |
 | 병렬 분기 | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
 | 순환/루프 지원 | <Y/> | <Y/> | <P/> | <Y/> |
 
@@ -37,44 +46,44 @@ export const W = () => <span class="ic ic-w">…</span>;
 
 | 기능 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| 내구성 있는 실행 (장애 복구) | <Y/> Rust 런타임 | <E/> 체크포인터 | <N/> | <N/> |
+| 내구성 있는 실행 (크래시 복구) | <Y/> Rust 런타임 | <E/> 체크포인터 | <N/> | <N/> |
 | 이벤트 소싱 | <Y/> 네이티브 | <N/> | <N/> | <N/> |
-| 백오프 자동 재시도 | <Y/> YAML 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
-| 휴먼-인-더-루프 / 일시정지 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
-| 임의 체크포인트 재개 | <Y/> | <E/> 세이버 필요 | <N/> | <N/> |
+| 백오프를 이용한 자동 재시도 | <Y/> YAML 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
+| 사람 개입(human-in-the-loop) / 일시정지 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
+| 모든 체크포인트에서 재개 | <Y/> | <E/> 세이버 필요 | <N/> | <N/> |
 | 단계별 타임아웃 | <Y/> | <P/> | <N/> | <P/> |
 
-## 관찰 가능성
+## 관찰성
 
 | 기능 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| 구조화된 이벤트 로그 | <Y/> 단계별 이벤트 | <P/> 콜백 | <P/> 상세 텍스트 | <P/> |
+| 구조화된 이벤트 로그 | <Y/> 단계별 이벤트 | <P/> 콜백 | <P/> verbose 텍스트 | <P/> |
 | 실행 검사 CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
 | 이벤트 타임라인 | <Y/> | <N/> | <N/> | <N/> |
-| OpenTelemetry 추적 | <W/> | <E/> LangSmith | <E/> | <N/> |
+| OpenTelemetry 트레이싱 | <W/> | <E/> LangSmith | <E/> | <N/> |
 | 타임 트래블 디버깅 | <W/> | <N/> | <N/> | <N/> |
 
-## 도구 및 프로토콜 통합
+## 툴 및 프로토콜 통합
 
 | 기능 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
-| MCP 클라이언트 (모든 MCP 서버 사용) | <Y/> 네이티브 지원 | <E/> 어댑터 경유 | <E/> 어댑터 경유 | <E/> 어댑터 경유 |
-| MCP 서버 (도구 노출) | <W/> | <N/> | <N/> | <N/> |
+| MCP 클라이언트 (모든 MCP 서버 사용) | <Y/> 네이티브 | <E/> 어댑터 사용 | <E/> 어댑터 사용 | <E/> 어댑터 사용 |
+| MCP 서버 (툴 노출) | <W/> | <N/> | <N/> | <N/> |
 | A2A 크로스 에이전트 호출 | <Y/> 클라이언트 + 서버 | <N/> | <N/> | <N/> |
 | OpenAI 함수 호출 | <Y/> | <Y/> | <Y/> | <Y/> |
-| 커스텀 Python 도구 | <Y/> `@tool` 데코레이터 | <Y/> | <Y/> | <Y/> |
-| 오류 시 도구 재시도 | <Y/> 노드 레벨 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
+| 커스텀 Python 툴 | <Y/> `@tool` 데코레이터 | <Y/> | <Y/> | <Y/> |
+| 오류 시 툴 재시도 | <Y/> 노드 레벨 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
 
-## 평가 및 테스트
+## 평가 및 테스팅
 
 | 기능 | JamJet | LangGraph | CrewAI | AutoGen |
 |---|---|---|---|---|
 | 내장 평가 하네스 | <Y/> | <N/> | <N/> | <N/> |
-| LLM-as-judge 스코어링 | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
-| 어서션 스코어링 | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
-| 레이턴시 예산 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
+| LLM-as-judge 점수 매기기 | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
+| 어서션 점수 매기기 | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
+| 지연 시간 예산 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
 | 비용 예산 | <Y/> `CostScorer` | <N/> | <N/> | <N/> |
-| 데이터셋 포맷 (JSONL) | <Y/> | <N/> | <N/> | <N/> |
+| 데이터셋 형식 (JSONL) | <Y/> | <N/> | <N/> | <N/> |
 | 회귀 시 CI 종료 코드 | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
 | 워크플로우 노드로서의 평가 | <Y/> `type: eval` | <N/> | <N/> | <N/> |
 
@@ -103,4 +112,4 @@ export const W = () => <span class="ic ic-w">…</span>;
 ---
 
 > **참고:** 
-측정된 지연 시간 비교, 방법론 및 원시 결과는 [벤치마크](/benchmarks)를 참조하세요. 마이그레이션 가이드: [LangGraph에서 마이그레이션](/migrate/from-langgraph), [CrewAI에서 마이그레이션](/migrate/from-crewai), [OpenAI SDK에서 마이그레이션](/migrate/from-openai-direct).
+측정된 지연 시간 비교와 방법론, 원시 결과는 [벤치마크](/benchmarks)를 참조하세요. 마이그레이션 가이드: [LangGraph에서 전환](/migrate/from-langgraph), [CrewAI에서 전환](/migrate/from-crewai), [OpenAI SDK에서 전환](/migrate/from-openai-direct).

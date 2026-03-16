@@ -6,7 +6,9 @@ description: Delegiere an andere Agenten und stelle Agenten über das
 
 # A2A-Integration
 
-JamJet implementiert das [Agent-to-Agent (A2A) Protokoll](https://google.github.io/A2A/) — einen offenen Standard für Agenten, um sich gegenseitig zu entdecken, aufzurufen und framework- und organisationsübergreifend zusammenzuarbeiten.
+JamJet implementiert das [Agent-to-Agent (A2A)-Protokoll](https://google.github.io/A2A/) – einen offenen Standard für Agenten, um sich gegenseitig zu entdecken, aufzurufen und über Frameworks und Organisationen hinweg zusammenzuarbeiten.
+
+> **Wichtiger Unterschied:** JamJet macht A2A-Kollaboration zu einem Teil des dauerhaften Runtime-Modells, sodass die Delegation zwischen Agenten nachvollziehbar, wiederholbar und unter Runtime-Limits durchsetzbar bleibt.
 
 ## Was ist A2A?
 
@@ -227,3 +229,11 @@ nodes:
     on_timeout: escalate
     next: execute
 ```
+
+---
+
+## Nächste Schritte
+
+- [Schnellstart](/docs/quickstart) — starte zunächst einen Workflow
+- [MCP-Integration](/docs/mcp) — verbinde dich mit externen Tool-Servern
+- [Enterprise Security](/docs/enterprise) — mTLS, OAuth und Föderations-Kontrollen für A2A

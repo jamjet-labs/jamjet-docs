@@ -6,12 +6,19 @@ description: Ejecuta experimentos multi-agente reproducibles con JamJet — desd
 
 # Investigación Multi-Agente con JamJet
 
-JamJet proporciona a los investigadores una infraestructura completa de experimentación lista para usar: ejecución durable para reproducibilidad, seis estrategias de razonamiento para estudios de ablación, una cuadrícula de experimentos para barridos de parámetros, evaluación integrada con calificadores personalizados, y exportación para publicación (LaTeX, CSV, JSON) con pruebas estadísticas.
+Ejecuta experimentos multi-agente reproducibles sin construir infraestructura de experimentación personalizada. JamJet te proporciona ejecución duradera, barridos de estrategias, reproducción, evaluación y exportación lista para publicación en un único runtime.
 
-Esta guía recorre un flujo de trabajo de investigación completo — desde el esqueleto del proyecto hasta resultados listos para publicar.
+Esta guía recorre un flujo de trabajo de investigación completo — desde el scaffold del proyecto hasta resultados listos para papers.
 
 > **Consejo:** 
-¿Ya conoces JamJet? Ve directamente a [Ejecutar experimentos](#run-experiments) o [Exportar para publicación](#export-for-publication).
+¿Ya conoces JamJet? Salta a [Ejecutar experimentos](#run-experiments) o [Exportar para publicación](#export-for-publication).
+
+> **Cuándo usar flujos de trabajo de investigación de JamJet:**
+> - Comparar estrategias de razonamiento entre modelos y seeds
+> - Ejecutar barridos de parámetros con recolección automática de resultados
+> - Reproducir condiciones fallidas o interesantes desde checkpoints
+> - Exportar resultados para un paper (LaTeX, CSV, JSON con tests de significancia)
+> - Conectar un experimento a un flujo de trabajo de producción más adelante
 
 ---
 

@@ -6,7 +6,9 @@ description: Conecta JamJet a servidores de herramientas externos mediante el
 
 # Integración con MCP
 
-JamJet tiene soporte de primera clase para el [Model Context Protocol (MCP)](https://modelcontextprotocol.io) — el estándar abierto para conectar agentes de IA con herramientas externas, fuentes de datos y servicios.
+JamJet tiene soporte de primera clase para el [Protocolo de Contexto de Modelo (MCP)](https://modelcontextprotocol.io) — el estándar abierto para conectar agentes de IA con herramientas externas, fuentes de datos y servicios.
+
+> **Diferencia clave:** JamJet trata las llamadas a herramientas MCP como parte de un flujo de trabajo duradero, no solo como invocaciones efímeras de herramientas. Esto significa que el uso de herramientas permanece con puntos de control, repetible y observable — incluso si el proceso falla a mitad de la llamada.
 
 ## ¿Qué es MCP?
 
@@ -182,3 +184,11 @@ Las llamadas a herramientas pueden fallar por muchas razones — errores de red,
 ```
 
 Si todos los reintentos fallan, la ejecución se marca como `failed` y puede reanudarse o reintentarse manualmente.
+
+---
+
+## Próximos pasos
+
+- [Inicio rápido](/docs/quickstart) — ejecuta un flujo de trabajo primero
+- [Integración A2A](/docs/a2a) — delega tareas a otros agentes
+- [Ejemplos](https://jamjet.dev/showcase) — consulta patrones MCP en ejemplos de producción

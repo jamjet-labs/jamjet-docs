@@ -51,16 +51,16 @@ OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
 
 ## 제공되는 기능
 
-- **`@tool`** — 모든 async Python 함수를 자동 스키마 생성과 함께 에이전트 도구로 변환
-- **`@task`** — 독스트링 = 에이전트 지시사항, 함수 시그니처 = 입력 계약
-- **내구성 있는 실행** — 중단 후 중단된 지점에서 재개 (`jamjet dev` 사용)
-- **강제 제한** — `max_iterations`, `max_cost_usd`, `timeout_seconds`가 일급 파라미터
+- **`@tool`** — 자동 스키마 생성으로 모든 비동기 Python 함수를 도구로 노출
+- **`@task`** — 일반 Python 함수를 내구성 있는 에이전트 단계로 사용
+- **내구성 실행** — `jamjet dev`로 장애 지점부터 재개
+- **런타임 강제 제한** — 반복, 비용, 타임아웃을 일급 제어 요소로 관리
 
 보일러플레이트 없음. 상태 클래스 없음. 의존성 주입 없음.
 
-> **note:** 
-완전한 그래프 제어가 필요하신가요 — 다단계 파이프라인, 조건부 라우팅, 사람 개입?
-복잡한 오케스트레이션을 위해 [`Workflow` API](/python-sdk) 또는 [YAML workflows](/yaml-workflows)를 사용하세요.
+> **참고:** 
+완전한 그래프 제어가 필요하신가요? 다단계 파이프라인, 조건부 라우팅, 휴먼 인 더 루프?
+복잡한 오케스트레이션에는 [`Workflow` API](/python-sdk) 또는 [YAML 워크플로](/yaml-workflows)를 사용하세요.
 
 ---
 
@@ -154,6 +154,31 @@ jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
 
 ---
 
+## 90초 만에 크래시 복구 체험하기
+
+1. **런타임 시작:**
+   ```bash
+   jamjet dev
+   ```
+
+2. **다단계 워크플로 실행:**
+   ```bash
+   jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
+   ```
+
+3. **실행 중 워커 강제 종료** (실행 중 Ctrl+C 또는 프로세스 종료)
+
+4. **런타임 재시작:**
+   ```bash
+   jamjet dev
+   ```
+
+5. **마지막 체크포인트부터 워크플로가 재개되는 것을 확인**
+
+**결과:** 이전 단계 재실행 없음. API 호출 낭비 없음. 상태 손실 없음.
+
+---
+
 ## API 키 설정
 
 #### OpenAI
@@ -191,9 +216,9 @@ export OPENAI_BASE_URL=https://api.groq.com/openai/v1
 
 1. [핵심 개념](/concepts) — 에이전트, 노드, 상태, 내구성
 2. [Python SDK](/python-sdk) — 데코레이터, 라우팅, 병렬 단계
-3. [워크플로우 작성](/yaml-workflows) — 모든 노드 유형, 재시도 정책, 조건
+3. [워크플로 작성](/yaml-workflows) — 모든 노드 유형, 재시도 정책, 조건
 4. [MCP 통합](/mcp) — 한 줄로 외부 도구 서버 연결
-5. [Eval Harness](/eval) — 소프트웨어처럼 에이전트 테스트
+5. [평가 하네스](/eval) — 소프트웨어처럼 에이전트 테스트
 
 ---
 
@@ -202,7 +227,7 @@ export OPENAI_BASE_URL=https://api.groq.com/openai/v1
 **설치 후 `jamjet`을 찾을 수 없나요?**
 Python 스크립트 디렉토리가 PATH에 있는지 확인하세요. `python -m jamjet`을 시도해보세요.
 
-**포트 7700에서 연결이 거부되나요?**
-`jamjet run`을 사용하기 전에 `jamjet dev`가 실행 중이어야 합니다. 인프로세스 `wf.run_sync()` 경로는 서버가 필요하지 않습니다.
+**포트 7700에서 연결 거부되나요?**
+`jamjet run`을 사용하기 전에 `jamjet dev`가 실행 중이어야 합니다. 인프로세스 `wf.run_sync()` 방식은 서버가 필요 없습니다.
 
-**도움이 필요하신가요?** [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions)을 열거나 [이슈를 등록](https://github.com/jamjet-labs/jamjet/issues)하세요.
+**도움이 필요하신가요?** [GitHub 토론](https://github.com/jamjet-labs/jamjet/discussions)을 열거나 [이슈를 등록](https://github.com/jamjet-labs/jamjet/issues)하세요.

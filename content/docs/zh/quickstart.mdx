@@ -51,15 +51,15 @@ OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
 
 ## 你获得的能力
 
-- **`@tool`** — 将任何异步 Python 函数转换为代理工具,自动生成 schema
-- **`@task`** — 文档字符串 = 代理指令,函数签名 = 输入约定
-- **持久执行** — 崩溃后从停止处恢复(使用 `jamjet dev`)
-- **强制限制** — `max_iterations`、`max_cost_usd`、`timeout_seconds` 是一等参数
+- **`@tool`** — 将任意异步 Python 函数暴露为工具，自动生成 schema
+- **`@task`** — 将普通 Python 函数用作持久化 agent 步骤
+- **持久化执行** — 使用 `jamjet dev` 从故障点恢复
+- **运行时强制限制** — 迭代次数、成本和超时作为一等公民控制项
 
 无样板代码。无状态类。无依赖注入。
 
-> **注意:** 
-需要完整的图控制 — 多步骤流水线、条件路由、人工介入?
+> **注意:**
+需要完整的图控制 — 多步骤管道、条件路由、人工介入？
 使用 [`Workflow` API](/python-sdk) 或 [YAML workflows](/yaml-workflows) 进行复杂编排。
 
 ---
@@ -154,7 +154,32 @@ jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
 
 ---
 
-## 设置 API 密钥
+## 90 秒体验故障恢复
+
+1. **启动运行时:**
+   ```bash
+   jamjet dev
+   ```
+
+2. **运行多步骤工作流:**
+   ```bash
+   jamjet run workflow.yaml --input '{"query": "What is JamJet?"}'
+   ```
+
+3. **执行过程中终止 worker**(运行中按 Ctrl+C,或杀掉进程)
+
+4. **重启运行时:**
+   ```bash
+   jamjet dev
+   ```
+
+5. **观察工作流从上次完成的检查点恢复**
+
+**结果:**无需重新运行早期步骤。无浪费的 API 调用。无状态丢失。
+
+---
+
+## 设置你的 API 密钥
 
 #### OpenAI
 
@@ -168,7 +193,7 @@ export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-#### Ollama（免费，本地）
+#### Ollama(免费,本地)
 
 ```bash
 export OPENAI_API_KEY=ollama
@@ -189,20 +214,20 @@ export OPENAI_BASE_URL=https://api.groq.com/openai/v1
 
 ## 下一步
 
-1. [核心概念](/concepts) — agents、节点、状态和持久性
+1. [核心概念](/concepts) — agents、nodes、state 和持久化
 2. [Python SDK](/python-sdk) — 装饰器、路由、并行步骤
 3. [工作流编写](/yaml-workflows) — 所有节点类型、重试策略、条件
 4. [MCP 集成](/mcp) — 一行代码连接外部工具服务器
-5. [评估工具](/eval) — 像测试软件一样测试你的 agents
+5. [测试框架](/eval) — 像测试软件一样测试你的 agents
 
 ---
 
-## 故障排除
+## 故障排查
 
-**安装后找不到 `jamjet`？**
-确保你的 Python 脚本目录在 PATH 中。尝试使用 `python -m jamjet`。
+**安装后找不到 `jamjet`?**
+确保你的 Python scripts 目录在 PATH 中。试试 `python -m jamjet`。
 
-**端口 7700 连接被拒绝？**
-在使用 `jamjet run` 之前必须先运行 `jamjet dev`。进程内的 `wf.run_sync()` 路径不需要服务器。
+**端口 7700 连接被拒绝?**
+使用 `jamjet run` 前必须运行 `jamjet dev`。进程内的 `wf.run_sync()` 路径不需要服务器。
 
-**需要帮助？** 在 [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions) 中提问或[提交 issue](https://github.com/jamjet-labs/jamjet/issues)。
+**需要帮助?**在 [GitHub Discussion](https://github.com/jamjet-labs/jamjet/discussions) 提问或[提交 issue](https://github.com/jamjet-labs/jamjet/issues)。

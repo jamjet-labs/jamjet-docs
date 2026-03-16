@@ -5,7 +5,7 @@ description: 理解 JamJet 中的 agents、nodes、state 和持久性。
 
 # 核心概念
 
-JamJet 是一个**原生支持智能体的运行时** —— 专为需要容错、跨工作节点扩展以及与其他智能体组合的 AI 工作流而构建。本页介绍关键原语。
+JamJet 是一个**用于 AI 智能体的持久化运行时**。核心理念很简单:工作流作为可恢复的状态转换执行,而非短暂的函数调用。这正是使重放、崩溃恢复、审批暂停和精确跟踪成为可能的原因。本页介绍关键原语。
 
 ## 工作流
 
@@ -117,3 +117,11 @@ JamJet 调度器使用 Rust 编写，作为 `jamjet dev`（本地）或托管运
 | 认证 | 无 | mTLS / API 密钥 |
 
 编程模型完全相同——相同的 YAML 或 Python 代码在两种环境中均可无需修改直接运行。
+
+---
+
+## 下一步
+
+- [快速开始](/docs/quickstart) — 构建你的第一个持久化智能体
+- [Python SDK](/docs/python-sdk) — 装饰器、路由、并行步骤
+- [尝试崩溃恢复](/docs/quickstart#try-crash-recovery-in-90-seconds) — 实际体验持久化能力

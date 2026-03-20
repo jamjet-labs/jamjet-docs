@@ -1,0 +1,143 @@
+---
+title: Coordinator Node
+description: Dynamic agent routing with structured scoring and optional LLM tiebreaker.
+---
+
+# Coordinator Node
+
+The Coordinator discovers agents at runtime, scores them on multiple dimensions, and routes to the best fit. When scores are close, an optional LLM tiebreaker makes the final call.
+
+## Three Phases
+
+### 1. Discovery
+
+Filters the agent registry by required skills and trust domain. Agents missing required skills or in the wrong trust domain are rejected with a reason.
+
+```python
+graph.add_coordinator("route",
+    task="Route support ticket to best agent",
+    required_skills=["support", "billing"],
+    trust_domain="internal",
+)
+```
+
+### 2. Scoring
+
+Each candidate is scored on five dimensions:
+
+| Dimension | What it measures | Default weight |
+|-----------|-----------------|---------------|
+| `capability_fit` | Skill coverage + reasoning mode match | 1.0 |
+| `cost_fit` | Agent's cost class (low=1.0, medium=0.7, high=0.4) | 1.0 |
+| `latency_fit` | Agent's latency class (same mapping) | 1.0 |
+| `trust_compatibility` | Trust domain match (1.0 if matched, 0.5 otherwise) | 1.0 |
+| `historical_performance` | Past success rate (default 0.5) | 1.0 |
+
+A weighted composite score determines the ranking. Override weights to prioritize what matters:
+
+```python
+graph.add_coordinator("route",
+    task="Route latency-sensitive request",
+    required_skills=["inference"],
+    weights={"latency_fit": 3.0, "cost_fit": 0.5},
+)
+```
+
+### 3. Decision
+
+If the top candidate's lead is clear (spread > threshold), it wins via structured scoring. If scores are close, the LLM tiebreaker takes over.
+
+## LLM Tiebreaker
+
+When the spread between top candidates is within threshold, the coordinator calls an LLM with task context and Agent Card summaries to make the final pick.
+
+```python
+graph.add_coordinator("route",
+    task="Route complex research task",
+    required_skills=["research"],
+    tiebreaker={"model": "claude-sonnet-4-6", "threshold": 0.1},
+)
+```
+
+**How it works:**
+1. Top candidates (max 3) are formatted into a structured prompt
+2. LLM returns JSON: `{"selected_uri": "...", "reasoning": "..."}`
+3. Decision includes `method="llm_tiebreaker"` and token usage for cost tracking
+4. If the LLM call fails, falls back to structured pick with `method="tiebreaker_failed"`
+
+The tiebreaker uses async SDK clients (`AsyncAnthropic`, `AsyncOpenAI`) — tries Anthropic first, falls back to OpenAI.
+
+## Reasoning Modes
+
+Agent Cards can declare reasoning capabilities:
+
+```python
+AgentCandidate(
+    uri="jamjet://org/planner",
+    agent_card={"name": "Planning Agent"},
+    skills=["task-decomposition"],
+    reasoning_modes=["plan-and-execute", "react"],
+    cost_class="medium",
+    latency_class="medium",
+)
+```
+
+When the coordinator context includes `preferred_reasoning_modes`, matching agents get a capability score boost (up to +0.2):
+
+```python
+context = {"preferred_reasoning_modes": ["plan-and-execute"]}
+```
+
+If no preference is set, reasoning modes have no effect on scoring.
+
+## Custom Strategies
+
+The default strategy handles most cases, but you can implement your own by subclassing `CoordinatorStrategy`:
+
+```python
+from jamjet.coordinator.strategy import CoordinatorStrategy, Decision
+
+class MyStrategy(CoordinatorStrategy):
+    async def discover(self, task, required_skills, preferred_skills, trust_domain, context):
+        # Custom discovery logic
+        ...
+
+    async def score(self, task, candidates, weights, context):
+        # Custom scoring logic
+        ...
+
+    async def decide(self, task, top_candidates, threshold, tiebreaker_model, context):
+        # Custom decision logic
+        ...
+```
+
+Register it with the strategy server:
+
+```python
+from jamjet.coordinator.server import StrategyServer
+
+server = StrategyServer()
+server.register("my-strategy", MyStrategy())
+server.run()
+```
+
+## Decision Output
+
+The coordinator returns a `Decision` with full transparency:
+
+```python
+Decision(
+    selected_uri="jamjet://org/agent-a",
+    method="llm_tiebreaker",        # or "structured", "tiebreaker_failed"
+    reasoning="Best match for research decomposition tasks",
+    confidence=0.82,
+    rejected=[{"uri": "jamjet://org/agent-b", "reason": "not selected by tiebreaker"}],
+    tiebreaker_tokens={"input": 150, "output": 30},
+)
+```
+
+Every routing decision is recorded in the event log for observability and replay.
+
+## Example
+
+See the [coordinator-routing example](https://github.com/jamjet-labs/jamjet/tree/main/examples/coordinator-routing) for a complete working setup with multiple agents and scoring.

@@ -1,0 +1,109 @@
+---
+title: Agent-as-Tool
+description: Wrap any agent as a callable tool — sync, streaming, or conversational.
+---
+
+# Agent-as-Tool
+
+JamJet lets you wrap any agent as a callable tool inside a workflow. Three invocation modes cover different use cases — from quick lookups to long-running analyses to multi-turn conversations.
+
+## Three Modes
+
+### Sync
+
+Single request, single response. Best for fast, stateless operations.
+
+```python
+graph.add_agent_tool("classifier",
+    agent="https://classifier-agent.example.com",
+    mode="sync",
+    timeout_ms=5000,
+)
+```
+
+Posts to `/tasks/send` and returns the full response as the node output.
+
+### Streaming
+
+Incremental NDJSON processing with real-time event emission. Best for long-running agents where you want progress visibility, budget control, and early termination.
+
+```python
+graph.add_agent_tool("researcher",
+    agent="https://research-agent.example.com",
+    mode="streaming",
+    budget={"max_cost_usd": 0.50},
+    streaming={"idle_timeout_secs": 30},
+)
+```
+
+Posts to `/tasks/sendSubscribe` and processes the NDJSON stream incrementally:
+
+- **Real-time events** — each chunk is emitted to the state backend as it arrives, not batched at the end
+- **Idle timeout** — if no data arrives within `idle_timeout_secs` (default 30), the stream is terminated
+- **Budget guard** — when accumulated `cost_usd` from chunks exceeds `max_cost_usd`, the stream stops
+- **A2A cancel** — on early termination (budget or timeout), a best-effort `tasks/cancel` is sent to the remote agent
+- **Partial results preserved** — chunks already emitted are never lost, even on failure
+
+### Conversational
+
+Multi-turn exchange for iterative refinement. The coordinator sends input, reads the response, and feeds it back as the next turn's input.
+
+```python
+graph.add_agent_tool("editor",
+    agent="https://editor-agent.example.com",
+    mode={"conversational": {"max_turns": 5}},
+)
+```
+
+Posts to `/tasks/send` in a loop. Stops when the agent responds with `status: "completed"` or `max_turns` is reached.
+
+## Streaming Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `streaming.idle_timeout_secs` | 30 | Seconds of silence before terminating |
+| `budget.max_cost_usd` | None | Maximum accumulated cost before termination |
+| `timeout_ms` | 30000 | Overall HTTP timeout (sync/conversational only) |
+
+For streaming mode, the per-chunk idle timeout replaces the overall HTTP timeout. The client is built without a global timeout so long-running streams with active data aren't killed prematurely.
+
+## Events
+
+The agent tool emits structured events to the event log:
+
+| Event | When |
+|-------|------|
+| `agent_tool_invoked` | Request sent to remote agent |
+| `agent_tool_progress` | Each NDJSON chunk received (streaming only) |
+| `agent_tool_completed` | Successful completion with final output |
+| `agent_tool_terminated` | Early termination (budget exceeded or idle timeout) |
+| `agent_tool_error` | Network error mid-stream |
+
+Each event includes `timestamp_ms` for precise timing. Progress events include `chunk_index` and `accumulated_cost_usd`.
+
+## Error Handling
+
+| Failure | Behavior |
+|---------|----------|
+| Network error mid-stream | Node fails with error, partial results preserved |
+| Malformed JSON in NDJSON | Wrapped as `{"raw": "..."}`, stream continues |
+| Non-UTF8 data | Skipped with warning, stream continues |
+| Idle timeout | Node fails, A2A cancel sent |
+| Budget exceeded | Node fails, A2A cancel sent |
+| Agent returns HTTP error | Node fails immediately |
+
+Hard failures (timeout, network error) cause the node to fail so the workflow can retry or handle the error. Budget breach is also treated as a failure.
+
+## Protocol Resolution
+
+The agent URI determines the protocol:
+
+| URI prefix | Protocol |
+|------------|----------|
+| `https://` | A2A (remote HTTP) |
+| `jamjet://` | Local (in-process) |
+| Other | MCP |
+
+## Example
+
+See the [agent-as-tool example](https://github.com/jamjet-labs/jamjet/tree/main/examples/agent-as-tool) for a complete workflow using all three modes.

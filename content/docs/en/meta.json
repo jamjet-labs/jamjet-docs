@@ -10,6 +10,8 @@
     "cli",
     "yaml-workflows",
     "---Guides---",
+    "coordinator",
+    "agent-as-tool",
     "eval",
     "research-guide",
     "observability",

@@ -15,6 +15,22 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
   },
+  openGraph: {
+    siteName: 'JamJet Docs',
+    images: [
+      {
+        url: 'https://docs.jamjet.dev/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'JamJet — The Agent-Native Runtime',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@jamjetdev',
+    images: ['https://docs.jamjet.dev/og.png'],
+  },
 };
 
 export default async function LangLayout({

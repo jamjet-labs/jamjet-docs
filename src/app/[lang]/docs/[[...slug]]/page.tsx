@@ -90,11 +90,20 @@ export async function generateMetadata(props: {
       url,
       siteName: 'JamJet Docs',
       type: 'article',
+      images: [
+        {
+          url: 'https://docs.jamjet.dev/og.png',
+          width: 1200,
+          height: 630,
+          alt: 'JamJet — The Agent-Native Runtime',
+        },
+      ],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: page.data.title as string | undefined,
       description: page.data.description as string | undefined,
+      images: ['https://docs.jamjet.dev/og.png'],
     },
   };
 }

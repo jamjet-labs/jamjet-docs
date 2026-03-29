@@ -1,0 +1,143 @@
+---
+title: 코디네이터 노드
+description: 구조화된 점수 계산과 선택적 LLM 타이브레이커를 사용한 동적 에이전트 라우팅.
+---
+
+# 코디네이터 노드
+
+코디네이터는 런타임에 에이전트를 발견하고, 여러 차원에서 점수를 매긴 후 가장 적합한 에이전트로 라우팅합니다. 점수가 비슷할 경우, 선택적 LLM 타이브레이커가 최종 결정을 내립니다.
+
+## 세 단계
+
+### 1. 발견
+
+필수 스킬과 신뢰 도메인을 기준으로 에이전트 레지스트리를 필터링합니다. 필수 스킬이 누락되었거나 잘못된 신뢰 도메인에 있는 에이전트는 사유와 함께 거부됩니다.
+
+```python
+graph.add_coordinator("route",
+    task="Route support ticket to best agent",
+    required_skills=["support", "billing"],
+    trust_domain="internal",
+)
+```
+
+### 2. 점수 산정
+
+각 후보는 다섯 가지 차원에서 점수를 받습니다:
+
+| 차원 | 측정 항목 | 기본 가중치 |
+|-----------|-----------------|---------------|
+| `capability_fit` | 스킬 커버리지 + 추론 모드 일치도 | 1.0 |
+| `cost_fit` | 에이전트의 비용 등급 (low=1.0, medium=0.7, high=0.4) | 1.0 |
+| `latency_fit` | 에이전트의 지연 등급 (동일한 매핑) | 1.0 |
+| `trust_compatibility` | 신뢰 도메인 일치도 (일치 시 1.0, 그 외 0.5) | 1.0 |
+| `historical_performance` | 과거 성공률 (기본값 0.5) | 1.0 |
+
+가중 복합 점수가 순위를 결정합니다. 중요한 요소를 우선시하려면 가중치를 재정의하세요:
+
+```python
+graph.add_coordinator("route",
+    task="Route latency-sensitive request",
+    required_skills=["inference"],
+    weights={"latency_fit": 3.0, "cost_fit": 0.5},
+)
+```
+
+### 3. 결정
+
+최상위 후보의 리드가 명확하면 (spread > threshold), 구조화된 점수 산정을 통해 선택됩니다. 점수가 비슷하면 LLM 타이브레이커가 개입합니다.
+
+## LLM 타이브레이커
+
+최상위 후보 간 점수 차이가 임계값 이내일 때, 코디네이터는 태스크 컨텍스트와 에이전트 카드 요약을 LLM에 전달하여 최종 선택을 받습니다.
+
+```python
+graph.add_coordinator("route",
+    task="Route complex research task",
+    required_skills=["research"],
+    tiebreaker={"model": "claude-sonnet-4-6", "threshold": 0.1},
+)
+```
+
+**작동 방식:**
+1. 최상위 후보(최대 3개)가 구조화된 프롬프트로 포맷됩니다
+2. LLM이 JSON을 반환합니다: `{"selected_uri": "...", "reasoning": "..."}`
+3. 결정에는 `method="llm_tiebreaker"`와 비용 추적을 위한 토큰 사용량이 포함됩니다
+4. LLM 호출이 실패하면 `method="tiebreaker_failed"`로 구조화된 선택으로 폴백됩니다
+
+타이브레이커는 비동기 SDK 클라이언트(`AsyncAnthropic`, `AsyncOpenAI`)를 사용하며, Anthropic을 먼저 시도하고 OpenAI로 폴백합니다.
+
+## 추론 모드
+
+에이전트 카드는 추론 기능을 선언할 수 있습니다:
+
+```python
+AgentCandidate(
+    uri="jamjet://org/planner",
+    agent_card={"name": "Planning Agent"},
+    skills=["task-decomposition"],
+    reasoning_modes=["plan-and-execute", "react"],
+    cost_class="medium",
+    latency_class="medium",
+)
+```
+
+코디네이터 컨텍스트에 `preferred_reasoning_modes`가 포함되면 일치하는 에이전트는 능력 점수 부스트(최대 +0.2)를 받습니다:
+
+```python
+context = {"preferred_reasoning_modes": ["plan-and-execute"]}
+```
+
+선호도가 설정되지 않으면 추론 모드는 점수에 영향을 주지 않습니다.
+
+## 커스텀 전략
+
+기본 전략이 대부분의 경우를 처리하지만, `CoordinatorStrategy`를 서브클래싱하여 자체 전략을 구현할 수 있습니다:
+
+```python
+from jamjet.coordinator.strategy import CoordinatorStrategy, Decision
+
+class MyStrategy(CoordinatorStrategy):
+    async def discover(self, task, required_skills, preferred_skills, trust_domain, context):
+        # 커스텀 발견 로직
+        ...
+
+    async def score(self, task, candidates, weights, context):
+        # 커스텀 점수 로직
+        ...
+
+    async def decide(self, task, top_candidates, threshold, tiebreaker_model, context):
+        # 커스텀 결정 로직
+        ...
+```
+
+전략 서버에 등록하세요:
+
+```python
+from jamjet.coordinator.server import StrategyServer
+
+server = StrategyServer()
+server.register("my-strategy", MyStrategy())
+server.run()
+```
+
+## 결정 출력
+
+코디네이터는 완전한 투명성을 갖춘 `Decision`을 반환합니다:
+
+```python
+Decision(
+    selected_uri="jamjet://org/agent-a",
+    method="llm_tiebreaker",        # 또는 "structured", "tiebreaker_failed"
+    reasoning="연구 분해 작업에 가장 적합",
+    confidence=0.82,
+    rejected=[{"uri": "jamjet://org/agent-b", "reason": "타이브레이커에서 선택되지 않음"}],
+    tiebreaker_tokens={"input": 150, "output": 30},
+)
+```
+
+모든 라우팅 결정은 관찰성과 재생을 위해 이벤트 로그에 기록됩니다.
+
+## 예제
+
+여러 에이전트와 점수 계산이 포함된 전체 작동 설정은 [coordinator-routing 예제](https://github.com/jamjet-labs/jamjet/tree/main/examples/coordinator-routing)를 참조하세요.

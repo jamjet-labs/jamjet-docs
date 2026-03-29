@@ -1,0 +1,143 @@
+---
+title: コーディネーターノード
+description: 構造化スコアリングとオプションのLLMタイブレーカーによる動的エージェントルーティング。
+---
+
+# コーディネーターノード
+
+コーディネーターは実行時にエージェントを検出し、複数の次元でスコアリングして最適なエージェントにルーティングします。スコアが拮抗している場合、オプションのLLMタイブレーカーが最終判断を行います。
+
+## 3つのフェーズ
+
+### 1. 検出
+
+必要なスキルとトラストドメインでエージェントレジストリをフィルタリングします。必要なスキルが不足しているエージェントや、不適切なトラストドメインにいるエージェントは理由とともに却下されます。
+
+```python
+graph.add_coordinator("route",
+    task="Route support ticket to best agent",
+    required_skills=["support", "billing"],
+    trust_domain="internal",
+)
+```
+
+### 2. スコアリング
+
+各候補は5つの次元でスコア化されます:
+
+| 次元 | 測定内容 | デフォルトの重み |
+|-----------|-----------------|---------------|
+| `capability_fit` | スキルカバレッジ + 推論モードの適合性 | 1.0 |
+| `cost_fit` | エージェントのコストクラス (低=1.0、中=0.7、高=0.4) | 1.0 |
+| `latency_fit` | エージェントのレイテンシクラス (同じマッピング) | 1.0 |
+| `trust_compatibility` | トラストドメインの適合性 (一致の場合1.0、それ以外は0.5) | 1.0 |
+| `historical_performance` | 過去の成功率 (デフォルト0.5) | 1.0 |
+
+重み付けされた総合スコアでランキングが決まります。重要な要素を優先するには重みをオーバーライドします:
+
+```python
+graph.add_coordinator("route",
+    task="Route latency-sensitive request",
+    required_skills=["inference"],
+    weights={"latency_fit": 3.0, "cost_fit": 0.5},
+)
+```
+
+### 3. 判定
+
+トップ候補のリードが明確な場合 (差分 > 閾値)、構造化スコアリングで決定します。スコアが拮抗している場合は、LLMタイブレーカーが引き継ぎます。
+
+## LLMタイブレーカー
+
+上位候補間のスコア差が閾値内の場合、コーディネーターはタスクコンテキストとエージェントカードのサマリーを使ってLLMを呼び出し、最終選択を行います。
+
+```python
+graph.add_coordinator("route",
+    task="Route complex research task",
+    required_skills=["research"],
+    tiebreaker={"model": "claude-sonnet-4-6", "threshold": 0.1},
+)
+```
+
+**動作の仕組み:**
+1. 上位候補 (最大3つ) が構造化プロンプトにフォーマットされます
+2. LLMはJSON形式で応答します: `{"selected_uri": "...", "reasoning": "..."}`
+3. 判定には`method="llm_tiebreaker"`とコスト追跡用のトークン使用量が含まれます
+4. LLM呼び出しが失敗した場合、`method="tiebreaker_failed"`で構造化ピックにフォールバックします
+
+タイブレーカーは非同期SDKクライアント (`AsyncAnthropic`、`AsyncOpenAI`) を使用し、まずAnthropicを試してからOpenAIにフォールバックします。
+
+## 推論モード
+
+エージェントカードは推論機能を宣言できます:
+
+```python
+AgentCandidate(
+    uri="jamjet://org/planner",
+    agent_card={"name": "Planning Agent"},
+    skills=["task-decomposition"],
+    reasoning_modes=["plan-and-execute", "react"],
+    cost_class="medium",
+    latency_class="medium",
+)
+```
+
+コーディネーターコンテキストに`preferred_reasoning_modes`が含まれている場合、一致するエージェントは機能スコアのブースト(最大+0.2)を受けます:
+
+```python
+context = {"preferred_reasoning_modes": ["plan-and-execute"]}
+```
+
+優先設定が指定されていない場合、推論モードはスコアリングに影響しません。
+
+## カスタムストラテジー
+
+デフォルトストラテジーはほとんどのケースに対応しますが、`CoordinatorStrategy`をサブクラス化して独自のストラテジーを実装できます:
+
+```python
+from jamjet.coordinator.strategy import CoordinatorStrategy, Decision
+
+class MyStrategy(CoordinatorStrategy):
+    async def discover(self, task, required_skills, preferred_skills, trust_domain, context):
+        # カスタム検索ロジック
+        ...
+
+    async def score(self, task, candidates, weights, context):
+        # カスタムスコアリングロジック
+        ...
+
+    async def decide(self, task, top_candidates, threshold, tiebreaker_model, context):
+        # カスタム決定ロジック
+        ...
+```
+
+ストラテジーサーバーに登録します:
+
+```python
+from jamjet.coordinator.server import StrategyServer
+
+server = StrategyServer()
+server.register("my-strategy", MyStrategy())
+server.run()
+```
+
+## 決定出力
+
+コーディネーターは完全な透明性を持つ`Decision`を返します:
+
+```python
+Decision(
+    selected_uri="jamjet://org/agent-a",
+    method="llm_tiebreaker",        # または "structured", "tiebreaker_failed"
+    reasoning="研究分解タスクに最適",
+    confidence=0.82,
+    rejected=[{"uri": "jamjet://org/agent-b", "reason": "not selected by tiebreaker"}],
+    tiebreaker_tokens={"input": 150, "output": 30},
+)
+```
+
+すべてのルーティング決定は、観測性と再現のためにイベントログに記録されます。
+
+## 例
+
+複数のエージェントとスコアリングを含む完全な動作セットアップについては、[coordinator-routingの例](https://github.com/jamjet-labs/jamjet/tree/main/examples/coordinator-routing)を参照してください。

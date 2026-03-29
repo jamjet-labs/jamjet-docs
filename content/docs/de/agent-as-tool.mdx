@@ -1,0 +1,110 @@
+---
+title: Agent als Werkzeug
+description: Verpacke jeden Agenten als aufrufbares Werkzeug — synchron,
+  streaming oder konversationell.
+---
+
+# Agent-as-Tool
+
+JamJet ermöglicht es, jeden Agenten als aufrufbares Tool innerhalb eines Workflows zu verpacken. Drei Aufrufmodi decken unterschiedliche Anwendungsfälle ab — von schnellen Abfragen über langfristige Analysen bis hin zu mehrstufigen Konversationen.
+
+## Drei Modi
+
+### Sync
+
+Einzelne Anfrage, einzelne Antwort. Optimal für schnelle, zustandslose Operationen.
+
+```python
+graph.add_agent_tool("classifier",
+    agent="https://classifier-agent.example.com",
+    mode="sync",
+    timeout_ms=5000,
+)
+```
+
+Sendet an `/tasks/send` und gibt die vollständige Antwort als Node-Ausgabe zurück.
+
+### Streaming
+
+Inkrementelle NDJSON-Verarbeitung mit Echtzeit-Event-Emission. Optimal für langfristige Agenten, bei denen Fortschrittstransparenz, Budgetkontrolle und vorzeitige Beendigung wichtig sind.
+
+```python
+graph.add_agent_tool("researcher",
+    agent="https://research-agent.example.com",
+    mode="streaming",
+    budget={"max_cost_usd": 0.50},
+    streaming={"idle_timeout_secs": 30},
+)
+```
+
+Sendet an `/tasks/sendSubscribe` und verarbeitet den NDJSON-Stream inkrementell:
+
+- **Echtzeit-Events** — jeder Chunk wird sofort an das State-Backend emittiert, nicht erst am Ende gebündelt
+- **Idle-Timeout** — wenn innerhalb von `idle_timeout_secs` (Standard 30) keine Daten eintreffen, wird der Stream beendet
+- **Budget-Guard** — wenn die kumulierten `cost_usd` aus Chunks `max_cost_usd` überschreiten, stoppt der Stream
+- **A2A-Cancel** — bei vorzeitiger Beendigung (Budget oder Timeout) wird ein Best-Effort-`tasks/cancel` an den entfernten Agenten gesendet
+- **Teilergebnisse bleiben erhalten** — bereits emittierte Chunks gehen nie verloren, auch bei Fehlern
+
+### Conversational
+
+Mehrstufiger Austausch für iterative Verfeinerung. Der Coordinator sendet Input, liest die Antwort und füttert sie als Input für den nächsten Turn zurück.
+
+```python
+graph.add_agent_tool("editor",
+    agent="https://editor-agent.example.com",
+    mode={"conversational": {"max_turns": 5}},
+)
+```
+
+Sendet in einer Schleife an `/tasks/send`. Stoppt, wenn der Agent mit `status: "completed"` antwortet oder `max_turns` erreicht ist.
+
+## Streaming-Konfiguration
+
+| Parameter | Standard | Beschreibung |
+|-----------|---------|-------------|
+| `streaming.idle_timeout_secs` | 30 | Sekunden ohne Daten vor Beendigung |
+| `budget.max_cost_usd` | None | Maximale kumulierte Kosten vor Beendigung |
+| `timeout_ms` | 30000 | Globaler HTTP-Timeout (nur sync/conversational) |
+
+Im Streaming-Modus ersetzt der Idle-Timeout pro Chunk den globalen HTTP-Timeout. Der Client wird ohne globalen Timeout gebaut, sodass langfristige Streams mit aktiven Daten nicht vorzeitig abgebrochen werden.
+
+## Ereignisse
+
+Das Agenten-Werkzeug sendet strukturierte Ereignisse an das Ereignisprotokoll:
+
+| Ereignis | Wann |
+|-------|------|
+| `agent_tool_invoked` | Anfrage an Remote-Agent gesendet |
+| `agent_tool_progress` | Jedes empfangene NDJSON-Chunk (nur Streaming) |
+| `agent_tool_completed` | Erfolgreicher Abschluss mit finaler Ausgabe |
+| `agent_tool_terminated` | Vorzeitiger Abbruch (Budget überschritten oder Idle-Timeout) |
+| `agent_tool_error` | Netzwerkfehler während des Streams |
+
+Jedes Ereignis enthält `timestamp_ms` für präzises Timing. Progress-Ereignisse enthalten `chunk_index` und `accumulated_cost_usd`.
+
+## Fehlerbehandlung
+
+| Fehler | Verhalten |
+|---------|----------|
+| Netzwerkfehler während des Streams | Knoten schlägt mit Fehler fehl, Teilergebnisse bleiben erhalten |
+| Fehlerhaftes JSON in NDJSON | Verpackt als `{"raw": "..."}`, Stream läuft weiter |
+| Nicht-UTF8-Daten | Übersprungen mit Warnung, Stream läuft weiter |
+| Idle-Timeout | Knoten schlägt fehl, A2A-Cancel gesendet |
+| Budget überschritten | Knoten schlägt fehl, A2A-Cancel gesendet |
+| Agent gibt HTTP-Fehler zurück | Knoten schlägt sofort fehl |
+
+Harte Fehler (Timeout, Netzwerkfehler) führen zum Fehlschlagen des Knotens, damit der Workflow einen Retry durchführen oder den Fehler behandeln kann. Budgetüberschreitung wird ebenfalls als Fehler behandelt.
+
+## Protokollauflösung
+
+Die Agenten-URI bestimmt das Protokoll:
+
+| URI-Präfix | Protokoll |
+|------------|----------|
+| `https://` | A2A (Remote-HTTP) |
+| `jamjet://` | Lokal (In-Process) |
+| Andere | MCP |
+
+## Beispiel
+
+Siehe das [agent-as-tool Beispiel](https://github.com/jamjet-labs/jamjet/tree/main/examples/agent-as-tool) für einen vollständigen Workflow mit allen drei Modi.

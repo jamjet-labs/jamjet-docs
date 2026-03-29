@@ -1,0 +1,334 @@
+---
+title: Java-Schnellstart
+description: Erstellen Sie Ihren ersten KI-Agenten und Workflow in Java mit
+  JamJet – Tools, Strategien, dauerhafte Ausführung und IR-Kompilierung.
+---
+
+# Java Schnellstart
+
+Dieser Leitfaden führt dich durch den Aufbau eines KI-Agenten und eines dauerhaften Workflows in Java. Am Ende wirst du verstehen, wie JamJet-Tools, Agentenstrategien, IR-Kompilierung und typisierter Workflow-Status zusammenpassen — und *warum* jede Designentscheidung für produktive Agentensysteme wichtig ist.
+
+---
+
+## Voraussetzungen
+
+Bevor du startest, stelle sicher, dass du folgendes hast:
+
+- **Java 21+** — JamJet verwendet virtuelle Threads (`Thread.ofVirtual`) für nicht-blockierende I/O ohne Callback-Chaos. Virtuelle Threads sind ein finales (nicht-Preview) Feature in Java 21 (JEP 444).
+- **Maven 3.9+** oder **Gradle 8+** — jedes Build-Tool, das von Maven Central ziehen kann.
+- **Eine laufende JamJet-Runtime** — für die Produktionsausführung. Während der Entwicklung kannst du alles in-process ausführen (kein Server erforderlich), oder die lokale Runtime starten mit:
+  ```bash
+  jamjet dev
+  ```
+- **Einen LLM-API-Schlüssel** — setze `OPENAI_API_KEY` oder `ANTHROPIC_API_KEY` in deiner Umgebung. Für reine lokale Entwicklung funktioniert [Ollama](https://ollama.com) ohne Schlüssel.
+
+> **tipp:** 
+> Du kannst diesem gesamten Leitfaden folgen, ohne eine laufende Runtime zu haben. Der In-Process-Executor ermöglicht es dir, Workflows lokal zu kompilieren, zu validieren und auszuführen. Füge die Runtime hinzu, wenn du Crash-Recovery und dauerhaften Status benötigst.
+
+---
+
+## Dependency hinzufügen
+
+Das Java SDK ist auf Maven Central als `dev.jamjet:jamjet-sdk` veröffentlicht.
+
+### Maven
+
+```xml
+<dependency>
+    <groupId>dev.jamjet</groupId>
+    <artifactId>jamjet-sdk</artifactId>
+    <version>0.4.0</version>
+</dependency>
+```
+
+### Gradle (Kotlin DSL)
+
+```kotlin
+implementation("dev.jamjet:jamjet-sdk:0.4.0")
+```
+
+### Gradle (Groovy DSL)
+
+```groovy
+implementation 'dev.jamjet:jamjet-sdk:0.4.0'
+```
+
+Stelle sicher, dass dein Projekt auf Java 21 oder höher abzielt. In Maven:
+
+```xml
+<properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+</properties>
+```
+
+---
+
+## Tool definieren
+
+Tools sind die Brücke zwischen deinem Agenten und der Außenwelt — Websuche, Datenbankabfragen, API-Aufrufe, Datei-I/O. In JamJet ist ein Tool ein Java **Record**, das mit `@Tool` annotiert ist und `ToolCall<T>` implementiert.
+
+```java
+import dev.jamjet.tool.Tool;
+import dev.jamjet.tool.ToolCall;
+
+@Tool(description = "Das Web nach Informationen zu einem Thema durchsuchen")
+record WebSearch(String query) implements ToolCall<String> {
+    public String execute() {
+        // In Produktion hier deine Such-API aufrufen
+        return "Ergebnisse für '" + query + "': JamJet ist eine Performance-First, "
+                + "agenten-native Runtime und Framework für KI-Agenten.";
+    }
+}
+```
+
+### Warum Records?
+
+Dieses Design ist bewusst gewählt. Java Records bieten drei Eigenschaften, die für Agent-Tooling wichtig sind:
+
+1. **Unveränderlichkeit** — die Parameter eines Tool-Aufrufs ändern sich nach der Konstruktion nie. Das macht Tool-Aufrufe sicher für Serialisierung, Replay und Audits. Wenn JamJet einen fehlgeschlagenen Workflow wiederholt, ruft es exakt denselben Tool-Aufruf mit exakt denselben Parametern erneut auf.
+
+2. **Automatische JSON-Schema-Ableitung** — das SDK inspiziert Record-Komponenten (`String query` oben) und generiert das JSON-Schema, das das LLM zum Aufrufen des Tools benötigt. Kein manuelles Schema-Schreiben, keine Annotations-Flut, keine Abweichung zwischen Code und Schema.
+
+3. **Strukturelle Gleichheit** — zwei `WebSearch("jamjet")`-Instanzen sind gleich. Das ermöglicht Deduplizierung und Caching von Tool-Aufrufen über Wiederholungen hinweg.
+
+Die `@Tool`-Annotation liefert die `description`, die das LLM sieht, wenn es entscheidet, welches Tool verwendet werden soll. Formuliere sie so, als würdest du das Tool einem Kollegen erklären — klar, präzise, handlungsorientiert.
+
+> **Hinweis:** 
+> Für tiefergehende Betrachtungen von Tool-Design-Patterns, Agent-Strategien und wann welche einzusetzen ist — siehe [Agentic AI Patterns](https://sunilprakash.com/agentic-ai).
+
+---
+
+## Einen Agent erstellen
+
+Ein Agent kombiniert ein Modell, Tools, Instruktionen und eine **Reasoning-Strategie**. Die Strategie bestimmt *wie* der Agent denkt — nicht nur *was* er tut.
+
+```java
+import dev.jamjet.agent.Agent;
+
+var agent = Agent.builder("researcher")
+        .model("claude-haiku-4-5-20251001")
+        .tools(WebSearch.class)
+        .instructions("You are a helpful research assistant. "
+                + "Always search first, then provide a thorough summary.")
+        .strategy("react")
+        .maxIterations(5)
+        .build();
+```
+
+Betrachten wir jeden Teil einzeln.
+
+### Die `react`-Strategie
+
+Wenn du `.strategy("react")` setzt, sagst du JamJet, die **ReAct**-Schleife (Reasoning + Acting) zu verwenden:
+
+1. **Thought** — das Modell überlegt, was als Nächstes zu tun ist
+2. **Action** — das Modell ruft ein Tool auf
+3. **Observation** — das Tool-Ergebnis wird zurück an das Modell gegeben
+4. Wiederholung, bis das Modell eine finale Antwort liefert oder das Iterationslimit erreicht
+
+Das ist die gängigste Agent-Strategie, weil sie flexibel ist: Das Modell entscheidet dynamisch, welche Tools es in welcher Reihenfolge aufruft. Sie funktioniert gut für offene Aufgaben, bei denen die exakte Schrittfolge nicht vorhersehbar ist.
+
+JamJet unterstützt drei eingebaute Strategien:
+
+| Strategie | Wann verwenden | Wie es funktioniert |
+|-----------|----------------|---------------------|
+| `react` | Offene Aufgaben, explorative Recherche | Thought-Action-Observation-Schleife |
+| `plan-and-execute` | Strukturierte Aufgaben, die von vorheriger Planung profitieren | Plan generieren, dann jeden Schritt sequenziell ausführen |
+| `critic` | Aufgaben mit Qualitätskontrolle | Entwurf-Kritik-Überarbeitung-Schleife |
+
+> **Tipp:** 
+> Unsicher, welche Strategie du wählen sollst? Starte mit `react`. Wechsle zu `plan-and-execute`, wenn der Agent abschweift, oder zu `critic`, wenn Output-Qualität wichtiger ist als Geschwindigkeit. Siehe [Strategie-Vergleiche auf jamjet.dev/research](https://jamjet.dev/research) für Benchmarks.
+
+### Guardrails: Kosten, Zeit und Iterationen
+
+Produktions-Agents benötigen harte Limits. Ohne sie kann ein verwirrtes Modell Ihr API-Budget in einer Schleife aufbrauchen:
+
+```java
+var agent = Agent.builder("investment-researcher")
+        .model("gpt-4o")
+        .tools(WebSearch.class, FetchUrl.class, StoreNote.class)
+        .instructions("""
+                You are a professional investment research analyst.
+                Search for recent news and financials, then produce
+                a structured investment memo.
+                """)
+        .strategy("plan-and-execute")
+        .maxIterations(6)
+        .maxCostUsd(0.50)
+        .timeoutSeconds(120)
+        .build();
+```
+
+- **`maxIterations(6)`** — der Agent stoppt nach 6 Reasoning-Schritten, auch wenn er noch nicht fertig ist. Das verhindert Endlosschleifen.
+- **`maxCostUsd(0.50)`** — die Runtime verfolgt Token-Kosten in Echtzeit und stoppt den Agenten, wenn die Ausgaben 50 Cent überschreiten.
+- **`timeoutSeconds(120)`** — Wanduhr-Timeout. Wenn der Agent nicht innerhalb von 2 Minuten abgeschlossen hat, wird die Ausführung abgebrochen.
+
+Das sind keine Vorschläge — das sind zur Laufzeit durchgesetzte harte Limits. Die JamJet-Runtime prüft sie *zwischen jedem Schritt*, nicht erst am Ende.
+
+---
+
+## Ausführen
+
+Mit dem erstellten Agenten können Sie ihn ausführen und die Ergebnisse überprüfen:
+
+```java
+public static void main(String[] args) {
+    var agent = Agent.builder("researcher")
+            .model("claude-haiku-4-5-20251001")
+            .tools(WebSearch.class)
+            .instructions("You are a helpful research assistant. "
+                    + "Always search first, then provide a thorough summary.")
+            .strategy("react")
+            .maxIterations(5)
+            .build();
+
+    // Run the agent
+    var result = agent.run("What is JamJet?");
+
+    System.out.println(result.output());
+    System.out.printf("Duration: %.2f ms%n", result.durationUs() / 1000.0);
+    System.out.printf("Tool calls: %d%n", result.toolCalls().size());
+}
+```
+
+```bash
+export OPENAI_API_KEY=sk-...
+mvn compile exec:java -Dexec.mainClass=com.example.MyAgent
+```
+
+### IR-Kompilierung: Was unter der Haube passiert
+
+Bevor Ihr Agent läuft, **kompiliert** JamJet ihn zu einer Intermediate Representation (IR) — einem kanonischen Graphenformat, das über das Java-SDK, Python-SDK und YAML-Workflows hinweg geteilt wird. Sie können die IR direkt inspizieren:
+
+```java
+var ir = agent.compile();
+
+System.out.println("workflow_id: " + ir.id());
+System.out.println("start_node:  " + ir.startNode());
+System.out.println("nodes:       " + ir.nodes().size());
+System.out.println("edges:       " + ir.edges().size());
+```
+
+Das gibt etwa Folgendes aus:
+
+```
+workflow_id: researcher
+start_node:  react_start
+nodes:       3
+edges:       4
+```
+
+Warum ist das wichtig? Weil die IR das ist, was die JamJet-Runtime tatsächlich ausführt. Egal ob Sie Ihren Agenten in Java, Python oder YAML schreiben — er wird zum gleichen Graphenformat kompiliert. Das bedeutet:
+
+- **Portabilität** — ein in Java geschriebener Agent kann auf jeder JamJet-Runtime deployed werden
+- **Inspektion** — Sie können den Ausführungsgraphen vor dem Ausführen validieren und visualisieren
+- **Dauerhaftigkeit** — die Runtime erstellt Checkpoints an Knoten-Grenzen, sodass sie nach einem Absturz fortsetzen kann
+
+Sie können die IR auch vor der Übermittlung validieren:
+
+```java
+import dev.jamjet.ir.IrValidator;
+
+IrValidator.validateOrThrow(ir);
+```
+
+Das fängt strukturelle Probleme (unverbundene Knoten, fehlende Kanten, ungültige State-Schemas) zur Compile-Zeit statt zur Laufzeit ab.
+
+---
+
+## Einen Workflow erstellen
+
+Agenten eignen sich hervorragend für offene Aufgaben, bei denen das Modell entscheidet, was zu tun ist. Viele reale Systeme benötigen jedoch **deterministische mehrstufige Pipelines** — Datenanreicherung, RAG, Genehmigungsketten, ETL. Verwenden Sie hierfür einen **Workflow**.
+
+Der entscheidende Unterschied: Bei einem Agenten bestimmt das LLM den Ausführungspfad. In einem Workflow bestimmen *Sie* den Ausführungspfad und das LLM ist nur ein Schritt in der Pipeline.
+
+Hier ist ein zweistufiger RAG-Workflow (Retrieval-Augmented Generation):
+
+```java
+import dev.jamjet.workflow.Workflow;
+import java.util.List;
+
+// Typisierter State — ein Java-Record
+record RagState(
+        String query,
+        List<String> retrievedDocs,
+        String answer) {}
+
+var workflow = Workflow.<RagState>builder("rag-assistant")
+        .version("1.0.0")
+        .state(RagState.class)
+        // Schritt 1: Relevante Dokumente abrufen
+        .step("retrieve", state -> {
+            var docs = searchKnowledgeBase(state.query());
+            return new RagState(state.query(), docs, null);
+        })
+        // Schritt 2: Eine Antwort aus dem Kontext synthetisieren
+        .step("synthesize", state -> {
+            var context = String.join("\n\n", state.retrievedDocs());
+            var answer = callLlm(state.query(), context);
+            return new RagState(state.query(), state.retrievedDocs(), answer);
+        })
+        .build();
+```
+
+### Wie State durch einen Workflow fließt
+
+Jeder Schritt erhält den aktuellen `RagState` und gibt einen *neuen* `RagState` zurück. State ist immer unveränderlich — Sie mutieren niemals den bestehenden Record, sondern konstruieren einen neuen. Das macht Workflows dauerhaft: Wenn die Runtime zwischen "retrieve" und "synthesize" abstürzt, wird sie vom letzten abgeschlossenen Checkpoint mit dem exakten State, der persistiert wurde, fortgesetzt.
+
+So wird dieser Workflow ausgeführt:
+
+```mermaid
+graph LR
+    A["Start"] --> B["retrieve"]
+    B --> C["synthesize"]
+    C --> D["Ende"]
+```
+
+Schritt "retrieve" befüllt `retrievedDocs`. Schritt "synthesize" liest sie und erzeugt die finale `answer`. Jeder Schritt wird mit einem Checkpoint versehen — wenn der Prozess nach Abschluss von "retrieve" abstürzt, setzt die Runtime bei "synthesize" fort, ohne das Abrufen erneut durchzuführen.
+
+### Workflow ausführen
+
+```java
+import dev.jamjet.workflow.ExecutionResult;
+import java.util.ArrayList;
+
+var initialState = new RagState(
+        "Wie handhabt JamJet gleichzeitige Tool-Aufrufe?",
+        new ArrayList<>(),
+        null);
+
+ExecutionResult<RagState> result = workflow.run(initialState);
+
+System.out.println(result.state().answer());
+System.out.printf("Ran %d steps in %.2f ms%n",
+        result.stepsExecuted(), result.totalDurationUs() / 1000.0);
+```
+
+### Agent vs. Workflow: wann was verwenden
+
+| | Agent | Workflow |
+|---|---|---|
+| **Kontrollfluss** | LLM entscheidet | Sie entscheiden |
+| **Optimal für** | Offene Aufgaben, Recherche, Chat | Pipelines, RAG, Genehmigungsketten, ETL |
+| **Determinismus** | Nicht-deterministisch (Modell-gesteuert) | Deterministisch (Code-gesteuert) |
+| **Dauerhaftigkeit** | Checkpoints an Strategiegrenzen | Checkpoints bei jedem Schritt |
+| **Tools** | Modell wählt, welche Tools aufgerufen werden | Schritte rufen Tools explizit auf |
+
+Sie können beides kombinieren: Verwenden Sie einen Workflow als äußeren Orchestrator und betten Sie Agents in einzelne Schritte ein. So erhalten Sie deterministische Pipelines mit intelligenten Teilschritten.
+
+---
+
+## Nächste Schritte
+
+Sie haben jetzt einen funktionierenden Agent und Workflow. Hier können Sie tiefer einsteigen:
+
+- **[Java SDK Referenz](/java-sdk)** — vollständige API-Abdeckung: bedingte Verzweigung, Evaluierung, Zustandsverwaltung, Runtime-Client, Annotation-basierte Agents
+- **[Spring Boot Starter Guide](/spring-boot-starter)** — integrieren Sie JamJet mit Spring AI, Spring Security und Micrometer Observability
+- **[LangChain4j Integration](/langchain4j)** — verwenden Sie JamJet als dauerhafte Ausführungsebene für LangChain4j-Agents
+- **[Kernkonzepte](/concepts)** — Agents, Nodes, State und Dauerhaftigkeit im Detail
+- **[Beispiele auf GitHub](https://github.com/jamjet-labs/jamjet/tree/main/sdk/java/examples)** — ausführbare Beispiele einschließlich Basic Tool Flow, Plan-and-Execute Agent und RAG Assistant
+- **[Agentic AI Patterns](https://sunilprakash.com/agentic-ai)** — Strategieauswahl, Tool-Design und Produktionsmuster für Agent-Systeme
+
+> **Tipp:** 
+> Nutzen Sie bereits Spring Boot? Springen Sie direkt zum [Spring Boot Starter Guide](/spring-boot-starter) — er fasst alles aus diesem Quickstart in Auto-Configuration mit Health Checks, Metriken und Audit Trails zusammen.

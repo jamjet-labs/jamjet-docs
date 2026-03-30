@@ -1,0 +1,109 @@
+# JamJet Documentation — llms.txt
+# This file helps AI assistants and crawlers understand the JamJet docs site.
+# Spec: https://llmstxt.org
+
+# JamJet is a performance-first, agent-native runtime for AI agents.
+# Rust core for durable execution, scheduling, and crash recovery.
+# Python SDK and Java SDK for authoring workflows and agents.
+# Native MCP (Model Context Protocol) and A2A (Agent-to-Agent) protocol support.
+# Built-in eval harness, coordinator routing, and enterprise security.
+# Apache 2.0.
+
+## Product
+
+- Name: JamJet
+- Tagline: The agent-native runtime for production AI
+- PyPI: jamjet (pip install jamjet)
+- Maven Central: jamjet-spring-boot-starter, jamjet-skillsjars, langchain4j-jamjet
+- Python SDK version: 0.3.0
+- Java SDK version: 0.4.0
+- Spring Boot Starter version: 0.1.0
+- License: Apache 2.0
+- Languages: Python SDK, Java SDK, Rust runtime
+
+## Key capabilities
+
+- Durable execution: every state transition is checkpointed; crash and resume from exactly where you stopped
+- Agent strategies: reflection, debate, consensus — pluggable reasoning patterns for multi-step agents
+- Coordinator node: dynamic agent routing with structured scoring and optional LLM tiebreaker
+- Agent-as-Tool: wrap any agent as a callable tool — sync, streaming with early termination, or conversational with turn limits
+- MCP: native client and server — connect any MCP-compatible tool in one line
+- A2A: native Agent-to-Agent protocol for cross-framework agent orchestration
+- Eval harness: AssertionScorer, LatencyScorer, CostScorer, LlmJudgeScorer, custom scorer plugins — run against JSONL datasets with CI exit codes
+- Workflow authoring: Python decorators, Java builders, or YAML — all compile to the same IR
+- Enterprise security: multi-tenant isolation, PII redaction, OAuth delegation, mTLS federation, data retention policies
+- Observability: OpenTelemetry traces, Micrometer metrics, structured logs for every execution
+- Research support: reproducible multi-agent experiments, strategy sweeps, replay, ExperimentGrid
+
+## Documentation structure
+
+This site is the full JamJet documentation, hosted at https://docs.jamjet.dev.
+
+### Overview
+- Documentation home: https://docs.jamjet.dev/en/docs
+- Quickstart: https://docs.jamjet.dev/en/docs/quickstart
+- Core Concepts: https://docs.jamjet.dev/en/docs/concepts
+
+### Getting Started
+- Python SDK: https://docs.jamjet.dev/en/docs/python-sdk
+- Java SDK: https://docs.jamjet.dev/en/docs/java-sdk
+- Java Quickstart: https://docs.jamjet.dev/en/docs/java-quickstart
+- Spring Boot Starter: https://docs.jamjet.dev/en/docs/spring-boot-starter
+- LangChain4j Integration: https://docs.jamjet.dev/en/docs/langchain4j-integration
+- CLI Reference: https://docs.jamjet.dev/en/docs/cli
+- Workflow Authoring (YAML): https://docs.jamjet.dev/en/docs/yaml-workflows
+
+### Guides
+- Coordinator Node: https://docs.jamjet.dev/en/docs/coordinator
+- Agent-as-Tool: https://docs.jamjet.dev/en/docs/agent-as-tool
+- Eval Harness: https://docs.jamjet.dev/en/docs/eval
+- Research Guide: https://docs.jamjet.dev/en/docs/research-guide
+- Observability: https://docs.jamjet.dev/en/docs/observability
+- Deployment: https://docs.jamjet.dev/en/docs/deployment
+- Enterprise Security: https://docs.jamjet.dev/en/docs/enterprise
+
+### Protocols
+- MCP Integration: https://docs.jamjet.dev/en/docs/mcp
+- A2A Integration: https://docs.jamjet.dev/en/docs/a2a
+
+### Reference
+- REST API Reference: https://docs.jamjet.dev/en/docs/api-reference
+- Framework Comparison: https://docs.jamjet.dev/en/docs/compare
+
+### Migration Guides
+- From LangGraph: https://docs.jamjet.dev/en/docs/migrate/from-langgraph
+- From CrewAI: https://docs.jamjet.dev/en/docs/migrate/from-crewai
+- From OpenAI SDK: https://docs.jamjet.dev/en/docs/migrate/from-openai-direct
+
+## Available languages
+
+Documentation is available in 6 languages:
+- English: https://docs.jamjet.dev/en/docs
+- Japanese: https://docs.jamjet.dev/ja/docs
+- Chinese: https://docs.jamjet.dev/zh/docs
+- Korean: https://docs.jamjet.dev/ko/docs
+- Spanish: https://docs.jamjet.dev/es/docs
+- German: https://docs.jamjet.dev/de/docs
+
+## SDK coverage
+
+- **Python SDK** (PyPI: jamjet): decorators, workflow builder, async steps, Pydantic state, MCP client/server, eval harness
+- **Java SDK** (Maven Central): builders, records, @Tool annotation, IR compilation, agent strategies
+- **Spring Boot Starter** (Maven Central: jamjet-spring-boot-starter): DurabilityAdvisor, audit trails, human-in-the-loop approval, Micrometer metrics, OTel spans, JUnit 5 replay testing
+- **LangChain4j Integration** (Maven Central: langchain4j-jamjet): JamjetDurableAgent, JamjetChatMemoryStore — add durability to existing LangChain4j agents without rewriting them
+
+## Repositories
+
+- Main (Rust runtime + Python SDK + Java SDK): https://github.com/jamjet-labs/jamjet
+- Spring Boot Starter: https://github.com/jamjet-labs/jamjet-spring
+- Documentation: https://github.com/jamjet-labs/jamjet-docs
+- Website: https://github.com/jamjet-labs/jamjet.dev
+- Examples: https://github.com/jamjet-labs/examples
+
+## Links
+
+- Website: https://jamjet.dev
+- Documentation: https://docs.jamjet.dev
+- GitHub: https://github.com/jamjet-labs/jamjet
+- X / Twitter: https://x.com/jamjetdev
+- GitHub Discussions: https://github.com/jamjet-labs/jamjet/discussions

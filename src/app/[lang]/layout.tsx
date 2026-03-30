@@ -62,6 +62,30 @@ export default async function LangLayout({
           href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'JamJet',
+                url: 'https://jamjet.dev',
+                logo: 'https://jamjet.dev/favicon.svg',
+                sameAs: [
+                  'https://github.com/jamjet-labs/jamjet',
+                  'https://twitter.com/jamjetdev',
+                ],
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'JamJet Documentation',
+                url: 'https://docs.jamjet.dev',
+              },
+            ]),
+          }}
+        />
       </head>
       <body>
         <RootProvider>{children}</RootProvider>

@@ -39,6 +39,7 @@ export default async function Layout({
       }}
       links={[
         { text: 'Website', url: 'https://jamjet.dev' },
+        { text: 'Blog', url: 'https://jamjet.dev/blog' },
         { text: 'Research', url: 'https://jamjet.dev/research' },
         {
           text: 'GitHub',

@@ -115,3 +115,59 @@ export const W = () => <span class="ic ic-w">…</span>;
 > **note:** 
 See [Benchmarks](/benchmarks) for measured latency comparisons with methodology and raw results. Migration guides: [from LangGraph](/migrate/from-langgraph), [from CrewAI](/migrate/from-crewai), [from OpenAI SDK](/migrate/from-openai-direct).
 
+export const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is JamJet?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet is an agent-native runtime for production AI — a Rust core for scheduling and durability with Python and Java SDKs for authoring."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does JamJet compare to LangGraph?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet provides built-in durable execution with crash recovery, event sourcing, and typed Pydantic state validation at every step. LangGraph offers graph orchestration with optional durability via external checkpointers."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does JamJet support MCP (Model Context Protocol)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, JamJet has native MCP client and server support built in, while most other frameworks require plugins or manual integration."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does JamJet support A2A (Agent-to-Agent protocol)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, JamJet has built-in A2A protocol support for cross-framework agent communication."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does JamJet handle crash recovery?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet uses event sourcing in the Rust runtime to persist every state transition. If a process crashes, it resumes from the exact checkpoint — no work is lost."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is JamJet open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, JamJet is fully open source under the Apache 2.0 license."
+      }
+    }
+  ]
+};
+
+<script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(faqSchema)}} />

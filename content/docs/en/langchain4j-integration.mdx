@@ -51,27 +51,27 @@ The integration module is published on Maven Central. It requires `jamjet-spring
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 </dependency>
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.0")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.0'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. Start the JamJet runtime
@@ -226,6 +226,10 @@ ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
 
 All three operations degrade gracefully — if the JamJet runtime is unreachable, the store logs a warning and returns empty results (for reads) or silently drops the write. This matches the same graceful degradation pattern used by `JamjetDurableAgent`.
 
+### Engram: long-term memory beyond chat history
+
+`JamjetChatMemoryStore` persists raw conversation messages through the JamJet runtime. For agents that need richer memory --- entity extraction, temporal knowledge graphs, semantic search --- consider [Engram](https://java-ai-memory.dev), JamJet's dedicated memory layer. The `engram-spring-boot-starter` provides a `ChatMemoryRepository` for Spring AI that stores messages through the Engram server, which additionally extracts entities and relations and indexes them for semantic recall. See the [Engram Memory section](/spring-boot-starter#engram-memory) in the Spring Boot Starter guide for setup details.
+
 ---
 
 ## What you get
@@ -275,7 +279,7 @@ Add the test dependency:
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```

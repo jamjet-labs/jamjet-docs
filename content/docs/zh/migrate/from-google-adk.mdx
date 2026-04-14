@@ -1,0 +1,296 @@
+---
+title: 从 Google ADK 迁移
+description: 概念映射和并排代码对比，帮助您将 Google ADK 代理迁移到 JamJet——获得持久执行、重放和内置评估能力。
+---
+
+## 概念映射
+
+| Google ADK | JamJet |
+|---|---|
+| `LlmAgent` | `@workflow.step`（Python）或 `type: model` 节点（YAML）|
+| `SequentialAgent` | 使用 `next:` 的 YAML 节点链或 Python 线性工作流 |
+| `ParallelAgent` | `type: parallel` 节点 |
+| `LoopAgent` | 带条件节点的循环 |
+| `session.state`（扁平字典）| 带验证的类型化 Pydantic `State` |
+| `output_key` | YAML 中的 `output_key` 或 Python 中的状态赋值 |
+| `FunctionTool` / 普通函数 | MCP 工具服务器或 `@tool` 装饰器 |
+| `ToolContext.state` | 步骤函数中的 `state` 参数 |
+| `ToolContext.actions.transfer_to_agent` | 带路由的协调器节点 |
+| `Runner` + `SessionService` | `JamJetClient` + Rust 运行时 |
+| `InMemorySessionService` | 无需使用——运行时始终持久化 |
+| `DatabaseSessionService` | 内置——事件默认持久化 |
+| `adk web` | `jamjet inspect` CLI + Web Companion |
+| `AgentEvaluator` | 内置评估节点（`type: eval`）+ 评分器 |
+| `adk eval` | 带 `--fail-under` 的 `jamjet eval` |
+| 无崩溃恢复 | 事件溯源的持久化执行（默认）|
+| 无重放 | `jamjet replay <execution_id>` |
+| 无人机交互原语 | `type: wait` 节点（持久化）|
+| `to_a2a()` | 运行时原生 A2A 支持 |
+| `LiteLlm(model="...")` | 直接多模型支持（无适配层）|
+
+## 对比示例
+
+一个搜索网络、分析结果并生成带质量评分摘要的研究助手。
+
+#### Google ADK
+
+```python
+from google.adk.agents import LlmAgent, SequentialAgent
+from google.adk.tools import FunctionTool
+
+def web_search(query: str) -> dict:
+    """Searches the web for information on the given query."""
+    # Implementation
+    return {"results": ["result 1", "result 2"]}
+
+search_agent = LlmAgent(
+    name="searcher",
+    model="gemini-2.5-flash",
+    instruction="Search for: {query}",
+    tools=[web_search],
+    output_key="search_results",
+)
+
+analyst = LlmAgent(
+    name="analyst",
+    model="gemini-2.5-pro",
+    instruction=(
+        "Analyze these results: {search_results}. "
+        "Write a comprehensive summary with key findings."
+    ),
+    output_key="summary",
+)
+
+pipeline = SequentialAgent(
+    name="research_assistant",
+    sub_agents=[search_agent, analyst],
+)
+
+# 运行流水线
+
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+
+runner = Runner(
+    agent=pipeline,
+    app_name="research_app",
+    session_service=InMemorySessionService(),
+)
+
+session = runner.session_service.create_session(
+    app_name="research_app", user_id="user1"
+)
+
+events = runner.run(
+    user_id="user1",
+    session_id=session.id,
+    new_message=types.Content(
+        parts=[types.Part(text="持久化 AI 工作流编排")]
+    ),
+)
+
+for event in events:
+    if event.is_final_response():
+        print(event.content.parts[0].text)
+```
+
+#### JamJet（YAML）
+
+```yaml
+id: research-assistant
+version: "0.1.0"
+
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    output_key: search_results
+    retry:
+      max_attempts: 3
+      backoff: exponential
+    next: analyze
+
+  analyze:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: |
+      分析这些结果：{{ state.search_results }}。
+      编写一份包含关键发现的全面总结。
+    output_key: summary
+    next: evaluate
+
+  evaluate:
+    type: eval
+    scorers:
+      - type: llm_judge
+        model: claude-haiku-4-5-20251001
+        rubric: "总结是否准确、结构清晰且全面？"
+    fail_under: 4.0
+```
+
+#### JamJet（Python）
+
+```python
+from openai import OpenAI
+from pydantic import BaseModel
+from jamjet import Workflow
+
+client = OpenAI()
+
+class State(BaseModel):
+    query: str
+    search_results: str = ""
+    summary: str = ""
+
+wf = Workflow("research-assistant")
+
+@wf.state
+class ResearchState(State):
+    pass
+
+@wf.step
+async def search(state: ResearchState) -> ResearchState:
+    # 生产环境中：type: tool + MCP 服务器处理此操作
+    results = f"[结果：{state.query}]"
+    return state.model_copy(update={"search_results": results})
+
+@wf.step
+async def analyze(state: ResearchState) -> ResearchState:
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": (
+                "你是一位专业的研究分析师。"
+                "编写一份包含关键发现的全面总结。"
+            )},
+            {"role": "user", "content": (
+                f"分析这些结果：{state.search_results}"
+            )},
+        ],
+    )
+    return state.model_copy(update={"summary": resp.choices[0].message.content or ""})
+
+result = wf.run_sync(ResearchState(query="持久化 AI 工作流编排"))
+print(result.state.summary)
+```
+
+## 核心差异
+
+### 状态管理
+
+ADK 使用扁平的 `session.state` 字典——任何键都可以随时读写,没有模式强制约束。指令中的模板插值（`{key}`）使状态传递变得简单,但无法在编译时保证某个键存在或具有正确的类型。
+
+JamJet 使用 Pydantic 模型。每个字段都有类型、默认值和可选的验证器。如果某个步骤返回的状态缺少字段或类型错误,你会在该步骤立即收到错误——而不是在三步之后才发现数据被悄悄破坏。
+
+```python
+
+# ADK：任意操作
+
+session.state["results"] = 42      # 这应该是个列表吗？
+session.state["resutls"] = [...]   # 拼写错误 — 无报错，静默 bug
+
+# JamJet：立即捕获
+
+class State(BaseModel):
+    results: list[str] = []
+
+state.model_copy(update={"results": 42})  # ValidationError
+```
+
+### 持久性
+
+ADK 的 `InMemorySessionService` 在进程退出时会丢失所有状态。`DatabaseSessionService` 能在请求之间持久化会话状态，但如果 agent 在运行中崩溃，没有自动恢复机制。如果你的 `SequentialAgent` 在 5 个子 agent 的第 3 个失败，你需要从头重新开始。
+
+JamJet 的 Rust 运行时对每个节点转换进行事件溯源。在第 3 个节点（共 5 个）崩溃？运行时会从事件日志重放并在第 3 个节点恢复。这是默认行为 — 无需配置。
+
+```bash
+
+# 重放任何过去的执行
+
+jamjet replay exec-abc123
+
+# 从特定步骤分叉以尝试不同路径
+
+jamjet replay exec-abc123 --fork-at analyze
+```
+
+### 工具
+
+ADK 工具是带有文档字符串的普通 Python 函数。函数签名和文档字符串会发送给模型用于工具选择。这对原型开发很方便，但每个工具都与你的 agent 代码库耦合。
+
+JamJet 使用 MCP（模型上下文协议）— 一个开放标准。工具是独立服务器，任何 agent 都可以连接。一个 Brave Search MCP 服务器可以与 JamJet、Claude Desktop 以及任何其他 MCP 客户端配合使用。无供应商锁定，无需重新实现。
+
+```yaml
+
+# ADK：工具存在于你的 agent 代码内部
+
+# def web_search(query: str) -> dict:
+
+#     """搜索网页。"""
+
+# JamJet：工具是独立的 MCP 服务器
+
+nodes:
+  search:
+    type: tool
+    server: brave-search      # 任何兼容 MCP 的服务器
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    retry:
+      max_attempts: 3
+      backoff: exponential
+```
+
+### 测试与评估
+
+ADK 将 `AgentEvaluator` 作为独立的测试框架提供——你编写测试用例，运行 `adk eval`，然后在智能体执行流程之外查看结果。评估是与智能体本身分离的关注点。
+
+JamJet 将评估作为一等工作流节点。`eval` 节点作为图的一部分运行，在智能体管道内提供质量关卡。你还可以从 CLI 运行批量评估，并为 CI 设置通过/失败阈值：
+
+```bash
+jamjet eval run evals/research.jsonl \
+  --workflow research-assistant \
+  --fail-under 0.85
+```
+
+### 多模型支持
+
+ADK 围绕 Gemini 构建。其他模型通过 `LiteLlm` 提供，这会添加一个适配器层，有其自己的配置和故障模式。JamJet 在设计上是模型无关的——直接在 YAML 或 Python 代码中指定任何模型。无适配器层，无包装器，无额外依赖。
+
+```yaml
+nodes:
+  fast-search:
+    type: model
+    model: claude-haiku-4-5-20251001     # Anthropic
+    # ...
+
+  deep-analysis:
+    type: model
+    model: gpt-4o              # OpenAI
+    # ...
+
+  local-draft:
+    type: model
+    model: ollama/llama3       # 本地
+    # ...
+```
+
+## 快速迁移指南
+
+```bash
+pip install jamjet
+```
+
+1. **将智能体映射到节点。** 每个 `LlmAgent` 变成一个 `type: model` 节点。`SequentialAgent` 变成用 `next:` 链接的节点链。`ParallelAgent` 变成 `type: parallel` 节点。`LoopAgent` 变成带条件的循环。
+2. **将工具转换为 MCP 服务器。** 纯 Python 工具变成 MCP 工具节点，或使用 `@tool` 装饰器快速迁移。现有的 MCP 服务器（Brave Search、GitHub、Postgres）立即可用。
+3. **用类型化 State 替换 `session.state`。** 定义一个带显式字段的 Pydantic `BaseModel`，而不是扁平字典。模板插值（`{key}`）变成 Jinja（`{{ state.key }}`）。
+4. **去除 Runner 样板代码。** 无需 `SessionService`，无需 `session.create_session()`，无需事件迭代。使用 `wf.run_sync(State(...))` 在本地运行，或使用 `jamjet dev` 在生产环境运行。
+5. **运行它。** `jamjet dev` 为你提供持久化执行、重放、成本跟踪和事件时间线——全部自动化。
+
+> **提示：**
+从 [理赔处理示例](https://github.com/jamjet-labs/jamjet/tree/main/examples/claims-processing) 开始了解真实的多步骤工作流，或浏览完整的[文档](https://docs.jamjet.dev)。

@@ -1,0 +1,296 @@
+---
+title: Google ADKからの移行
+description: Google ADKエージェントをJamJetに移行するための概念マッピングとサイドバイサイドコード — 永続的な実行、リプレイ、組み込み評価を実現
+---
+
+## コンセプトマッピング
+
+| Google ADK | JamJet |
+|---|---|
+| `LlmAgent` | `@workflow.step` (Python) または `type: model` ノード (YAML) |
+| `SequentialAgent` | `next:` を使用した YAML ノードチェーン、または Python 線形ワークフロー |
+| `ParallelAgent` | `type: parallel` ノード |
+| `LoopAgent` | 条件ノードを使用したサイクル |
+| `session.state` (フラットな辞書) | バリデーション付き型付き Pydantic `State` |
+| `output_key` | YAML の `output_key`、または Python のステート代入 |
+| `FunctionTool` / プレーン関数 | MCP ツールサーバー、または `@tool` デコレーター |
+| `ToolContext.state` | ステップ関数の `state` パラメーター |
+| `ToolContext.actions.transfer_to_agent` | ルーティング付きコーディネーターノード |
+| `Runner` + `SessionService` | `JamJetClient` + Rust ランタイム |
+| `InMemorySessionService` | 不要 — ランタイムは常に永続的 |
+| `DatabaseSessionService` | ビルトイン — イベントはデフォルトで永続化 |
+| `adk web` | `jamjet inspect` CLI + Web Companion |
+| `AgentEvaluator` | ビルトイン評価ノード (`type: eval`) + スコアラー |
+| `adk eval` | `--fail-under` 付き `jamjet eval` |
+| クラッシュリカバリーなし | イベントソース式永続実行 (デフォルト) |
+| リプレイなし | `jamjet replay <execution_id>` |
+| ヒューマンインザループのプリミティブなし | `type: wait` ノード (永続的) |
+| `to_a2a()` | ランタイムでのネイティブ A2A サポート |
+| `LiteLlm(model="...")` | 直接マルチモデルサポート (アダプターレイヤーなし) |
+
+## サイドバイサイド比較
+
+Web を検索し、結果を分析し、品質スコア付きサマリーを生成するリサーチアシスタント。
+
+#### Google ADK
+
+```python
+from google.adk.agents import LlmAgent, SequentialAgent
+from google.adk.tools import FunctionTool
+
+def web_search(query: str) -> dict:
+    """Searches the web for information on the given query."""
+    # Implementation
+    return {"results": ["result 1", "result 2"]}
+
+search_agent = LlmAgent(
+    name="searcher",
+    model="gemini-2.5-flash",
+    instruction="Search for: {query}",
+    tools=[web_search],
+    output_key="search_results",
+)
+
+analyst = LlmAgent(
+    name="analyst",
+    model="gemini-2.5-pro",
+    instruction=(
+        "Analyze these results: {search_results}. "
+        "Write a comprehensive summary with key findings."
+    ),
+    output_key="summary",
+)
+
+pipeline = SequentialAgent(
+    name="research_assistant",
+    sub_agents=[search_agent, analyst],
+)
+
+# パイプラインの実行
+
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+
+runner = Runner(
+    agent=pipeline,
+    app_name="research_app",
+    session_service=InMemorySessionService(),
+)
+
+session = runner.session_service.create_session(
+    app_name="research_app", user_id="user1"
+)
+
+events = runner.run(
+    user_id="user1",
+    session_id=session.id,
+    new_message=types.Content(
+        parts=[types.Part(text="durable AI workflow orchestration")]
+    ),
+)
+
+for event in events:
+    if event.is_final_response():
+        print(event.content.parts[0].text)
+```
+
+#### JamJet（YAML）
+
+```yaml
+id: research-assistant
+version: "0.1.0"
+
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    output_key: search_results
+    retry:
+      max_attempts: 3
+      backoff: exponential
+    next: analyze
+
+  analyze:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: |
+      Analyze these results: {{ state.search_results }}.
+      Write a comprehensive summary with key findings.
+    output_key: summary
+    next: evaluate
+
+  evaluate:
+    type: eval
+    scorers:
+      - type: llm_judge
+        model: claude-haiku-4-5-20251001
+        rubric: "Is the summary accurate, well-structured, and comprehensive?"
+    fail_under: 4.0
+```
+
+#### JamJet（Python）
+
+```python
+from openai import OpenAI
+from pydantic import BaseModel
+from jamjet import Workflow
+
+client = OpenAI()
+
+class State(BaseModel):
+    query: str
+    search_results: str = ""
+    summary: str = ""
+
+wf = Workflow("research-assistant")
+
+@wf.state
+class ResearchState(State):
+    pass
+
+@wf.step
+async def search(state: ResearchState) -> ResearchState:
+    # In production: type: tool + MCP server handles this
+    results = f"[results for: {state.query}]"
+    return state.model_copy(update={"search_results": results})
+
+@wf.step
+async def analyze(state: ResearchState) -> ResearchState:
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": (
+                "You are an expert research analyst. "
+                "Write a comprehensive summary with key findings."
+            )},
+            {"role": "user", "content": (
+                f"Analyze these results: {state.search_results}"
+            )},
+        ],
+    )
+    return state.model_copy(update={"summary": resp.choices[0].message.content or ""})
+
+result = wf.run_sync(ResearchState(query="durable AI workflow orchestration"))
+print(result.state.summary)
+```
+
+## 主な違い
+
+### 状態管理
+
+ADKはフラットな`session.state`辞書を使用します。任意のキーをいつでも読み書きでき、スキーマの強制はありません。命令内のテンプレート補間（`{key}`）により状態を簡単に引き回せますが、キーが存在するか正しい型であるかのコンパイル時の保証はありません。
+
+JamJetはPydanticモデルを使用します。すべてのフィールドに型、デフォルト値、オプションのバリデーターがあります。ステップがフィールドの欠落や型の誤った状態を返すと、3ステップ後のサイレントな破損ではなく、そのステップでエラーが発生します。
+
+```python
+
+# ADK: 何でもあり
+
+session.state["results"] = 42      # リストであるべきだったのでは？
+session.state["resutls"] = [...]   # タイポ — エラーなし、サイレントバグ
+
+# JamJet: 即座に検出
+
+class State(BaseModel):
+    results: list[str] = []
+
+state.model_copy(update={"results": 42})  # ValidationError
+```
+
+### 耐久性
+
+ADKの`InMemorySessionService`は、プロセス終了時にすべての状態を失います。`DatabaseSessionService`はリクエスト間でセッション状態を永続化しますが、エージェントが実行中にクラッシュした場合の自動復旧はありません。`SequentialAgent`が5つのサブエージェントのうち3つ目で失敗した場合、最初からやり直しです。
+
+JamJetのRustランタイムは、すべてのノード遷移をイベントソーシングします。5つのうち3つ目でクラッシュしても、ランタイムはイベントログから再生し、ノード3から再開します。これはデフォルトの動作であり、設定は不要です。
+
+```bash
+
+# 過去の実行を再生
+
+jamjet replay exec-abc123
+
+# 特定のステップから分岐して別のパスを試す
+
+jamjet replay exec-abc123 --fork-at analyze
+```
+
+### ツール
+
+ADKのツールは、docstringを持つ通常のPython関数です。関数シグネチャとdocstringがツール選択のためにモデルに送信されます。これはプロトタイピングには便利ですが、各ツールはエージェントのコードベースに結合されます。
+
+JamJetはMCP（Model Context Protocol）を使用します。これはオープン標準です。ツールは、どのエージェントでも接続できる独立したサーバーです。Brave Search MCPサーバーは、JamJet、Claude Desktop、その他のMCPクライアントで動作します。ベンダーロックインなし、再実装不要です。
+
+```yaml
+
+# ADK: ツールはエージェントコード内に存在
+
+# def web_search(query: str) -> dict:
+
+#     """ウェブを検索します。"""
+
+# JamJet: ツールは独立したMCPサーバー
+
+nodes:
+  search:
+    type: tool
+    server: brave-search      # MCP互換サーバー
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    retry:
+      max_attempts: 3
+      backoff: exponential
+```
+
+### テストと評価
+
+ADKは独立したテストフレームワークとして `AgentEvaluator` を提供しています。テストケースを記述し、`adk eval` を実行して、エージェントの実行フローの外で結果を確認します。評価はエージェント自体とは別の関心事です。
+
+JamJetは評価をファーストクラスのワークフローノードとして扱います。`eval` ノードはグラフの一部として実行され、エージェントパイプライン内で品質ゲートを提供します。また、CIのための合格・不合格の閾値を設定して、CLIからバッチ評価を実行することもできます:
+
+```bash
+jamjet eval run evals/research.jsonl \
+  --workflow research-assistant \
+  --fail-under 0.85
+```
+
+### マルチモデルサポート
+
+ADKはGeminiを中心に構築されています。他のモデルは `LiteLlm` を通じて利用可能ですが、これには独自の設定と障害モードを持つアダプタレイヤーが追加されます。JamJetは設計上モデルに依存しません。YAMLまたはPythonコードで直接任意のモデルを指定できます。アダプタレイヤーもラッパーも余計な依存関係もありません。
+
+```yaml
+nodes:
+  fast-search:
+    type: model
+    model: claude-haiku-4-5-20251001     # Anthropic
+    # ...
+
+  deep-analysis:
+    type: model
+    model: gpt-4o              # OpenAI
+    # ...
+
+  local-draft:
+    type: model
+    model: ollama/llama3       # ローカル
+    # ...
+```
+
+## クイックスタート移行
+
+```bash
+pip install jamjet
+```
+
+1. **エージェントをノードにマッピングする。** 各 `LlmAgent` は `type: model` ノードになります。`SequentialAgent` は `next:` でリンクされた一連のノードになります。`ParallelAgent` は `type: parallel` ノードになります。`LoopAgent` は条件付きのサイクルになります。
+2. **ツールをMCPサーバーに変換する。** プレーンなPythonツールはMCPツールノードになるか、迅速な移行のために `@tool` デコレータを使用します。既存のMCPサーバー(Brave Search、GitHub、Postgres)は即座に動作します。
+3. **`session.state` を型付きStateに置き換える。** フラットなディクショナリの代わりに、明示的なフィールドを持つPydanticの `BaseModel` を定義します。テンプレート補間(`{key}`)はJinja(`{{ state.key }}`)になります。
+4. **Runnerのボイラープレートを削除する。** `SessionService` も `session.create_session()` もイベント反復も不要です。ローカルでは `wf.run_sync(State(...))` で実行し、本番環境では `jamjet dev` で実行します。
+5. **実行する。** `jamjet dev` により、永続的な実行、リプレイ、コスト追跡、イベントタイムラインがすべて自動的に提供されます。
+
+> **tip:**
+実際のマルチステップワークフローについては、[claims-processing example](https://github.com/jamjet-labs/jamjet/tree/main/examples/claims-processing)から始めるか、完全な[ドキュメント](https://docs.jamjet.dev)を参照してください。

@@ -1,0 +1,297 @@
+---
+title: Migración desde Google ADK
+description: Mapeo de conceptos y código comparativo para migrar agentes de
+  Google ADK a JamJet — obtén ejecución durable, replay y evaluación integrada.
+---
+
+## Mapeo de conceptos
+
+| Google ADK | JamJet |
+|---|---|
+| `LlmAgent` | `@workflow.step` (Python) o nodo `type: model` (YAML) |
+| `SequentialAgent` | Cadena de nodos YAML con `next:` o flujo lineal en Python |
+| `ParallelAgent` | Nodo `type: parallel` |
+| `LoopAgent` | Ciclo con nodo de condición |
+| `session.state` (dict plano) | `State` tipado con Pydantic y validación |
+| `output_key` | `output_key` en YAML o asignación de estado en Python |
+| `FunctionTool` / función simple | Servidor de herramientas MCP o decorador `@tool` |
+| `ToolContext.state` | Parámetro `state` en función de paso |
+| `ToolContext.actions.transfer_to_agent` | Nodo coordinador con enrutamiento |
+| `Runner` + `SessionService` | `JamJetClient` + runtime en Rust |
+| `InMemorySessionService` | No necesario — el runtime siempre es durable |
+| `DatabaseSessionService` | Incorporado — eventos persistidos por defecto |
+| `adk web` | CLI `jamjet inspect` + Web Companion |
+| `AgentEvaluator` | Nodo eval incorporado (`type: eval`) + scorers |
+| `adk eval` | `jamjet eval` con `--fail-under` |
+| Sin recuperación ante fallos | Ejecución durable basada en eventos (por defecto) |
+| Sin replay | `jamjet replay <execution_id>` |
+| Sin primitiva human-in-the-loop | Nodo `type: wait` (durable) |
+| `to_a2a()` | Soporte A2A nativo en el runtime |
+| `LiteLlm(model="...")` | Soporte multi-modelo directo (sin capa de adaptador) |
+
+## Ejemplo lado a lado
+
+Un asistente de investigación que busca en la web, analiza resultados y genera un resumen con puntuación de calidad.
+
+#### Google ADK
+
+```python
+from google.adk.agents import LlmAgent, SequentialAgent
+from google.adk.tools import FunctionTool
+
+def web_search(query: str) -> dict:
+    """Busca en la web información sobre la consulta dada."""
+    # Implementación
+    return {"results": ["resultado 1", "resultado 2"]}
+
+search_agent = LlmAgent(
+    name="searcher",
+    model="gemini-2.5-flash",
+    instruction="Buscar: {query}",
+    tools=[web_search],
+    output_key="search_results",
+)
+
+analyst = LlmAgent(
+    name="analyst",
+    model="gemini-2.5-pro",
+    instruction=(
+        "Analiza estos resultados: {search_results}. "
+        "Escribe un resumen exhaustivo con hallazgos clave."
+    ),
+    output_key="summary",
+)
+
+pipeline = SequentialAgent(
+    name="research_assistant",
+    sub_agents=[search_agent, analyst],
+)
+
+# Ejecutar el pipeline
+
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+
+runner = Runner(
+    agent=pipeline,
+    app_name="research_app",
+    session_service=InMemorySessionService(),
+)
+
+session = runner.session_service.create_session(
+    app_name="research_app", user_id="user1"
+)
+
+events = runner.run(
+    user_id="user1",
+    session_id=session.id,
+    new_message=types.Content(
+        parts=[types.Part(text="orquestación duradera de workflows de IA")]
+    ),
+)
+
+for event in events:
+    if event.is_final_response():
+        print(event.content.parts[0].text)
+```
+
+#### JamJet (YAML)
+
+```yaml
+id: research-assistant
+version: "0.1.0"
+
+nodes:
+  search:
+    type: tool
+    server: brave-search
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    output_key: search_results
+    retry:
+      max_attempts: 3
+      backoff: exponential
+    next: analyze
+
+  analyze:
+    type: model
+    model: claude-sonnet-4-6
+    prompt: |
+      Analiza estos resultados: {{ state.search_results }}.
+      Escribe un resumen exhaustivo con los hallazgos clave.
+    output_key: summary
+    next: evaluate
+
+  evaluate:
+    type: eval
+    scorers:
+      - type: llm_judge
+        model: claude-haiku-4-5-20251001
+        rubric: "¿Es el resumen preciso, bien estructurado y exhaustivo?"
+    fail_under: 4.0
+```
+
+#### JamJet (Python)
+
+```python
+from openai import OpenAI
+from pydantic import BaseModel
+from jamjet import Workflow
+
+client = OpenAI()
+
+class State(BaseModel):
+    query: str
+    search_results: str = ""
+    summary: str = ""
+
+wf = Workflow("research-assistant")
+
+@wf.state
+class ResearchState(State):
+    pass
+
+@wf.step
+async def search(state: ResearchState) -> ResearchState:
+    # En producción: type: tool + servidor MCP maneja esto
+    results = f"[resultados para: {state.query}]"
+    return state.model_copy(update={"search_results": results})
+
+@wf.step
+async def analyze(state: ResearchState) -> ResearchState:
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": (
+                "Eres un analista de investigación experto. "
+                "Escribe un resumen exhaustivo con los hallazgos clave."
+            )},
+            {"role": "user", "content": (
+                f"Analiza estos resultados: {state.search_results}"
+            )},
+        ],
+    )
+    return state.model_copy(update={"summary": resp.choices[0].message.content or ""})
+
+result = wf.run_sync(ResearchState(query="orquestación duradera de workflows de IA"))
+print(result.state.summary)
+```
+
+## Diferencias clave
+
+### Gestión de estado
+
+ADK usa un diccionario plano `session.state` — cualquier clave puede leerse o escribirse en cualquier momento, sin validación de esquema. La interpolación de plantillas (`{key}`) en las instrucciones facilita conectar el estado, pero no hay garantía en tiempo de compilación de que una clave exista o tenga el tipo correcto.
+
+JamJet usa modelos Pydantic. Cada campo tiene un tipo, un valor por defecto y validadores opcionales. Si un paso devuelve un estado con un campo faltante o tipo incorrecto, obtienes un error en ese paso — no una corrupción silenciosa tres pasos después.
+
+```python
+
+# ADK: vale todo
+
+session.state["results"] = 42      # ¿se suponía que debía ser una lista?
+session.state["resutls"] = [...]   # error tipográfico — sin error, bug silencioso
+
+# JamJet: detectado inmediatamente
+
+class State(BaseModel):
+    results: list[str] = []
+
+state.model_copy(update={"results": 42})  # ValidationError
+```
+
+### Durabilidad
+
+El `InMemorySessionService` de ADK pierde todo el estado al salir del proceso. `DatabaseSessionService` persiste el estado de la sesión entre solicitudes, pero no hay recuperación automática si el agente falla durante la ejecución. Si tu `SequentialAgent` falla en el sub-agente 3 de 5, reinicias desde el principio.
+
+El runtime de Rust de JamJet registra cada transición de nodo como evento. ¿Falla en el nodo 3 de 5? El runtime reproduce desde el log de eventos y reanuda en el nodo 3. Este es el comportamiento predeterminado — sin configuración necesaria.
+
+```bash
+
+# Reproduce cualquier ejecución pasada
+
+jamjet replay exec-abc123
+
+# Bifurca desde un paso específico para probar un camino diferente
+
+jamjet replay exec-abc123 --fork-at analyze
+```
+
+### Herramientas
+
+Las herramientas de ADK son funciones de Python simples con docstrings. La firma de la función y el docstring se envían al modelo para la selección de herramientas. Esto es conveniente para prototipos, pero cada herramienta está acoplada al código de tu agente.
+
+JamJet usa MCP (Model Context Protocol) — un estándar abierto. Las herramientas son servidores independientes a los que cualquier agente puede conectarse. Un servidor MCP de Brave Search funciona con JamJet, Claude Desktop y cualquier otro cliente MCP. Sin bloqueo de proveedor, sin reimplementación.
+
+```yaml
+
+# ADK: la herramienta vive dentro del código de tu agente
+
+# def web_search(query: str) -> dict:
+
+#     """Busca en la web."""
+
+# JamJet: la herramienta es un servidor MCP independiente
+
+nodes:
+  search:
+    type: tool
+    server: brave-search      # cualquier servidor compatible con MCP
+    tool: web_search
+    arguments:
+      query: "{{ state.query }}"
+    retry:
+      max_attempts: 3
+      backoff: exponential
+```
+
+### Testing y evaluación
+
+ADK proporciona `AgentEvaluator` como un framework de pruebas separado — escribes casos de prueba, ejecutas `adk eval` y revisas resultados fuera del flujo de ejecución de tu agente. La evaluación es una preocupación separada del agente en sí.
+
+JamJet hace de la evaluación un nodo de workflow de primera clase. Un nodo `eval` se ejecuta como parte de tu grafo, dándote puertas de calidad dentro del pipeline del agente. También puedes ejecutar evaluación por lotes desde la CLI con umbrales de éxito/fallo para CI:
+
+```bash
+jamjet eval run evals/research.jsonl \
+  --workflow research-assistant \
+  --fail-under 0.85
+```
+
+### Soporte multi-modelo
+
+ADK está construido alrededor de Gemini. Otros modelos están disponibles a través de `LiteLlm`, que añade una capa adaptadora con su propia configuración y modos de fallo. JamJet es agnóstico de modelo por diseño — especifica cualquier modelo directamente en tu código YAML o Python. Sin capa adaptadora, sin wrapper, sin dependencia adicional.
+
+```yaml
+nodes:
+  fast-search:
+    type: model
+    model: claude-haiku-4-5-20251001     # Anthropic
+    # ...
+
+  deep-analysis:
+    type: model
+    model: gpt-4o              # OpenAI
+    # ...
+
+  local-draft:
+    type: model
+    model: ollama/llama3       # Local
+    # ...
+```
+
+## Migración rápida
+
+```bash
+pip install jamjet
+```
+
+1. **Mapea tus agentes a nodos.** Cada `LlmAgent` se convierte en un nodo `type: model`. `SequentialAgent` se convierte en una cadena de nodos enlazados con `next:`. `ParallelAgent` se convierte en un nodo `type: parallel`. `LoopAgent` se convierte en un ciclo con una condición.
+2. **Convierte herramientas en servidores MCP.** Las herramientas Python simples se convierten en nodos de herramientas MCP, o usa el decorador `@tool` para migración rápida. Los servidores MCP existentes (Brave Search, GitHub, Postgres) funcionan de inmediato.
+3. **Reemplaza `session.state` con State tipado.** Define un `BaseModel` de Pydantic con campos explícitos en lugar de un diccionario plano. La interpolación de plantillas (`{key}`) se convierte en Jinja (`{{ state.key }}`).
+4. **Elimina el boilerplate del Runner.** Sin `SessionService`, sin `session.create_session()`, sin iteración de eventos. Ejecuta localmente con `wf.run_sync(State(...))` o en producción con `jamjet dev`.
+5. **Ejecútalo.** `jamjet dev` te ofrece ejecución durable, replay, seguimiento de costos y una línea de tiempo de eventos — todo automático.
+
+> **tip:**
+Comienza con el [ejemplo de procesamiento de reclamaciones](https://github.com/jamjet-labs/jamjet/tree/main/examples/claims-processing) para un workflow multi-paso del mundo real, o explora la [documentación](https://docs.jamjet.dev) completa.

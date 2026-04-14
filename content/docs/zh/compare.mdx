@@ -111,4 +111,61 @@ export const W = () => <span class="ic ic-w">…</span>;
 ---
 
 > **注意：** 
-查看[基准测试](/benchmarks)了解详细的延迟对比数据、测试方法和原始结果。迁移指南：[从 LangGraph 迁移](/migrate/from-langgraph)、[从 CrewAI 迁移](/migrate/from-crewai)、[从 OpenAI SDK 迁移](/migrate/from-openai-direct)。
+查看[基准测试](/benchmarks)以了解延迟对比的测量方法和原始结果。迁移指南：[从 LangGraph 迁移](/migrate/from-langgraph)、[从 CrewAI 迁移](/migrate/from-crewai)、[从 OpenAI SDK 迁移](/migrate/from-openai-direct)。
+
+export const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "什么是 JamJet？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet 是面向生产环境 AI 的智能体原生运行时——Rust 核心负责调度和持久化，提供 Python 和 Java SDK 用于开发。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet 与 LangGraph 相比如何？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet 提供内置的持久执行功能，包括崩溃恢复、事件溯源以及每一步的类型化 Pydantic 状态验证。LangGraph 提供图编排功能，通过外部检查点实现可选的持久化。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet 是否支持 MCP（模型上下文协议）？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "是的，JamJet 内置了原生 MCP 客户端和服务器支持，而大多数其他框架需要插件或手动集成。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet 是否支持 A2A（智能体对智能体协议）？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "是的，JamJet 内置了 A2A 协议支持，可实现跨框架智能体通信。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet 如何处理崩溃恢复？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet 在 Rust 运行时中使用事件溯源来持久化每次状态转换。如果进程崩溃，它会从确切的检查点恢复——不会丢失任何工作。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet 是开源的吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "是的，JamJet 完全开源，采用 Apache 2.0 许可证。"
+      }
+    }
+  ]
+};
+
+<script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(faqSchema)}} />

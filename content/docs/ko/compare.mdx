@@ -112,4 +112,61 @@ export const W = () => <span class="ic ic-w">…</span>;
 ---
 
 > **참고:** 
-측정된 지연 시간 비교와 방법론, 원시 결과는 [벤치마크](/benchmarks)를 참조하세요. 마이그레이션 가이드: [LangGraph에서 전환](/migrate/from-langgraph), [CrewAI에서 전환](/migrate/from-crewai), [OpenAI SDK에서 전환](/migrate/from-openai-direct).
+측정된 지연 시간 비교, 방법론 및 원시 결과는 [벤치마크](/benchmarks)를 참조하세요. 마이그레이션 가이드: [LangGraph에서 마이그레이션](/migrate/from-langgraph), [CrewAI에서 마이그레이션](/migrate/from-crewai), [OpenAI SDK에서 마이그레이션](/migrate/from-openai-direct).
+
+export const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "JamJet이란 무엇인가요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet은 프로덕션 AI를 위한 에이전트 네이티브 런타임입니다. 스케줄링과 내구성을 위한 Rust 코어와 작성을 위한 Python 및 Java SDK를 제공합니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet은 LangGraph와 어떻게 다른가요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet은 크래시 복구, 이벤트 소싱, 모든 단계에서 타입이 지정된 Pydantic 상태 검증을 갖춘 내장 내구성 실행을 제공합니다. LangGraph는 외부 체크포인터를 통한 선택적 내구성과 함께 그래프 오케스트레이션을 제공합니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet은 MCP(Model Context Protocol)를 지원하나요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "네, JamJet은 네이티브 MCP 클라이언트 및 서버 지원이 내장되어 있습니다. 대부분의 다른 프레임워크는 플러그인이나 수동 통합이 필요합니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet은 A2A(Agent-to-Agent 프로토콜)를 지원하나요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "네, JamJet은 크로스 프레임워크 에이전트 통신을 위한 A2A 프로토콜 지원이 내장되어 있습니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet은 크래시 복구를 어떻게 처리하나요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet은 Rust 런타임에서 이벤트 소싱을 사용하여 모든 상태 전환을 지속합니다. 프로세스가 크래시되면 정확한 체크포인트에서 재개되므로 작업이 손실되지 않습니다."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJet은 오픈 소스인가요?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "네, JamJet은 Apache 2.0 라이선스 하에 완전한 오픈 소스입니다."
+      }
+    }
+  ]
+};
+
+<script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(faqSchema)}} />

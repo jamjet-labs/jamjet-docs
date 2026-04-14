@@ -111,5 +111,62 @@ export const W = () => <span class="ic ic-w">…</span>;
 
 ---
 
-> **note:** 
-Siehe [Benchmarks](/benchmarks) für gemessene Latenzvergleiche mit Methodik und Rohdaten. Migrationsleitfäden: [von LangGraph](/migrate/from-langgraph), [von CrewAI](/migrate/from-crewai), [von OpenAI SDK](/migrate/from-openai-direct).
+> **Hinweis:** 
+Siehe [Benchmarks](/benchmarks) für gemessene Latenzvergleiche mit Methodik und Rohdaten. Migrationsleitfäden: [von LangGraph](/migrate/from-langgraph), [von CrewAI](/migrate/from-crewai), [vom OpenAI SDK](/migrate/from-openai-direct).
+
+export const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Was ist JamJet?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet ist eine agentennative Runtime für produktionsreife KI — ein Rust-Kern für Scheduling und Persistenz mit Python- und Java-SDKs zur Entwicklung."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Wie unterscheidet sich JamJet von LangGraph?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet bietet integrierte dauerhafte Ausführung mit Crash-Recovery, Event Sourcing und typisierter Pydantic-Zustandsvalidierung bei jedem Schritt. LangGraph bietet Graph-Orchestrierung mit optionaler Persistenz über externe Checkpointer."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Unterstützt JamJet MCP (Model Context Protocol)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ja, JamJet hat native MCP-Client- und Server-Unterstützung integriert, während die meisten anderen Frameworks Plugins oder manuelle Integration erfordern."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Unterstützt JamJet A2A (Agent-to-Agent-Protokoll)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ja, JamJet hat integrierte A2A-Protokollunterstützung für frameworkübergreifende Agentenkommunikation."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Wie handhabt JamJet Crash-Recovery?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJet verwendet Event Sourcing in der Rust-Runtime, um jeden Zustandsübergang zu persistieren. Falls ein Prozess abstürzt, wird er vom exakten Checkpoint fortgesetzt — keine Arbeit geht verloren."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Ist JamJet Open Source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ja, JamJet ist vollständig Open Source unter der Apache-2.0-Lizenz."
+      }
+    }
+  ]
+};
+
+<script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(faqSchema)}} />

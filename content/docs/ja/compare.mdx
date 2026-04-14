@@ -110,5 +110,62 @@ export const W = () => <span class="ic ic-w">…</span>;
 
 ---
 
-> **注記：** 
-測定されたレイテンシー比較については、方法論と生データを含む[ベンチマーク](/benchmarks)をご覧ください。移行ガイド：[LangGraphから](/migrate/from-langgraph)、[CrewAIから](/migrate/from-crewai)、[OpenAI SDKから](/migrate/from-openai-direct)。
+> **注意:** 
+計測されたレイテンシの比較、方法論、および生データについては、[ベンチマーク](/benchmarks)を参照してください。マイグレーションガイド: [LangGraphから移行](/migrate/from-langgraph)、[CrewAIから移行](/migrate/from-crewai)、[OpenAI SDKから移行](/migrate/from-openai-direct)。
+
+export const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "JamJetとは何ですか?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJetは本番環境向けAIのためのエージェントネイティブなランタイムです。スケジューリングと永続性のためのRustコアと、開発のためのPythonおよびJava SDKを提供します。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJetとLangGraphの違いは何ですか?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJetは、クラッシュリカバリ、イベントソーシング、および各ステップでの型付きPydantic状態検証を備えた、組み込みの永続実行を提供します。LangGraphは、外部チェックポインタによるオプションの永続性を持つグラフオーケストレーションを提供します。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJetはMCP(Model Context Protocol)をサポートしていますか?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "はい、JamJetにはネイティブのMCPクライアントおよびサーバーサポートが組み込まれています。他のほとんどのフレームワークでは、プラグインまたは手動統合が必要です。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJetはA2A(Agent-to-Agentプロトコル)をサポートしていますか?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "はい、JamJetにはフレームワーク間のエージェント通信のための組み込みのA2Aプロトコルサポートがあります。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJetはクラッシュリカバリをどのように処理しますか?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JamJetは、Rustランタイム内のイベントソーシングを使用して、すべての状態遷移を永続化します。プロセスがクラッシュした場合、正確なチェックポイントから再開されるため、作業が失われることはありません。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "JamJetはオープンソースですか?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "はい、JamJetはApache 2.0ライセンスの下で完全にオープンソースです。"
+      }
+    }
+  ]
+};
+
+<script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify(faqSchema)}} />

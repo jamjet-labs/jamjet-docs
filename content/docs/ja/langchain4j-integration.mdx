@@ -49,27 +49,27 @@ flowchart LR
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 </dependency>
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.0")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.0'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. JamJetランタイムを起動
@@ -224,26 +224,30 @@ ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
 
 3つの操作すべてが適切にデグレードします — JamJetランタイムに到達できない場合、ストアは警告をログに記録し、空の結果を返す(読み取りの場合)か、書き込みを黙って破棄します。これは`JamjetDurableAgent`で使用されているのと同じ適切なデグレードパターンに一致します。
 
+### Engram: チャット履歴を超える長期記憶
+
+`JamjetChatMemoryStore`は、JamJetランタイムを通じて生の会話メッセージを永続化します。エンティティ抽出、時系列知識グラフ、セマンティック検索など、より豊富なメモリを必要とするエージェントについては、JamJet専用のメモリレイヤーである[Engram](https://java-ai-memory.dev)を検討してください。`engram-spring-boot-starter`は、Engramサーバーを通じてメッセージを保存するSpring AI用の`ChatMemoryRepository`を提供し、さらにエンティティと関係を抽出してセマンティック検索用にインデックス化します。セットアップの詳細については、Spring Boot Starterガイドの[Engramメモリセクション](/spring-boot-starter#engram-memory)を参照してください。
+
 ---
 
 ## 得られるもの
 
-LangChain4jエージェントをJamJetでラップすると、アプリケーションコードを変更することなく、以下の機能が追加されます:
+LangChain4jエージェントをJamJetでラップすることで、アプリケーションコードを変更することなく、以下の機能が追加されます:
 
 | 機能 | JamJetなし | JamJetあり |
 |------------|---------------|-------------|
-| **クラッシュ回復** | プロセスが停止すると、インタラクションが失われ、トークンが無駄になる | ランタイムによって実行が追跡され、再起動後に再開可能 |
-| **監査証跡** | 何が起こったかの記録がない | すべてのメソッド呼び出しが引数、結果、ステータスを含む不変のイベントとして記録される |
-| **リプレイテスト** | テストするには実際のLLMを呼び出す必要がある | 記録された実行をテストスイートでリプレイでき、LLM呼び出しは不要 |
-| **コスト追跡** | 手動でのトークンカウントが必要 | 実行イベントにメソッド名と引数が含まれ、コストの帰属が可能 |
-| **可観測性** | アプリケーションレベルのロギングのみ | 分散トレース相関のための実行ID、Spring Boot starterを介したMicrometerメトリクス |
-| **チャットメモリの永続化** | メモリ内のみで、再起動時に失われる | JamJet監査イベントシステムによって永続化され、再起動後も存続 |
+| **クラッシュリカバリ** | プロセスが停止すると対話が失われ、トークンが無駄になる | ランタイムが実行を追跡し、再起動後に再開可能 |
+| **監査証跡** | 何が起きたかの記録がない | すべてのメソッド呼び出しが引数、結果、ステータスとともに不変イベントとして記録される |
+| **リプレイテスト** | テストにはライブLLMの呼び出しが必要 | 記録された実行をテストスイートでリプレイ可能、LLM呼び出し不要 |
+| **コスト追跡** | 手動でのトークンカウントが必要 | 実行イベントにメソッド名と引数が含まれ、コスト帰属が可能 |
+| **可観測性** | アプリケーションレベルのログのみ | 分散トレース相関のための実行ID、Spring Boot starter経由のMicrometerメトリクス |
+| **チャットメモリの永続化** | インメモリのみ、再起動で消失 | JamJet監査イベントシステムにより永続化、再起動後も保持 |
 
 ---
 
 ## ラップされたエージェントのテスト
 
-`jamjet-spring-boot-starter-test`モジュールは、ラップされたLangChain4jエージェントと連携します。`JamjetDurableAgent.wrap()`がJamJetの実行を作成するため、`@ReplayExecution`を使用してテストで再生できます。
+`jamjet-spring-boot-starter-test`モジュールは、ラップされたLangChain4jエージェントと連携します。`JamjetDurableAgent.wrap()`はJamJetの実行を作成するため、`@ReplayExecution`を使用してテスト内で再生できます。
 
 ```java
 import dev.jamjet.spring.test.annotations.WithJamjetRuntime;
@@ -273,18 +277,18 @@ class ResearchAssistantTest {
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-完全なテストAPI（`RecordedExecution`のフィールド、`AgentAssertions`のフルエントAPI、`DeterministicModelStub`、ノード単位での分岐再生）については、[Spring Boot Starter](/spring-boot-starter)ガイドのテストセクションを参照してください。
+完全なテストAPI(`RecordedExecution`フィールド、`AgentAssertions`フルエントAPI、`DeterministicModelStub`、ノード単位でのフォーク再生)については、[Spring Boot Starter](/spring-boot-starter)ガイドのテストセクションを参照してください。
 
 ---
 
 ## 次のステップ
 
-- **[Java SDKリファレンス](/java-sdk)** — 新規プロジェクト向けに、JamJetのネイティブJava SDKはLangChain4jの依存関係なしで、直接的なLLM統合、型付きツール、戦略選択、IRコンパイルを提供します
+- **[Java SDKリファレンス](/java-sdk)** — 新規プロジェクトでは、JamJetのネイティブJava SDKがLangChain4j依存なしで直接LLM統合、型付きツール、戦略選択、IRコンパイルを提供します
 - **[Javaクイックスタート](/java-quickstart)** — ネイティブSDKを使用して、最初のエージェントとワークフローをゼロから構築します
-- **[Spring Boot Starter](/spring-boot-starter)** — 自動設定された永続性、監査証跡、ヒューマン・イン・ザ・ループ承認、可観測性を備えた完全なSpring AI統合
-- **[エージェンティックAIパターン](https://sunilprakash.com/agentic-ai)** — エージェントシステムのための戦略選択、ツール設計、本番パターン
+- **[Spring Boot Starter](/spring-boot-starter)** — 永続性、監査証跡、ヒューマンインザループ承認、可観測性が自動設定されたSpring AI統合
+- **[エージェントAIパターン](https://sunilprakash.com/agentic-ai)** — エージェントシステムのための戦略選択、ツール設計、本番環境パターン

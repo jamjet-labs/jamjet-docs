@@ -1,7 +1,7 @@
 ---
 title: 프레임워크 비교
-description: JamJet vs LangGraph vs CrewAI vs AutoGen — 실행, 내구성, 관찰 가능성, 평가 및
-  확장성에 걸친 기능 매트릭스.
+description: JamJet vs LangGraph vs CrewAI vs AutoGen vs Google ADK — 실행, 내구성,
+  관찰성, 평가, 확장성 전반의 기능 비교표.
 ---
 
 export const Y = () => <span class="ic ic-y">✓</span>;
@@ -10,11 +10,11 @@ export const P = () => <span class="ic ic-p">~</span>;
 export const E = () => <span class="ic ic-e">⚙</span>;
 export const W = () => <span class="ic ic-w">…</span>;
 
-> 최종 업데이트: 2026-03-08 · JamJet v0.1.1 · [수정 제안 환영](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
+> 최종 업데이트: 2026-04-15 · JamJet v0.5.0 · [수정 제안 환영](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
 
 <div style={{fontSize: "0.82rem", color: "#8b8578", marginBottom: "1.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap"}}>
-  <span><span class="ic ic-y">✓</span> 기본 제공</span>
-  <span><span class="ic ic-e">⚙</span> 플러그인 제공</span>
+  <span><span class="ic ic-y">✓</span> 내장</span>
+  <span><span class="ic ic-e">⚙</span> 플러그인 지원</span>
   <span><span class="ic ic-p">~</span> 부분 지원</span>
   <span><span class="ic ic-n">—</span> 미지원</span>
   <span><span class="ic ic-w">…</span> 개발 중</span>
@@ -22,92 +22,96 @@ export const W = () => <span class="ic ic-w">…</span>;
 
 ## 무엇에 가장 적합한가요?
 
-- **Plain Python** — 가장 빠른 시작, 최소한의 보장. 프로토타입과 일회성 스크립트에 적합합니다.
+- **Plain Python** — 가장 빠른 시작, 최소한의 보장. 프로토타입과 일회성 스크립트에 적합.
 - **LangGraph** — 그래프 오케스트레이션, 익숙한 패턴, 체크포인터를 통한 선택적 내구성.
-- **JamJet** — 기본적으로 내구성과 더 강력한 런타임 보장을 제공하는 Python 멘탈 모델.
-- **CrewAI / AutoGen** — 일부 멀티 에이전트 패턴에 유용한 추상화이지만, 안정성에 대한 강조점이 다릅니다.
+- **JamJet** — Python 멘탈 모델에 기본 내구성과 강력한 런타임 보장 제공.
+- **CrewAI / AutoGen** — 일부 멀티 에이전트 패턴에 유용한 추상화 제공, 다만 안정성 측면에서는 다른 접근.
+- **Google ADK** — Gemini와 긴밀한 통합, A2A 공동 개발, Google Cloud의 강력한 지원으로 빠르게 발전 중. Google AI 스택 기반 팀에 최적.
 
-> LangGraph의 Python 워크플로우 모델을 좋아하지만 내구성, 리플레이, 타입 검증, 런타임에서 강제되는 제한이 기본 제공되길 원한다면, JamJet이 개념적으로 가장 가까운 선택입니다. [LangGraph 마이그레이션 가이드](/migrate/from-langgraph)를 참고하세요.
+> LangGraph의 Python 워크플로 모델을 선호하지만 내구성, 재생, 타입 검증, 런타임 강제 제한을 기본으로 원한다면 JamJet이 개념적으로 가장 가까운 선택입니다. [LangGraph 마이그레이션 가이드](/migrate/from-langgraph)를 참고하세요.
 
 ## 핵심 실행
 
-| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| 그래프 기반 워크플로우 | <Y/> | <Y/> | <P/> 순차적/계층적 | <Y/> |
-| 비동기 실행 | <Y/> | <Y/> | <Y/> | <Y/> |
-| 로컬 인프로세스 러너 | <Y/> | <Y/> | <Y/> | <Y/> |
-| 타입이 지정된 상태 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
-| 모든 단계에서 상태 검증 | <Y/> | <N/> | <N/> | <N/> |
-| 조건부 라우팅 | <Y/> 인라인 술어 | <Y/> 엣지 함수 | <P/> 프로세스 타입 | <Y/> |
-| 병렬 분기 | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
-| 순환/루프 지원 | <Y/> | <Y/> | <P/> | <Y/> |
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| 그래프 기반 워크플로 | <Y/> | <Y/> | <P/> 순차/계층적 | <Y/> | <Y/> 순차, 병렬, 루프 에이전트 |
+| 비동기 실행 | <Y/> | <Y/> | <Y/> | <Y/> | <Y/> |
+| 로컬 인프로세스 러너 | <Y/> | <Y/> | <Y/> | <Y/> | <Y/> |
+| 타입 지정 상태 | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict | <P/> |
+| 단계별 상태 검증 | <Y/> | <N/> | <N/> | <N/> | <N/> |
+| 조건부 라우팅 | <Y/> 인라인 조건식 | <Y/> 엣지 함수 | <P/> 프로세스 타입 | <Y/> | <Y/> |
+| 병렬 분기 | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> | <Y/> |
+| 사이클 / 루프 지원 | <Y/> | <Y/> | <P/> | <Y/> | <Y/> |
 
 ## 내구성 및 안정성
 
-| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| 내구성 있는 실행 (크래시 복구) | <Y/> Rust 런타임 | <E/> 체크포인터 | <N/> | <N/> |
-| 이벤트 소싱 | <Y/> 네이티브 | <N/> | <N/> | <N/> |
-| 백오프를 이용한 자동 재시도 | <Y/> YAML 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
-| 사람 개입(human-in-the-loop) / 일시정지 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
-| 모든 체크포인트에서 재개 | <Y/> | <E/> 세이버 필요 | <N/> | <N/> |
-| 단계별 타임아웃 | <Y/> | <P/> | <N/> | <P/> |
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| 지속 가능한 실행 (충돌 복구) | <Y/> Rust 런타임 | <E/> Checkpointers | <N/> | <N/> | <N/> |
+| 이벤트 소싱 | <Y/> 네이티브 | <N/> | <N/> | <N/> | <N/> |
+| 백오프를 통한 자동 재시도 | <Y/> YAML 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 | <P/> 수동 |
+| 휴먼-인-더-루프 / 일시정지 | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> | <Y/> |
+| 모든 체크포인트에서 재개 | <Y/> | <E/> Saver 필요 | <N/> | <N/> | <N/> |
+| 단계별 타임아웃 | <Y/> | <P/> | <N/> | <P/> | <P/> |
 
 ## 관찰성
 
-| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| 구조화된 이벤트 로그 | <Y/> 단계별 이벤트 | <P/> 콜백 | <P/> verbose 텍스트 | <P/> |
-| 실행 검사 CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
-| 이벤트 타임라인 | <Y/> | <N/> | <N/> | <N/> |
-| OpenTelemetry 트레이싱 | <W/> | <E/> LangSmith | <E/> | <N/> |
-| 타임 트래블 디버깅 | <W/> | <N/> | <N/> | <N/> |
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| 구조화된 이벤트 로그 | <Y/> 단계별 이벤트 | <P/> Callbacks | <P/> verbose text | <P/> | <Y/> |
+| 실행 검사 CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> | <N/> |
+| 이벤트 타임라인 | <Y/> | <N/> | <N/> | <N/> | <N/> |
+| OpenTelemetry 트레이싱 | <W/> | <E/> LangSmith | <E/> | <N/> | <Y/> 내장형 |
+| 타임 트래블 디버깅 | <W/> | <N/> | <N/> | <N/> | <N/> |
+| 토큰/비용 귀속 | <Y/> | <N/> | <N/> | <N/> | <Y/> |
+| 웹 인스펙터/대시보드 | <Y/> Web Companion | <N/> | <N/> | <N/> | <Y/> ADK Web UI |
 
 ## 툴 및 프로토콜 통합
 
-| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| MCP 클라이언트 (모든 MCP 서버 사용) | <Y/> 네이티브 | <E/> 어댑터 사용 | <E/> 어댑터 사용 | <E/> 어댑터 사용 |
-| MCP 서버 (툴 노출) | <W/> | <N/> | <N/> | <N/> |
-| A2A 크로스 에이전트 호출 | <Y/> 클라이언트 + 서버 | <N/> | <N/> | <N/> |
-| OpenAI 함수 호출 | <Y/> | <Y/> | <Y/> | <Y/> |
-| 커스텀 Python 툴 | <Y/> `@tool` 데코레이터 | <Y/> | <Y/> | <Y/> |
-| 오류 시 툴 재시도 | <Y/> 노드 레벨 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 |
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| MCP 클라이언트 (모든 MCP 서버 사용) | <Y/> 네이티브 | <E/> 어댑터 경유 | <E/> 어댑터 경유 | <E/> 어댑터 경유 | <Y/> 네이티브 |
+| MCP 서버 (도구 노출) | <W/> | <N/> | <N/> | <N/> | <N/> |
+| A2A 에이전트 간 호출 | <Y/> 클라이언트 + 서버 | <N/> | <N/> | <N/> | <Y/> 공동 개발 스펙 |
+| OpenAI 함수 호출 | <Y/> | <Y/> | <Y/> | <Y/> | <Y/> |
+| 커스텀 Python 도구 | <Y/> `@tool` 데코레이터 | <Y/> | <Y/> | <Y/> | <Y/> |
+| 오류 시 도구 재시도 | <Y/> 노드 레벨 설정 | <E/> 수동 | <E/> 수동 | <E/> 수동 | <P/> |
 
 ## 평가 및 테스팅
 
-| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| 내장 평가 하네스 | <Y/> | <N/> | <N/> | <N/> |
-| LLM-as-judge 점수 매기기 | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
-| 어서션 점수 매기기 | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
-| 지연 시간 예산 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
-| 비용 예산 | <Y/> `CostScorer` | <N/> | <N/> | <N/> |
-| 데이터셋 형식 (JSONL) | <Y/> | <N/> | <N/> | <N/> |
-| 회귀 시 CI 종료 코드 | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
-| 워크플로우 노드로서의 평가 | <Y/> `type: eval` | <N/> | <N/> | <N/> |
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| 내장 평가 하네스 | <Y/> | <N/> | <N/> | <N/> | <Y/> pytest 기반 |
+| LLM-as-judge 점수 산정 | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> | <N/> |
+| 어서션 점수 산정 | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> | <N/> |
+| 지연시간 예산 | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> | <N/> |
+| 비용 예산 | <Y/> `CostScorer` | <N/> | <N/> | <N/> | <N/> |
+| 데이터셋 재생 | <Y/> | <N/> | <N/> | <N/> | <P/> |
+| 회귀 시 CI 종료 코드 | <Y/> `--fail-under` | <N/> | <N/> | <N/> | <P/> |
+| 워크플로 노드로서의 평가 | <Y/> `type: eval` | <N/> | <N/> | <N/> | <N/> |
 
 ## 개발자 경험
 
-| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| YAML 워크플로우 작성 | <Y/> | <N/> | <N/> | <N/> |
-| Python 데코레이터 API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> |
-| 프로젝트 템플릿 | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> |
-| 로컬 개발 서버 | <Y/> `jamjet dev` | <N/> | <N/> | <N/> |
-| 워크플로우 검증 CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> |
-| 멀티 모델 지원 | <Y/> 모든 OpenAI 호환 | <Y/> | <Y/> | <Y/> |
-| 로컬 모델 (Ollama 등) | <Y/> | <Y/> | <Y/> | <Y/> |
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| YAML 워크플로 작성 | <Y/> | <N/> | <N/> | <N/> | <N/> |
+| Python 데코레이터 API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> | <Y/> |
+| 프로젝트 템플릿 | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> | <N/> |
+| 로컬 개발 서버 | <Y/> `jamjet dev` | <N/> | <N/> | <N/> | <N/> |
+| 워크플로 검증 CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> | <N/> |
+| 멀티 모델 지원 | <Y/> OpenAI 호환 모델 전체 | <Y/> | <Y/> | <Y/> | <P/> 주로 Gemini |
+| 로컬 모델 (Ollama 등) | <Y/> | <Y/> | <Y/> | <Y/> | <P/> |
 
 ## 프로덕션 및 확장성
 
-| 기능 | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| 런타임 언어 | **Rust** | Python | Python | Python |
-| 다중 언어 SDK | Python (TS <W/>) | Python, JS | Python | Python, .NET |
-| Kubernetes 지원 | <Y/> 스테이트리스 바이너리 | <E/> | <E/> | <E/> |
-| 관리형 클라우드 제공 | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
-| 오픈 소스 | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 |
+| 기능 | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| 런타임 언어 | **Rust** | Python | Python | Python | Python |
+| 다중 언어 SDK | Python (TS <W/>) | Python, JS | Python | Python, .NET | Python |
+| Kubernetes 지원 | <Y/> 상태 비저장 바이너리 | <E/> | <E/> | <E/> | <E/> |
+| 관리형 클라우드 | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> | <Y/> Vertex AI |
+| 스트리밍 | <Y/> | <Y/> | <P/> | <Y/> | <Y/> |
+| 오픈 소스 | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 | <Y/> Apache-2.0 |
 
 ---
 

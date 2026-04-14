@@ -1,7 +1,8 @@
 ---
 title: Framework-Vergleich
-description: JamJet vs LangGraph vs CrewAI vs AutoGen — Feature-Matrix über
-  Execution, Durability, Observability, Eval und Scale.
+description: JamJet vs LangGraph vs CrewAI vs AutoGen vs Google ADK —
+  Feature-Matrix für Ausführung, Dauerhaftigkeit, Observability, Evaluierung und
+  Skalierung.
 ---
 
 export const Y = () => <span class="ic ic-y">✓</span>;
@@ -10,104 +11,108 @@ export const P = () => <span class="ic ic-p">~</span>;
 export const E = () => <span class="ic ic-e">⚙</span>;
 export const W = () => <span class="ic ic-w">…</span>;
 
-> Zuletzt aktualisiert: 2026-03-08 · JamJet v0.1.1 · [Korrekturen willkommen](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
+> Zuletzt aktualisiert: 15.04.2026 · JamJet v0.5.0 · [Korrekturen willkommen](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
 
 <div style={{fontSize: "0.82rem", color: "#8b8578", marginBottom: "1.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap"}}>
   <span><span class="ic ic-y">✓</span> Integriert</span>
-  <span><span class="ic ic-e">⚙</span> Über Plugin</span>
+  <span><span class="ic ic-e">⚙</span> Via Plugin</span>
   <span><span class="ic ic-p">~</span> Teilweise</span>
   <span><span class="ic ic-n">—</span> Nicht unterstützt</span>
-  <span><span class="ic ic-w">…</span> In Bearbeitung</span>
+  <span><span class="ic ic-w">…</span> In Arbeit</span>
 </div>
 
 ## Welches ist wofür am besten geeignet?
 
-- **Plain Python** — schnellster Einstieg, geringste Garantien. Ideal für Prototypen und einmalige Skripte.
-- **LangGraph** — Graph-Orchestrierung, vertraute Muster, optionale Dauerhaftigkeit über Checkpointers.
-- **JamJet** — Python-Denkmodell mit standardmäßiger Dauerhaftigkeit und stärkeren Laufzeitgarantien.
-- **CrewAI / AutoGen** — nützliche Abstraktionen für bestimmte Multi-Agent-Muster, aber andere Schwerpunktsetzung bei Zuverlässigkeit.
+- **Plain Python** — schnellster Einstieg, minimale Garantien. Ideal für Prototypen und Einmal-Skripte.
+- **LangGraph** — Graph-Orchestrierung, vertraute Patterns, optionale Persistenz via Checkpointers.
+- **JamJet** — Python-Denkmodell mit Standard-Persistenz und stärkeren Runtime-Garantien.
+- **CrewAI / AutoGen** — nützliche Abstraktionen für bestimmte Multi-Agenten-Patterns, aber anderer Fokus bei Zuverlässigkeit.
+- **Google ADK** — enge Gemini-Integration, gemeinsam entwickeltes A2A, schnelle Entwicklung mit starkem Google-Cloud-Support. Am besten für Teams, die auf Googles AI-Stack aufbauen.
 
-> Wenn dir das Python-Workflow-Modell von LangGraph gefällt, du aber Dauerhaftigkeit, Replay, typisierte Validierung und laufzeitgesteuerte Limits integriert haben möchtest, ist JamJet der naheliegendste konzeptionelle Schritt. Siehe den [LangGraph-Migrationsleitfaden](/migrate/from-langgraph).
+> Wenn du LangGraphs Python-Workflow-Modell magst, aber Persistenz, Replay, typisierte Validierung und runtime-erzwungene Limits standardmäßig haben möchtest, ist JamJet konzeptionell der nächste Schritt. Siehe den [LangGraph-Migrationsleitfaden](/migrate/from-langgraph).
 
 ## Kernausführung
 
-| Feature | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| Graph-basierter Workflow | <Y/> | <Y/> | <P/> Sequenziell/hierarchisch | <Y/> |
-| Asynchrone Ausführung | <Y/> | <Y/> | <Y/> | <Y/> |
-| Lokaler In-Process-Runner | <Y/> | <Y/> | <Y/> | <Y/> |
-| Typisierter State | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict |
-| State-Validierung bei jedem Schritt | <Y/> | <N/> | <N/> | <N/> |
-| Bedingte Verzweigung | <Y/> Inline-Prädikate | <Y/> Edge-Funktionen | <P/> Prozesstyp | <Y/> |
-| Parallele Zweige | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> |
-| Zyklen-/Loop-Unterstützung | <Y/> | <Y/> | <P/> | <Y/> |
+| Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| Graph-basierter Workflow | <Y/> | <Y/> | <P/> Sequential/hierarchisch | <Y/> | <Y/> Sequential, parallel, Loop-Agenten |
+| Asynchrone Ausführung | <Y/> | <Y/> | <Y/> | <Y/> | <Y/> |
+| Lokaler In-Process-Runner | <Y/> | <Y/> | <Y/> | <Y/> | <Y/> |
+| Typisierter State | <Y/> Pydantic | <P/> TypedDict | <N/> Dict | <P/> Dict | <P/> |
+| State-Validierung bei jedem Schritt | <Y/> | <N/> | <N/> | <N/> | <N/> |
+| Conditional Routing | <Y/> Inline-Prädikate | <Y/> Edge-Funktionen | <P/> Prozesstyp | <Y/> | <Y/> |
+| Parallele Branches | <Y/> `type: parallel` | <Y/> | <N/> | <Y/> | <Y/> |
+| Zyklen / Loop-Support | <Y/> | <Y/> | <P/> | <Y/> | <Y/> |
 
 ## Dauerhaftigkeit & Zuverlässigkeit
 
-| Feature | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| Dauerhafte Ausführung (Crash-Recovery) | <Y/> Rust-Laufzeit | <E/> Checkpointers | <N/> | <N/> |
-| Event Sourcing | <Y/> Nativ | <N/> | <N/> | <N/> |
-| Automatisches Retry mit Backoff | <Y/> YAML-Konfiguration | <E/> Manuell | <E/> Manuell | <E/> Manuell |
-| Human-in-the-Loop / Pause | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> |
-| Wiederaufnahme von beliebigem Checkpoint | <Y/> | <E/> Benötigt Saver | <N/> | <N/> |
-| Timeout pro Schritt | <Y/> | <P/> | <N/> | <P/> |
+| Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| Dauerhafte Ausführung (Wiederherstellung nach Absturz) | <Y/> Rust-Runtime | <E/> Checkpointers | <N/> | <N/> | <N/> |
+| Event Sourcing | <Y/> Nativ | <N/> | <N/> | <N/> | <N/> |
+| Automatische Wiederholung mit Backoff | <Y/> YAML-Konfiguration | <E/> Manuell | <E/> Manuell | <E/> Manuell | <P/> Manuell |
+| Human-in-the-Loop / Pause | <Y/> `type: wait` | <Y/> `interrupt_before` | <N/> | <P/> | <Y/> |
+| Fortsetzen ab beliebigem Checkpoint | <Y/> | <E/> Erfordert Saver | <N/> | <N/> | <N/> |
+| Timeout pro Schritt | <Y/> | <P/> | <N/> | <P/> | <P/> |
 
 ## Observability
 
-| Feature | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| Strukturiertes Event-Log | <Y/> Events pro Schritt | <P/> Callbacks | <P/> verbose text | <P/> |
-| CLI für Execution-Inspektion | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> |
-| Event-Timeline | <Y/> | <N/> | <N/> | <N/> |
-| OpenTelemetry-Tracing | <W/> | <E/> LangSmith | <E/> | <N/> |
-| Time-Travel-Debugging | <W/> | <N/> | <N/> | <N/> |
+| Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| Strukturiertes Event-Log | <Y/> Events pro Schritt | <P/> Callbacks | <P/> verbose Text | <P/> | <Y/> |
+| Ausführungsinspektions-CLI | <Y/> `jamjet inspect` | <N/> | <N/> | <N/> | <N/> |
+| Event-Timeline | <Y/> | <N/> | <N/> | <N/> | <N/> |
+| OpenTelemetry-Tracing | <W/> | <E/> LangSmith | <E/> | <N/> | <Y/> Eingebaut |
+| Time-Travel-Debugging | <W/> | <N/> | <N/> | <N/> | <N/> |
+| Token-/Kostenattribution | <Y/> | <N/> | <N/> | <N/> | <Y/> |
+| Web-Inspektor/Dashboard | <Y/> Web Companion | <N/> | <N/> | <N/> | <Y/> ADK Web UI |
 
 ## Tool- & Protokollintegration
 
-| Feature | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| MCP-Client (alle MCP-Server nutzen) | <Y/> Nativ | <E/> Via Adapter | <E/> Via Adapter | <E/> Via Adapter |
-| MCP-Server (eigene Tools bereitstellen) | <W/> | <N/> | <N/> | <N/> |
-| A2A Cross-Agent-Calls | <Y/> Client + Server | <N/> | <N/> | <N/> |
-| OpenAI Function Calling | <Y/> | <Y/> | <Y/> | <Y/> |
-| Custom Python-Tools | <Y/> `@tool`-Decorator | <Y/> | <Y/> | <Y/> |
-| Tool-Retry bei Fehler | <Y/> Node-Level-Config | <E/> Manuell | <E/> Manuell | <E/> Manuell |
+| Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| MCP-Client (beliebige MCP-Server verwenden) | <Y/> Nativ | <E/> Via Adapter | <E/> Via Adapter | <E/> Via Adapter | <Y/> Nativ |
+| MCP-Server (Tools bereitstellen) | <W/> | <N/> | <N/> | <N/> | <N/> |
+| A2A Cross-Agent-Aufrufe | <Y/> Client + Server | <N/> | <N/> | <N/> | <Y/> Co-entwickelte Spezifikation |
+| OpenAI Function Calling | <Y/> | <Y/> | <Y/> | <Y/> | <Y/> |
+| Custom Python Tools | <Y/> `@tool`-Dekorator | <Y/> | <Y/> | <Y/> | <Y/> |
+| Tool-Wiederholung bei Fehler | <Y/> Node-Level-Konfiguration | <E/> Manuell | <E/> Manuell | <E/> Manuell | <P/> |
 
 ## Eval & Testing
 
-| Feature | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| Integriertes Eval-Harness | <Y/> | <N/> | <N/> | <N/> |
-| LLM-as-Judge-Scoring | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> |
-| Assertion-Scoring | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> |
-| Latenz-Budgets | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> |
-| Kosten-Budgets | <Y/> `CostScorer` | <N/> | <N/> | <N/> |
-| Dataset-Format (JSONL) | <Y/> | <N/> | <N/> | <N/> |
-| CI-Exit-Code bei Regression | <Y/> `--fail-under` | <N/> | <N/> | <N/> |
-| Eval als Workflow-Node | <Y/> `type: eval` | <N/> | <N/> | <N/> |
+| Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| Integriertes Eval-Harness | <Y/> | <N/> | <N/> | <N/> | <Y/> pytest-basiert |
+| LLM-as-Judge-Bewertung | <Y/> `LlmJudgeScorer` | <N/> | <N/> | <N/> | <N/> |
+| Assertion-Bewertung | <Y/> `AssertionScorer` | <N/> | <N/> | <N/> | <N/> |
+| Latenzbudgets | <Y/> `LatencyScorer` | <N/> | <N/> | <N/> | <N/> |
+| Kostenbudgets | <Y/> `CostScorer` | <N/> | <N/> | <N/> | <N/> |
+| Dataset-Replay | <Y/> | <N/> | <N/> | <N/> | <P/> |
+| CI-Exit-Code bei Regression | <Y/> `--fail-under` | <N/> | <N/> | <N/> | <P/> |
+| Eval als Workflow-Node | <Y/> `type: eval` | <N/> | <N/> | <N/> | <N/> |
 
 ## Entwicklererfahrung
 
-| Feature | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| YAML-Workflow-Authoring | <Y/> | <N/> | <N/> | <N/> |
-| Python-Decorator-API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> |
-| Projektvorlagen | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> |
-| Lokaler Dev-Server | <Y/> `jamjet dev` | <N/> | <N/> | <N/> |
-| Workflow-Validierung CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> |
-| Multi-Modell-Unterstützung | <Y/> Jede OpenAI-kompatible API | <Y/> | <Y/> | <Y/> |
-| Lokale Modelle (Ollama, etc.) | <Y/> | <Y/> | <Y/> | <Y/> |
+| Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| YAML-Workflow-Authoring | <Y/> | <N/> | <N/> | <N/> | <N/> |
+| Python-Decorator-API | <Y/> `@wf.step` | <Y/> | <Y/> | <Y/> | <Y/> |
+| Projektvorlagen | <Y/> `jamjet init --template` | <N/> | <N/> | <N/> | <N/> |
+| Lokaler Dev-Server | <Y/> `jamjet dev` | <N/> | <N/> | <N/> | <N/> |
+| Workflow-Validierungs-CLI | <Y/> `jamjet validate` | <N/> | <N/> | <N/> | <N/> |
+| Multi-Modell-Unterstützung | <Y/> Beliebiges OpenAI-kompatibles | <Y/> | <Y/> | <Y/> | <P/> Hauptsächlich Gemini |
+| Lokale Modelle (Ollama, etc.) | <Y/> | <Y/> | <Y/> | <Y/> | <P/> |
 
 ## Produktion & Skalierung
 
-| Feature | JamJet | LangGraph | CrewAI | AutoGen |
-|---|---|---|---|---|
-| Runtime-Sprache | **Rust** | Python | Python | Python |
-| Polyglot SDK | Python (TS <W/>) | Python, JS | Python | Python, .NET |
-| Kubernetes-ready | <Y/> Stateless Binary | <E/> | <E/> | <E/> |
-| Managed Cloud-Angebot | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> |
-| Open Source | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 |
+| Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
+|---|---|---|---|---|---|
+| Runtime-Sprache | **Rust** | Python | Python | Python | Python |
+| Polyglot-SDK | Python (TS <W/>) | Python, JS | Python | Python, .NET | Python |
+| Kubernetes-ready | <Y/> Stateless Binary | <E/> | <E/> | <E/> | <E/> |
+| Managed Cloud Offering | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> | <Y/> Vertex AI |
+| Streaming | <Y/> | <Y/> | <P/> | <Y/> | <Y/> |
+| Open Source | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 | <Y/> Apache-2.0 |
 
 ---
 

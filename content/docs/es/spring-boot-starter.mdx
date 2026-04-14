@@ -41,20 +41,20 @@ El starter está publicado en Maven Central. Añade una sola dependencia y la au
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. Iniciar el runtime de JamJet
@@ -435,7 +435,7 @@ El módulo de testing de JamJet resuelve esto con dos enfoques complementarios: 
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -655,10 +655,10 @@ Aquí tienes una aplicación completa de Spring Boot que integra durabilidad, au
     <dependency>
         <groupId>dev.jamjet</groupId>
         <artifactId>jamjet-spring-boot-starter</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
     </dependency>
 
-    <!-- Spring Boot Actuator (habilita métricas de Micrometer) -->
+    <!-- Spring Boot Actuator (enables Micrometer metrics) -->
     <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-actuator</artifactId>
@@ -668,7 +668,7 @@ Aquí tienes una aplicación completa de Spring Boot que integra durabilidad, au
     <dependency>
         <groupId>dev.jamjet</groupId>
         <artifactId>jamjet-spring-boot-starter-test</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <scope>test</scope>
     </dependency>
 </dependencies>
@@ -791,6 +791,84 @@ curl -X POST http://localhost:8080/jamjet/approvals/{executionId} \
 
 ---
 
+## Memoria Engram
+
+[Engram](https://java-ai-memory.dev) es la capa de memoria duradera de JamJet para agentes de IA. Va más allá del simple historial de chat: Engram extrae entidades y relaciones de las conversaciones, construye un grafo de conocimiento temporal y soporta recuperación semántica mediante embeddings. Cuando se combina con el starter de Spring Boot, proporciona a tus agentes memoria persistente y consultable a largo plazo que sobrevive reinicios y escala entre sesiones.
+
+### Añadir la dependencia
+
+El starter de Engram es un artefacto separado del starter principal de JamJet. Añádelo junto a tus dependencias existentes:
+
+#### Maven
+
+```xml
+<dependency>
+    <groupId>dev.jamjet</groupId>
+    <artifactId>engram-spring-boot-starter</artifactId>
+    <version>0.2.0</version>
+</dependency>
+```
+
+#### Gradle (Kotlin DSL)
+
+```kotlin
+implementation("dev.jamjet:engram-spring-boot-starter:0.2.0")
+```
+
+#### Gradle (Groovy DSL)
+
+```groovy
+implementation 'dev.jamjet:engram-spring-boot-starter:0.2.0'
+```
+
+### Iniciar el servidor Engram
+
+Ejecuta el servidor Engram con Docker:
+
+```bash
+docker run -p 7680:7680 ghcr.io/jamjet-labs/engram-server:latest
+```
+
+O descarga una versión específica:
+
+```bash
+docker run -p 7680:7680 ghcr.io/jamjet-labs/engram-server:0.5.0
+```
+
+### Configurar
+
+Añade la conexión al servidor Engram en tu `application.yml`:
+
+```yaml
+engram:
+  server:
+    host: localhost
+    port: 7680
+```
+
+### ChatMemoryRepository
+
+El starter autoconfigura un bean `ChatMemoryRepository` respaldado por el servidor Engram. El `MessageChatMemoryAdvisor` de Spring AI utiliza esto para persistir el historial de conversación de forma duradera: sin estado en memoria que perder al reiniciar.
+
+```java
+@Bean
+public ChatClient chatClient(ChatClient.Builder builder, ChatMemoryRepository memoryRepository) {
+    return builder
+        .defaultAdvisors(MessageChatMemoryAdvisor.builder(memoryRepository).build())
+        .build();
+}
+```
+
+Con esta configuración, cada turno de conversación se almacena a través de Engram. El `ChatMemoryRepository` maneja la lectura y escritura del historial de mensajes de forma transparente: tu código de aplicación funciona con `ChatClient` como siempre.
+
+### Más allá del historial de chat
+
+`ChatMemoryRepository` almacena mensajes de conversación sin procesar. Engram hace mucho más por debajo: extrae entidades y relaciones de cada mensaje, les añade marcas de tiempo y las indexa para búsqueda semántica. Esto significa que tu agente puede recordar hechos de conversaciones pasadas --- no solo reproducir registros de mensajes, sino responder preguntas como "¿qué dijo el usuario sobre su presupuesto la semana pasada?" a través de las herramientas MCP de Engram o su API.
+
+Para el conjunto completo de funcionalidades de Engram --- consultas de grafos de conocimiento, búsqueda semántica, backends SQLite y Postgres, herramientas de servidor MCP --- consulta la [documentación de Engram](https://java-ai-memory.dev).
+
+---
+
 ## Requisitos
 
 | Requisito | Versión mínima |
@@ -798,14 +876,14 @@ curl -X POST http://localhost:8080/jamjet/approvals/{executionId} \
 | Java | 21+ |
 | Spring Boot | 3.4+ |
 | Spring AI | 1.0+ |
-| Runtime JamJet | 0.3.1+ (Docker o binario) |
+| JamJet runtime | 0.3.1+ (Docker o binario) |
 
 ---
 
 ## Próximos pasos
 
-- **[Integración con LangChain4j](/langchain4j-integration)** --- usa JamJet como capa de ejecución durable para agentes LangChain4j con `JamjetDurableAgent` y `JamjetChatMemoryStore`
-- **[Referencia del SDK Java](/java-sdk)** --- cobertura completa de la API para herramientas, estrategias, compilación IR y el cliente del runtime
-- **[Inicio Rápido Java](/java-quickstart)** --- construye tu primer agente y flujo de trabajo desde cero con el SDK Java
-- **[Conceptos Fundamentales](/concepts)** --- agentes, nodos, estado y durabilidad en profundidad
-- **[Patrones de IA Agéntica](https://sunilprakash.com/agentic-ai)** --- selección de estrategias, diseño de herramientas y patrones de producción para sistemas agentes
+- **[Integración con LangChain4j](/langchain4j-integration)** --- usa JamJet como capa de ejecución duradera para agentes LangChain4j con `JamjetDurableAgent` y `JamjetChatMemoryStore`
+- **[Referencia del SDK de Java](/java-sdk)** --- cobertura completa de la API para herramientas, estrategias, compilación IR y el cliente runtime
+- **[Inicio rápido con Java](/java-quickstart)** --- construye tu primer agente y flujo de trabajo desde cero con el SDK de Java
+- **[Conceptos fundamentales](/concepts)** --- agentes, nodos, estado y durabilidad en profundidad
+- **[Patrones de IA agéntica](https://sunilprakash.com/agentic-ai)** --- selección de estrategias, diseño de herramientas y patrones de producción para sistemas agénticos

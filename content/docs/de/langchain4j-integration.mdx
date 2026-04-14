@@ -51,27 +51,27 @@ Das Integrationsmodul ist auf Maven Central veröffentlicht. Es benötigt `jamje
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 </dependency>
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.0")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.0'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. JamJet-Runtime starten
@@ -226,26 +226,30 @@ ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
 
 Alle drei Operationen degradieren elegant – wenn die JamJet-Runtime nicht erreichbar ist, protokolliert der Store eine Warnung und gibt leere Ergebnisse zurück (bei Lesevorgängen) oder verwirft den Schreibvorgang stillschweigend. Dies entspricht dem gleichen Graceful-Degradation-Pattern, das von `JamjetDurableAgent` verwendet wird.
 
+### Engram: Langzeitgedächtnis über den Chat-Verlauf hinaus
+
+`JamjetChatMemoryStore` persistiert rohe Konversationsnachrichten über die JamJet-Runtime. Für Agenten, die umfangreicheres Gedächtnis benötigen --- Entitätsextraktion, temporale Wissensgraphen, semantische Suche --- ist [Engram](https://java-ai-memory.dev) die dedizierte Memory-Ebene von JamJet. Der `engram-spring-boot-starter` stellt ein `ChatMemoryRepository` für Spring AI bereit, das Nachrichten über den Engram-Server speichert und zusätzlich Entitäten und Beziehungen extrahiert und für semantischen Abruf indiziert. Details zur Einrichtung finden Sie im Abschnitt [Engram Memory](/spring-boot-starter#engram-memory) im Spring Boot Starter Guide.
+
 ---
 
 ## Was Sie erhalten
 
-Das Wrappen Ihrer LangChain4j-Agents mit JamJet fügt folgende Funktionen hinzu, ohne Ihren Anwendungscode zu ändern:
+Wenn Sie Ihre LangChain4j-Agenten mit JamJet wrappen, erhalten Sie folgende Funktionen, ohne Ihren Anwendungscode zu ändern:
 
-| Fähigkeit | Ohne JamJet | Mit JamJet |
+| Funktion | Ohne JamJet | Mit JamJet |
 |------------|---------------|-------------|
-| **Crash-Recovery** | Prozess stirbt, Interaktion verloren, Token verschwendet | Ausführung von Runtime getrackt, nach Neustart fortsetzbar |
-| **Audit-Trails** | Keine Aufzeichnung des Geschehens | Jeder Methodenaufruf als unveränderliches Event mit Args, Result und Status aufgezeichnet |
-| **Replay-Testing** | Muss Live-LLM für Tests aufrufen | Aufgezeichnete Ausführungen in Testsuite wiedergeben, keine LLM-Calls nötig |
-| **Kostenverfolgung** | Manuelles Token-Counting | Execution-Events enthalten Methodenname und Argumente für Kostenzuordnung |
-| **Observability** | Nur Logging auf Anwendungsebene | Execution-IDs für Distributed-Tracing-Korrelation, Micrometer-Metriken via Spring-Boot-Starter |
-| **Chat-Memory-Persistenz** | Nur im Speicher, bei Neustart verloren | Persistent durch JamJet-Audit-Event-System, übersteht Neustarts |
+| **Crash-Recovery** | Prozess stirbt, Interaktion verloren, Tokens verschwendet | Ausführung von Runtime verfolgt, nach Neustart fortsetzbar |
+| **Audit-Trails** | Keine Aufzeichnung der Vorgänge | Jeder Methodenaufruf als unveränderliches Event mit Argumenten, Ergebnis und Status protokolliert |
+| **Replay-Testing** | Live-LLM-Aufruf zum Testen erforderlich | Aufgezeichnete Ausführungen in Test-Suite replizierbar, keine LLM-Aufrufe nötig |
+| **Kostenverfolgung** | Manuelles Token-Zählen | Execution-Events enthalten Methodenname und Argumente für Kostenzuordnung |
+| **Observability** | Nur Logging auf Anwendungsebene | Execution-IDs für Korrelation im Distributed Tracing, Micrometer-Metriken via Spring Boot Starter |
+| **Chat-Memory-Persistierung** | Nur im Speicher, nach Neustart verloren | Dauerhaft über JamJet-Audit-Event-System, übersteht Neustarts |
 
 ---
 
-## Testen von umschlossenen Agents
+## Testen von umschlossenen Agenten
 
-Das Modul `jamjet-spring-boot-starter-test` funktioniert mit umschlossenen LangChain4j-Agents. Da `JamjetDurableAgent.wrap()` JamJet-Ausführungen erstellt, können Sie diese in Tests mit `@ReplayExecution` wiedergeben.
+Das Modul `jamjet-spring-boot-starter-test` funktioniert mit umschlossenen LangChain4j-Agenten. Da `JamjetDurableAgent.wrap()` JamJet-Ausführungen erstellt, können Sie diese in Tests mit `@ReplayExecution` wiedergeben.
 
 ```java
 import dev.jamjet.spring.test.annotations.WithJamjetRuntime;
@@ -269,24 +273,24 @@ class ResearchAssistantTest {
 }
 ```
 
-Fügen Sie die Test-Abhängigkeit hinzu:
+Fügen Sie die Test-Dependency hinzu:
 
 ```xml
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-Die vollständige Test-API – `RecordedExecution`-Felder, `AgentAssertions` Fluent-API, `DeterministicModelStub`, Fork-at-Node-Wiedergabe – finden Sie im Testabschnitt der [Spring Boot Starter](/spring-boot-starter)-Anleitung.
+Für die vollständige Test-API — `RecordedExecution`-Felder, `AgentAssertions` Fluent-API, `DeterministicModelStub`, Fork-at-Node-Wiedergabe — siehe den Testing-Abschnitt im [Spring Boot Starter](/spring-boot-starter)-Leitfaden.
 
 ---
 
 ## Nächste Schritte
 
-- **[Java SDK-Referenz](/java-sdk)** — für neue Projekte bietet JamJets natives Java-SDK direkte LLM-Integration, typisierte Tools, Strategieauswahl und IR-Kompilierung ohne die LangChain4j-Abhängigkeit
-- **[Java-Schnellstart](/java-quickstart)** — erstellen Sie Ihren ersten Agent und Workflow von Grund auf mit dem nativen SDK
-- **[Spring Boot Starter](/spring-boot-starter)** — vollständige Spring-AI-Integration mit automatisch konfigurierter Dauerhaftigkeit, Audit-Trails, Human-in-the-Loop-Genehmigung und Observability
-- **[Agentic-AI-Patterns](https://sunilprakash.com/agentic-ai)** — Strategieauswahl, Tool-Design und Produktionsmuster für Agentensysteme
+- **[Java SDK-Referenz](/java-sdk)** — für neue Projekte bietet das native Java SDK von JamJet direkte LLM-Integration, typisierte Tools, Strategieauswahl und IR-Kompilierung ohne die LangChain4j-Abhängigkeit
+- **[Java-Schnellstart](/java-quickstart)** — erstellen Sie Ihren ersten Agenten und Workflow von Grund auf mit dem nativen SDK
+- **[Spring Boot Starter](/spring-boot-starter)** — vollständige Spring AI-Integration mit automatisch konfigurierter Dauerhaftigkeit, Audit-Trails, Human-in-the-Loop-Freigabe und Observability
+- **[Agentic AI Patterns](https://sunilprakash.com/agentic-ai)** — Strategieauswahl, Tool-Design und Produktionsmuster für Agentensysteme

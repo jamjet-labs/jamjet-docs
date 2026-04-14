@@ -51,27 +51,27 @@ El módulo de integración está publicado en Maven Central. Requiere `jamjet-sp
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 </dependency>
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.0")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.0'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. Iniciar el runtime de JamJet
@@ -226,24 +226,28 @@ ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
 
 Las tres operaciones se degradan de forma elegante — si el runtime de JamJet es inaccesible, el almacenamiento registra una advertencia y devuelve resultados vacíos (para lecturas) o descarta silenciosamente la escritura. Esto coincide con el mismo patrón de degradación elegante utilizado por `JamjetDurableAgent`.
 
+### Engram: memoria a largo plazo más allá del historial de chat
+
+`JamjetChatMemoryStore` persiste mensajes de conversación sin procesar a través del runtime de JamJet. Para agentes que necesiten memoria más rica --- extracción de entidades, grafos de conocimiento temporales, búsqueda semántica --- considera [Engram](https://java-ai-memory.dev), la capa de memoria dedicada de JamJet. El `engram-spring-boot-starter` proporciona un `ChatMemoryRepository` para Spring AI que almacena mensajes a través del servidor Engram, el cual además extrae entidades y relaciones y las indexa para recuperación semántica. Consulta la sección [Memoria Engram](/spring-boot-starter#engram-memory) en la guía de Spring Boot Starter para detalles de configuración.
+
 ---
 
 ## Qué obtienes
 
-Envolver tus agentes de LangChain4j con JamJet añade las siguientes capacidades sin cambiar el código de tu aplicación:
+Envolver tus agentes LangChain4j con JamJet añade las siguientes capacidades sin cambiar el código de tu aplicación:
 
 | Capacidad | Sin JamJet | Con JamJet |
 |------------|---------------|-------------|
-| **Recuperación ante fallos** | El proceso muere, la interacción se pierde, tokens desperdiciados | Ejecución rastreada por el runtime, reanudable después de reinicio |
-| **Registros de auditoría** | Sin registro de lo que ocurrió | Cada llamada a método registrada como un evento inmutable con argumentos, resultado y estado |
-| **Pruebas de repetición** | Debe llamar al LLM en vivo para probar | Reproduce ejecuciones registradas en la suite de pruebas, sin necesidad de llamadas al LLM |
-| **Seguimiento de costos** | Conteo manual de tokens | Los eventos de ejecución incluyen nombre de método y argumentos para atribución de costos |
-| **Observabilidad** | Solo registro a nivel de aplicación | IDs de ejecución para correlación de rastreo distribuido, métricas de Micrometer vía Spring Boot starter |
-| **Persistencia de memoria de chat** | Solo en memoria, se pierde al reiniciar | Duradera a través del sistema de eventos de auditoría de JamJet, sobrevive a reinicios |
+| **Recuperación ante fallos** | El proceso muere, interacción perdida, tokens desperdiciados | Ejecución rastreada por el runtime, reanudable tras reinicio |
+| **Trazas de auditoría** | Sin registro de lo ocurrido | Cada llamada a método registrada como evento inmutable con argumentos, resultado y estado |
+| **Pruebas con replay** | Debe llamar al LLM en vivo para probar | Reproduce ejecuciones grabadas en suite de pruebas, sin llamadas al LLM |
+| **Seguimiento de costos** | Conteo manual de tokens | Eventos de ejecución incluyen nombre de método y argumentos para atribución de costos |
+| **Observabilidad** | Solo logging a nivel de aplicación | IDs de ejecución para correlación de trazado distribuido, métricas Micrometer via Spring Boot starter |
+| **Persistencia de memoria de chat** | Solo en memoria, perdida al reiniciar | Duradera a través del sistema de eventos de auditoría de JamJet, sobrevive reinicios |
 
 ---
 
-## Pruebas de agentes envueltos
+## Prueba de agentes envueltos
 
 El módulo `jamjet-spring-boot-starter-test` funciona con agentes LangChain4j envueltos. Dado que `JamjetDurableAgent.wrap()` crea ejecuciones de JamJet, puedes reproducirlas en pruebas usando `@ReplayExecution`.
 
@@ -275,18 +279,18 @@ Agrega la dependencia de pruebas:
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-Para la API completa de pruebas — campos de `RecordedExecution`, API fluida de `AgentAssertions`, `DeterministicModelStub`, reproducción fork-at-node — consulta la sección de pruebas de la guía de [Spring Boot Starter](/spring-boot-starter).
+Para la API completa de pruebas — campos de `RecordedExecution`, API fluida de `AgentAssertions`, `DeterministicModelStub`, reproducción fork-at-node — consulta la sección de pruebas de la guía [Spring Boot Starter](/spring-boot-starter).
 
 ---
 
 ## Próximos pasos
 
-- **[Referencia del SDK de Java](/java-sdk)** — para proyectos nuevos, el SDK nativo de Java de JamJet proporciona integración directa con LLM, herramientas tipadas, selección de estrategias y compilación IR sin la dependencia de LangChain4j
+- **[Referencia del SDK de Java](/java-sdk)** — para proyectos nuevos, el SDK nativo de Java de JamJet proporciona integración directa con LLM, herramientas tipadas, selección de estrategias y compilación de IR sin la dependencia de LangChain4j
 - **[Inicio Rápido de Java](/java-quickstart)** — construye tu primer agente y flujo de trabajo desde cero con el SDK nativo
-- **[Spring Boot Starter](/spring-boot-starter)** — integración completa con Spring AI con durabilidad autoconfigurada, registros de auditoría, aprobación human-in-the-loop y observabilidad
+- **[Spring Boot Starter](/spring-boot-starter)** — integración completa con Spring AI con durabilidad autoconfigurada, registros de auditoría, aprobación humana en el bucle y observabilidad
 - **[Patrones de IA Agéntica](https://sunilprakash.com/agentic-ai)** — selección de estrategias, diseño de herramientas y patrones de producción para sistemas de agentes

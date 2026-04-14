@@ -49,27 +49,27 @@ flowchart LR
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 </dependency>
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.0")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.0'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. 启动 JamJet 运行时
@@ -224,26 +224,30 @@ ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
 
 这三个操作都具有优雅降级能力——如果 JamJet 运行时无法访问，存储会记录警告并返回空结果（读取操作）或静默丢弃写入。这与 `JamjetDurableAgent` 使用的优雅降级模式一致。
 
+### Engram:超越聊天历史的长期记忆
+
+`JamjetChatMemoryStore` 通过 JamJet 运行时持久化原始对话消息。对于需要更丰富记忆能力的智能体——实体提取、时序知识图谱、语义搜索——可以考虑 [Engram](https://java-ai-memory.dev),这是 JamJet 的专用记忆层。`engram-spring-boot-starter` 为 Spring AI 提供了 `ChatMemoryRepository`,通过 Engram 服务器存储消息,同时额外提取实体和关系并为语义召回建立索引。设置详情请参阅 Spring Boot Starter 指南中的 [Engram 记忆部分](/spring-boot-starter#engram-memory)。
+
 ---
 
-## 获得的能力
+## 你将获得什么
 
-使用 JamJet 封装您的 LangChain4j 智能体，无需更改应用程序代码即可获得以下能力：
+使用 JamJet 包装你的 LangChain4j 智能体,无需更改应用代码即可增加以下能力:
 
 | 能力 | 不使用 JamJet | 使用 JamJet |
 |------------|---------------|-------------|
-| **崩溃恢复** | 进程终止，交互丢失，Token 浪费 | 运行时跟踪执行，重启后可恢复 |
-| **审计跟踪** | 无操作记录 | 每个方法调用都记录为不可变事件，包含参数、结果和状态 |
-| **回放测试** | 必须调用真实 LLM 进行测试 | 在测试套件中回放已记录的执行，无需调用 LLM |
-| **成本跟踪** | 手动计算 Token | 执行事件包含方法名和参数，用于成本归因 |
-| **可观测性** | 仅应用程序级日志 | 执行 ID 用于分布式跟踪关联，通过 Spring Boot starter 提供 Micrometer 指标 |
-| **对话内存持久化** | 仅内存存储，重启后丢失 | 通过 JamJet 审计事件系统持久化，可跨重启存活 |
+| **崩溃恢复** | 进程终止,交互丢失,token 浪费 | 运行时跟踪执行,重启后可恢复 |
+| **审计日志** | 无操作记录 | 每个方法调用记录为不可变事件,包含参数、结果和状态 |
+| **回放测试** | 必须调用实时 LLM 进行测试 | 在测试套件中回放已记录的执行,无需 LLM 调用 |
+| **成本跟踪** | 手动统计 token | 执行事件包含方法名和参数,用于成本归因 |
+| **可观测性** | 仅应用层日志 | 执行 ID 用于分布式追踪关联,通过 Spring Boot starter 支持 Micrometer 指标 |
+| **聊天记忆持久化** | 仅内存存储,重启后丢失 | 通过 JamJet 审计事件系统持久化,可跨重启保存 |
 
 ---
 
-## 测试封装的代理
+## 测试封装的智能体
 
-`jamjet-spring-boot-starter-test` 模块支持封装的 LangChain4j 代理。由于 `JamjetDurableAgent.wrap()` 会创建 JamJet 执行记录,您可以在测试中使用 `@ReplayExecution` 重放它们。
+`jamjet-spring-boot-starter-test` 模块支持封装的 LangChain4j 智能体。由于 `JamjetDurableAgent.wrap()` 会创建 JamJet 执行记录,您可以在测试中使用 `@ReplayExecution` 重放它们。
 
 ```java
 import dev.jamjet.spring.test.annotations.WithJamjetRuntime;
@@ -273,18 +277,18 @@ class ResearchAssistantTest {
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-有关完整的测试 API ——`RecordedExecution` 字段、`AgentAssertions` 流式 API、`DeterministicModelStub`、节点分叉重放——请参阅 [Spring Boot Starter](/spring-boot-starter) 指南的测试部分。
+关于完整的测试 API —— `RecordedExecution` 字段、`AgentAssertions` 流式 API、`DeterministicModelStub`、节点级分叉重放 —— 请参阅 [Spring Boot Starter](/spring-boot-starter) 指南的测试部分。
 
 ---
 
 ## 下一步
 
-- **[Java SDK 参考](/java-sdk)** — 对于新项目,JamJet 的原生 Java SDK 提供直接的 LLM 集成、类型化工具、策略选择和 IR 编译,无需依赖 LangChain4j
-- **[Java 快速入门](/java-quickstart)** — 使用原生 SDK 从零开始构建您的第一个代理和工作流
-- **[Spring Boot Starter](/spring-boot-starter)** — 完整的 Spring AI 集成,具备自动配置的持久性、审计跟踪、人工审批和可观测性
-- **[代理 AI 模式](https://sunilprakash.com/agentic-ai)** — 代理系统的策略选择、工具设计和生产模式
+- **[Java SDK 参考文档](/java-sdk)** — 对于新项目,JamJet 的原生 Java SDK 提供直接的 LLM 集成、类型化工具、策略选择和 IR 编译,无需 LangChain4j 依赖
+- **[Java 快速入门](/java-quickstart)** — 使用原生 SDK 从零开始构建您的第一个智能体和工作流
+- **[Spring Boot Starter](/spring-boot-starter)** — 完整的 Spring AI 集成,具备自动配置的持久化、审计跟踪、人工审批和可观测性
+- **[智能体 AI 模式](https://sunilprakash.com/agentic-ai)** — 智能体系统的策略选择、工具设计和生产模式

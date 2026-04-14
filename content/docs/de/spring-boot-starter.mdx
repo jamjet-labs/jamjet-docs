@@ -41,20 +41,20 @@ Der Starter ist auf Maven Central veröffentlicht. Fügen Sie eine einzige Abhä
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. JamJet Runtime starten
@@ -435,7 +435,7 @@ Das Testmodul von JamJet löst dies mit zwei komplementären Ansätzen: **Replay
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -655,10 +655,10 @@ Hier ist eine vollständige Spring Boot-Anwendung, die Durability, Audit, Approv
     <dependency>
         <groupId>dev.jamjet</groupId>
         <artifactId>jamjet-spring-boot-starter</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
     </dependency>
 
-    <!-- Spring Boot Actuator (aktiviert Micrometer-Metriken) -->
+    <!-- Spring Boot Actuator (enables Micrometer metrics) -->
     <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-actuator</artifactId>
@@ -668,7 +668,7 @@ Hier ist eine vollständige Spring Boot-Anwendung, die Durability, Audit, Approv
     <dependency>
         <groupId>dev.jamjet</groupId>
         <artifactId>jamjet-spring-boot-starter-test</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <scope>test</scope>
     </dependency>
 </dependencies>
@@ -791,6 +791,84 @@ curl -X POST http://localhost:8080/jamjet/approvals/{executionId} \
 
 ---
 
+## Engram Memory
+
+[Engram](https://java-ai-memory.dev) ist JamJets dauerhafte Memory-Schicht für KI-Agenten. Es geht weit über einfachen Chat-Verlauf hinaus --- Engram extrahiert Entitäten und Beziehungen aus Konversationen, baut einen temporalen Wissensgraphen auf und unterstützt semantische Abfragen über Embeddings. In Kombination mit dem Spring Boot Starter erhalten Ihre Agenten persistentes, durchsuchbares Langzeitgedächtnis, das Neustarts überlebt und über Sessions hinweg skaliert.
+
+### Dependency hinzufügen
+
+Der Engram-Starter ist ein separates Artefakt vom Core-JamJet-Starter. Fügen Sie es neben Ihren bestehenden Dependencies hinzu:
+
+#### Maven
+
+```xml
+<dependency>
+    <groupId>dev.jamjet</groupId>
+    <artifactId>engram-spring-boot-starter</artifactId>
+    <version>0.2.0</version>
+</dependency>
+```
+
+#### Gradle (Kotlin DSL)
+
+```kotlin
+implementation("dev.jamjet:engram-spring-boot-starter:0.2.0")
+```
+
+#### Gradle (Groovy DSL)
+
+```groovy
+implementation 'dev.jamjet:engram-spring-boot-starter:0.2.0'
+```
+
+### Engram-Server starten
+
+Starten Sie den Engram-Server mit Docker:
+
+```bash
+docker run -p 7680:7680 ghcr.io/jamjet-labs/engram-server:latest
+```
+
+Oder ziehen Sie eine bestimmte Version:
+
+```bash
+docker run -p 7680:7680 ghcr.io/jamjet-labs/engram-server:0.5.0
+```
+
+### Konfigurieren
+
+Fügen Sie die Engram-Server-Verbindung zu Ihrer `application.yml` hinzu:
+
+```yaml
+engram:
+  server:
+    host: localhost
+    port: 7680
+```
+
+### ChatMemoryRepository
+
+Der Starter konfiguriert automatisch eine `ChatMemoryRepository`-Bean, die vom Engram-Server unterstützt wird. Spring AIs `MessageChatMemoryAdvisor` nutzt diese, um Konversationsverläufe dauerhaft zu speichern --- kein flüchtiger In-Memory-State, der bei Neustarts verloren geht.
+
+```java
+@Bean
+public ChatClient chatClient(ChatClient.Builder builder, ChatMemoryRepository memoryRepository) {
+    return builder
+        .defaultAdvisors(MessageChatMemoryAdvisor.builder(memoryRepository).build())
+        .build();
+}
+```
+
+Mit dieser Konfiguration wird jeder Konversationsschritt über Engram gespeichert. Das `ChatMemoryRepository` verwaltet das Lesen und Schreiben des Nachrichtenverlaufs transparent --- Ihr Anwendungscode arbeitet wie gewohnt mit `ChatClient`.
+
+### Über den Chat-Verlauf hinaus
+
+`ChatMemoryRepository` speichert rohe Konversationsnachrichten. Engram leistet unter der Haube jedoch mehr: Es extrahiert Entitäten und Beziehungen aus jeder Nachricht, versieht sie mit Zeitstempeln und indiziert sie für die semantische Suche. Das bedeutet, dass Ihr Agent Fakten aus vergangenen Konversationen abrufen kann --- nicht nur Nachrichtenprotokolle wiedergeben, sondern Fragen wie „was hat der Benutzer letzte Woche über sein Budget gesagt?“ über die Engram MCP-Tools oder API beantworten kann.
+
+Für den vollständigen Engram-Funktionsumfang --- Knowledge-Graph-Abfragen, semantische Suche, SQLite- und Postgres-Backends, MCP-Server-Tools --- siehe die [Engram-Dokumentation](https://java-ai-memory.dev).
+
+---
+
 ## Anforderungen
 
 | Anforderung | Mindestversion |
@@ -798,14 +876,14 @@ curl -X POST http://localhost:8080/jamjet/approvals/{executionId} \
 | Java | 21+ |
 | Spring Boot | 3.4+ |
 | Spring AI | 1.0+ |
-| JamJet-Runtime | 0.3.1+ (Docker oder Binary) |
+| JamJet Runtime | 0.3.1+ (Docker oder Binary) |
 
 ---
 
 ## Nächste Schritte
 
-- **[LangChain4j-Integration](/langchain4j-integration)** --- verwende JamJet als dauerhafte Ausführungsschicht für LangChain4j-Agenten mit `JamjetDurableAgent` und `JamjetChatMemoryStore`
+- **[LangChain4j-Integration](/langchain4j-integration)** --- nutzen Sie JamJet als dauerhafte Ausführungsschicht für LangChain4j-Agents mit `JamjetDurableAgent` und `JamjetChatMemoryStore`
 - **[Java SDK-Referenz](/java-sdk)** --- vollständige API-Abdeckung für Tools, Strategien, IR-Kompilierung und den Runtime-Client
-- **[Java-Schnellstart](/java-quickstart)** --- erstelle deinen ersten Agenten und Workflow von Grund auf mit dem Java SDK
-- **[Kernkonzepte](/concepts)** --- Agenten, Nodes, State und Dauerhaftigkeit im Detail
-- **[Agentic AI-Patterns](https://sunilprakash.com/agentic-ai)** --- Strategieauswahl, Tool-Design und Produktionsmuster für Agentensysteme
+- **[Java-Schnellstart](/java-quickstart)** --- erstellen Sie Ihren ersten Agent und Workflow von Grund auf mit dem Java SDK
+- **[Kernkonzepte](/concepts)** --- Agents, Nodes, State und Dauerhaftigkeit im Detail
+- **[Agentic AI Patterns](https://sunilprakash.com/agentic-ai)** --- Strategieauswahl, Tool-Design und Produktionsmuster für Agentensysteme

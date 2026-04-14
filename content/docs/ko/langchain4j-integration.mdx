@@ -49,27 +49,27 @@ flowchart LR
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 </dependency>
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.0")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.0'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
 ```
 
 ### 2. JamJet 런타임 시작
@@ -224,26 +224,30 @@ ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
 
 세 가지 작업 모두 graceful하게 저하됩니다 — JamJet 런타임에 연결할 수 없는 경우 스토어는 경고를 로깅하고 빈 결과를 반환하거나(읽기의 경우) 쓰기를 조용히 삭제합니다. 이는 `JamjetDurableAgent`가 사용하는 동일한 graceful 저하 패턴과 일치합니다.
 
+### Engram: 채팅 기록을 넘어선 장기 메모리
+
+`JamjetChatMemoryStore`는 JamJet 런타임을 통해 원시 대화 메시지를 영구 저장합니다. 엔티티 추출, 시간적 지식 그래프, 의미론적 검색 등 더 풍부한 메모리가 필요한 에이전트의 경우 JamJet의 전용 메모리 레이어인 [Engram](https://java-ai-memory.dev)을 고려하세요. `engram-spring-boot-starter`는 Engram 서버를 통해 메시지를 저장하는 Spring AI용 `ChatMemoryRepository`를 제공하며, 추가로 엔티티와 관계를 추출하고 의미론적 회상을 위해 인덱싱합니다. 설정 세부 사항은 Spring Boot Starter 가이드의 [Engram Memory 섹션](/spring-boot-starter#engram-memory)을 참조하세요.
+
 ---
 
 ## 제공되는 기능
 
-LangChain4j 에이전트를 JamJet으로 래핑하면 애플리케이션 코드를 변경하지 않고도 다음 기능이 추가됩니다:
+LangChain4j 에이전트를 JamJet으로 래핑하면 애플리케이션 코드 변경 없이 다음 기능이 추가됩니다:
 
 | 기능 | JamJet 없이 | JamJet 사용 시 |
 |------------|---------------|-------------|
-| **크래시 복구** | 프로세스 종료 시 상호작용 손실, 토큰 낭비 | 런타임이 실행을 추적하고 재시작 후 재개 가능 |
-| **감사 추적** | 발생한 일에 대한 기록 없음 | 모든 메서드 호출이 인수, 결과 및 상태와 함께 불변 이벤트로 기록됨 |
-| **리플레이 테스트** | 테스트하려면 실제 LLM 호출 필요 | 기록된 실행을 테스트 스위트에서 재생, LLM 호출 불필요 |
-| **비용 추적** | 수동 토큰 집계 | 실행 이벤트에 비용 귀속을 위한 메서드 이름과 인수 포함 |
-| **관찰 가능성** | 애플리케이션 수준 로깅만 가능 | 분산 추적 상관관계를 위한 실행 ID, Spring Boot 스타터를 통한 Micrometer 메트릭 제공 |
-| **채팅 메모리 영속성** | 인메모리 전용, 재시작 시 손실 | JamJet 감사 이벤트 시스템을 통한 영속성, 재시작에도 유지됨 |
+| **크래시 복구** | 프로세스 종료 시 상호작용 손실, 토큰 낭비 | 런타임이 실행을 추적하여 재시작 후 재개 가능 |
+| **감사 추적** | 발생한 작업의 기록 없음 | 모든 메서드 호출이 인수, 결과, 상태와 함께 불변 이벤트로 기록됨 |
+| **재생 테스트** | 테스트를 위해 실제 LLM 호출 필요 | 기록된 실행을 테스트 스위트에서 재생, LLM 호출 불필요 |
+| **비용 추적** | 수동 토큰 카운팅 | 실행 이벤트에 메서드 이름과 인수가 포함되어 비용 귀속 가능 |
+| **관찰성** | 애플리케이션 수준 로깅만 가능 | 분산 추적 상관관계를 위한 실행 ID, Spring Boot starter를 통한 Micrometer 메트릭 |
+| **채팅 메모리 영속성** | 메모리 내에만 존재, 재시작 시 손실 | JamJet 감사 이벤트 시스템을 통해 영구 저장, 재시작 후에도 유지 |
 
 ---
 
-## 래핑된 에이전트 테스트
+## 래핑된 에이전트 테스트하기
 
-`jamjet-spring-boot-starter-test` 모듈은 래핑된 LangChain4j 에이전트와 함께 작동합니다. `JamjetDurableAgent.wrap()`이 JamJet 실행을 생성하므로, `@ReplayExecution`을 사용하여 테스트에서 재생할 수 있습니다.
+`jamjet-spring-boot-starter-test` 모듈은 래핑된 LangChain4j 에이전트와 함께 작동합니다. `JamjetDurableAgent.wrap()`이 JamJet 실행을 생성하므로, `@ReplayExecution`을 사용하여 테스트에서 이를 재생할 수 있습니다.
 
 ```java
 import dev.jamjet.spring.test.annotations.WithJamjetRuntime;
@@ -273,18 +277,18 @@ class ResearchAssistantTest {
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-전체 테스트 API — `RecordedExecution` 필드, `AgentAssertions` 플루언트 API, `DeterministicModelStub`, 노드 지점 재생 — 에 대해서는 [Spring Boot Starter](/spring-boot-starter) 가이드의 테스트 섹션을 참조하세요.
+전체 테스트 API — `RecordedExecution` 필드, `AgentAssertions` 플루언트 API, `DeterministicModelStub`, 노드 분기 재생 — 는 [Spring Boot Starter](/spring-boot-starter) 가이드의 테스트 섹션을 참조하세요.
 
 ---
 
 ## 다음 단계
 
-- **[Java SDK 레퍼런스](/java-sdk)** — 신규 프로젝트의 경우, JamJet의 네이티브 Java SDK는 LangChain4j 의존성 없이 직접적인 LLM 통합, 타입 기반 도구, 전략 선택, IR 컴파일을 제공합니다
-- **[Java 퀵스타트](/java-quickstart)** — 네이티브 SDK로 처음부터 첫 에이전트와 워크플로우를 구축하세요
-- **[Spring Boot Starter](/spring-boot-starter)** — 자동 구성된 내구성, 감사 추적, 휴먼-인-더-루프 승인, 관측성을 갖춘 완전한 Spring AI 통합
-- **[Agentic AI 패턴](https://sunilprakash.com/agentic-ai)** — 에이전트 시스템을 위한 전략 선택, 도구 설계, 프로덕션 패턴
+- **[Java SDK 레퍼런스](/java-sdk)** — 새 프로젝트의 경우, JamJet의 네이티브 Java SDK는 LangChain4j 의존성 없이 직접적인 LLM 통합, 타입 안전 도구, 전략 선택, IR 컴파일을 제공합니다
+- **[Java 빠른 시작](/java-quickstart)** — 네이티브 SDK로 처음부터 에이전트와 워크플로우 구축하기
+- **[Spring Boot Starter](/spring-boot-starter)** — 자동 구성된 내구성, 감사 추적, 인간 승인 프로세스, 관찰성을 갖춘 전체 Spring AI 통합
+- **[에이전틱 AI 패턴](https://sunilprakash.com/agentic-ai)** — 에이전트 시스템을 위한 전략 선택, 도구 설계, 프로덕션 패턴

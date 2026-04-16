@@ -7,12 +7,153 @@ description: 理解 JamJet 中的 agents、nodes、state 和持久性。
 
 JamJet 是一个**用于 AI 智能体的持久化运行时**。核心理念很简单:工作流作为可恢复的状态转换执行,而非短暂的函数调用。这正是使重放、崩溃恢复、审批暂停和精确跟踪成为可能的原因。本页介绍关键原语。
 
+## 选择创作方法
+
+JamJet 提供三种构建 Agent 的方式。这三种方式都编译为相同的中间表示（IR），并在同一个 Rust 运行时上执行——它们的区别在于适用场景。
+
+### 决策流程图
+
+```
+你的 Agent 是否需要调用 LLM 并使用推理策略
+（react、plan-and-execute、critic）？
+│
+├─ 是 → 使用 Agent + Workflow SDK
+│        (from jamjet import Agent, Workflow, tool)
+│
+└─ 否 → 流程是否主要是工具编排、路由，
+        或者你希望在不重新部署代码的情况下更改配置？
+        │
+        ├─ 是 → 使用 YAML 工作流
+        │
+        └─ 否 → 使用 Python 装饰器 API
+                 (@workflow, @node)
+```
+
+### 三种方法
+
+| 方法 | 适用场景 | 状态 | 示例 |
+|----------|----------|-------|---------|
+| **Agent + Workflow SDK** | 具有推理能力的多 Agent 系统 | Pydantic `BaseModel`（类型化、验证） | [claims-processing](https://github.com/jamjet-labs/jamjet/tree/main/examples/claims-processing)、[wealth-management](https://github.com/jamjet-labs/jamjet/tree/main/examples/wealth-management-agents) |
+| **YAML 工作流** | 工具管道、配置驱动的流程 | YAML 架构（类型化） | [rag-assistant](https://github.com/jamjet-labs/jamjet/tree/main/examples/rag-assistant) |
+| **Python 装饰器 API** | 自定义逻辑、Python 库访问 | 基于字典的 `State` | [Python SDK 文档](/docs/python-sdk) |
+
+### Agent + Workflow SDK
+
+当你的 Agent 需要**思考**时使用这种方式——选择工具、推理结果、优化输出。每个 Agent 都配备适合其任务的推理策略。
+
+```python
+from jamjet import Agent, Workflow, tool
+from pydantic import BaseModel
+
+@tool
+def search_web(query: str) -> dict:
+    """搜索网络信息。"""
+    ...
+
+researcher = Agent(
+    name="researcher",
+    model="claude-sonnet-4-6",
+    tools=[search_web],
+    instructions="查找关于给定主题的准确信息。",
+    strategy="react",        # 紧密的工具使用循环
+    max_iterations=5,
+)
+
+writer = Agent(
+    name="writer",
+    model="claude-sonnet-4-6",
+    instructions="根据研究内容撰写清晰的摘要。",
+    strategy="critic",       # 起草 → 评估 → 优化
+    max_iterations=3,
+)
+
+workflow = Workflow("research-writer", version="0.1.0")
+
+@workflow.state
+class ResearchState(BaseModel):
+    topic: str
+    research: str | None = None
+    summary: str | None = None
+
+@workflow.step
+async def research(state: ResearchState) -> ResearchState:
+    result = await researcher.run(f"研究：{state.topic}")
+    return state.model_copy(update={"research": result.output})
+
+@workflow.step
+async def write(state: ResearchState) -> ResearchState:
+    result = await writer.run(f"总结：\n{state.research}")
+    return state.model_copy(update={"summary": result.output})
+```
+
+**适用场景：** Agent 需要使用策略（react、plan-and-execute、critic、consensus、debate），你需要类型化的 Pydantic 状态，需要人工审批（`human_approval=True`），或者多个专业 Agent 协同工作。
+
+### YAML 工作流
+
+当流程是**确定性编排**时使用——调用这个工具，然后那个模型，根据条件路由。无需智能体推理。
+
+```yaml
+id: summarize-url
+version: "0.1.0"
+
+nodes:
+  fetch:
+    type: tool
+    server: web-fetcher
+    tool: fetch_page
+    arguments:
+      url: "{{ state.url }}"
+    output_key: page_content
+    next: summarize
+
+  summarize:
+    type: model
+    model: claude-haiku-4-5-20251001
+    prompt: "Summarize: {{ state.page_content }}"
+    output_key: summary
+```
+
+**适用场景：**流程是工具和模型的固定管道，您希望非开发人员能够编辑流程，或者需要在不重新部署代码的情况下更改路由。
+
+### Python 装饰器 API
+
+当您需要在节点内使用**自定义 Python 逻辑**时使用——数据转换、库调用、对于 YAML 来说过于复杂的条件逻辑。
+
+```python
+from jamjet import workflow, node, State
+
+@workflow(id="data-processor", version="0.1.0")
+class DataProcessor:
+    @node(start=True)
+    async def process(self, state: State) -> State:
+        import pandas as pd
+        df = pd.read_csv(state["file_path"])
+        summary = df.describe().to_dict()
+        return {"analysis": summary}
+
+    @node
+    async def report(self, state: State) -> State:
+        response = await self.model(
+            model="claude-sonnet-4-6",
+            prompt=f"Write a report from this analysis:\n{state['analysis']}",
+        )
+        return {"report": response.text}
+```
+
+**适用场景：**您需要在节点内使用 Python 库，逻辑对于 YAML 来说过于复杂但不需要智能体推理，或者您更喜欢基于类的工作流。
+
+### 可以混用吗？
+
+可以。三种方式都编译为相同的 IR。YAML 工作流可以调用智能体作为工具。Python 工作流步骤可以调用 YAML 定义的子工作流。运行时不关心是哪种编写方式产生的 IR。
+
+---
+
 ## 工作流
 
-**工作流**是一个有向节点图。它包含：
+**工作流**是节点的有向图。它包含：
 
 - 唯一的 `id` 和 `version`
-- `state_schema` —— 流经图的数据的类型化结构
+- `state_schema` —— 在图中流动的数据的类型化结构
 - 执行开始的 `start` 节点
 - 一个或多个 `end` 节点
 
@@ -27,48 +168,48 @@ workflow:
   start: think
 ```
 
-工作流在执行前会被编译为**中间表示（IR）**图。IR 是 Rust 调度器实际运行的内容 —— YAML 和 Python 只是创作界面。
+工作流在执行前被编译为 **IR（中间表示）**图。IR 是 Rust 调度器实际运行的内容——YAML 和 Python 只是编写界面。
 
 ## 节点
 
 节点是工作流中的计算单元。每个节点都有一个 `type` 来决定它的功能：
 
 | 节点类型 | 功能 |
-|---------|------|
-| `model`   | 调用大语言模型（Claude、GPT-4、Gemini 等） |
+|-----------|-------------|
+| `model`   | 调用 LLM（Claude、GPT-4、Gemini 等） |
 | `tool`    | 通过 MCP 调用外部工具 |
 | `http`    | 发起 HTTP 请求 |
-| `branch`  | 基于条件路由执行 |
+| `branch`  | 根据条件路由执行 |
 | `parallel` | 同时扇出到多个分支 |
-| `wait`    | 暂停直到外部事件触发 |
+| `wait`    | 暂停直到外部事件发生 |
 | `eval`    | 评估输出质量（评分标准、断言、延迟） |
 | `end`     | 终止工作流 |
 
-每个节点都从**状态**读取数据并写入状态。
+每个节点都从**状态**中读取数据并写入**状态**。
 
 ## 状态
 
-状态是工作流执行的共享数据存储。它在节点之间以及重启后保持持久化。
+状态是工作流执行的共享数据存储。它在节点之间以及重启后持久保存。
 
 ```yaml
 state_schema:
-  query: str        # 来自用户的输入
+  query: str        # 用户输入
   search_results: list[str]  # 中间数据
   answer: str       # 最终输出
 ```
 
-状态是**类型化的** —— 模式在编译时验证。在运行时，每个节点都可以读取任何状态键，并写入其 `output_key`。
+状态是**有类型的** — 模式在编译时验证。在运行时，每个节点可以读取任何状态键，并写入其 `output_key`。
 
 > **提示：** 
-状态存储在数据库中，而非内存。如果运行时在执行过程中崩溃，状态会完全恢复，并从最后的检查点继续执行。
+状态存储在数据库中，而不是内存中。如果运行时在执行过程中崩溃，状态将被完全恢复，执行从最后一个检查点恢复。
 
 ## 执行
 
-**执行（execution）**是使用特定输入运行工作流的单次实例。每次执行都有一个唯一的 ID（例如 `exec_01JM4X8NKWP2`）。
+**执行**是工作流使用特定输入的单次运行。每次执行都有一个唯一 ID（例如 `exec_01JM4X8NKWP2`）。
 
-执行具有以下特性：
-- **持久化** — 存储在数据库中，不受重启影响
-- **可观测** — 每次状态转换都被记录为事件
+执行具有以下特点：
+- **持久化** — 存储在数据库中，可在重启后恢复
+- **可观测** — 每个状态转换都记录为事件
 - **可检查** — 使用 `jamjet inspect` 查看完整状态、事件时间线和 token 使用情况
 
 ## 持久性
@@ -76,52 +217,52 @@ state_schema:
 持久性是 JamJet 的核心保证：**即使运行时崩溃，执行也始终会完成**。
 
 这通过**事件溯源**实现：
-1. 在每个节点运行前，将 `node_started` 事件写入数据库
+1. 在每个节点运行之前，将 `node_started` 事件写入数据库
 2. 在每个节点完成后，将 `node_completed` 事件与状态补丁一起写入
-3. 重启时，调度器重放事件日志，精确重建执行停止的位置
-4. 从第一个未完成的节点恢复执行
+3. 重启时，调度器回放事件日志以精确重建执行停止的位置
+4. 执行从第一个未完成的节点恢复
 
-不会丢失任何工作。不会重复运行任何节点。
+不会丢失任何工作。没有节点会运行两次。
 
-> **注意：** 
-这与"至少一次"交付不同。JamJet 的调度器使用分布式锁来确保每个节点**恰好运行一次**，即使有多个工作进程也是如此。
+> **注意：**
+这与"至少一次"交付不同。JamJet 的调度器使用分布式锁来确保每个节点**恰好运行一次**，即使有多个工作进程。
 
-## Agent
+## 智能体
 
-**Agent** 是一个可以执行以下操作的工作流：
-- 被其他 agent 发现和调用（通过 Agent Card）
-- 将任务委托给其他 agent（通过 A2A 协议）
+**智能体**是一个可以：
+- 被其他智能体发现和调用（通过智能体卡片）
+- 将任务委托给其他智能体（通过 A2A 协议）
 - 在多次用户交互中维护长期运行的状态
 
-每个 agent 都有一个 **Agent Card** — 对其能力、端点和输入/输出模式的机器可读描述。这是 [A2A 协议](/a2a)的基础。
+每个智能体都有一个**智能体卡片** — 对其功能、端点和输入/输出模式的机器可读描述。这是 [A2A 协议](/a2a) 的基础。
 
 ## 调度器
 
-JamJet 调度器使用 Rust 编写，作为 `jamjet dev`（本地）或托管运行时（生产环境）的一部分运行。
+JamJet 调度器用 Rust 编写，作为 `jamjet dev`（本地）或托管运行时（生产环境）的一部分运行。
 
-它的工作流程：
-1. 轮询执行队列以获取待处理的工作
-2. 对执行加锁以防止重复运行
-3. 将节点分派到工作线程
-4. 在每个节点之后写入检查点
+它会：
+1. 轮询执行队列中的待处理工作
+2. 获取执行的锁以防止重复运行
+3. 将节点分派给工作线程
+4. 在每个节点后写入检查点
 
-调度器是 JamJet 工作流默认持久化的原因 — 它从不会忘记任何执行。
+调度器是 JamJet 工作流默认具有持久性的原因 — 它永远不会忘记执行。
 
-## 本地与生产环境
+## 本地 vs. 生产
 
 | 功能 | `jamjet dev`（本地） | 托管 / 自托管 |
 |---------|---------------------|---------------------|
 | 存储 | SQLite | PostgreSQL |
-| Workers | 单进程 | 分布式 |
+| 工作进程 | 单进程 | 分布式 |
 | MCP 服务器 | 本地 stdio | 远程 SSE/HTTP |
 | 认证 | 无 | mTLS / API 密钥 |
 
-编程模型完全相同——相同的 YAML 或 Python 代码在两种环境中均可无需修改直接运行。
+编程模型完全相同 — 相同的 YAML 或 Python 代码在两种环境中运行时无需更改。
 
 ---
 
 ## 下一步
 
-- [快速开始](/docs/quickstart) — 构建你的第一个持久化智能体
+- [快速开始](/docs/quickstart) — 构建您的第一个持久化代理
 - [Python SDK](/docs/python-sdk) — 装饰器、路由、并行步骤
-- [尝试崩溃恢复](/docs/quickstart#try-crash-recovery-in-90-seconds) — 实际体验持久化能力
+- [尝试崩溃恢复](/docs/quickstart#try-crash-recovery-in-90-seconds) — 实际体验持久性

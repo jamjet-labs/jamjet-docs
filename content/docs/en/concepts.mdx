@@ -9,6 +9,147 @@ description: Understand agents, nodes, state, and durability in JamJet.
 
 JamJet is a **durable runtime for AI agents**. The key idea is simple: workflows are executed as recoverable state transitions, not ephemeral function calls. That is what makes replay, crash recovery, approval pauses, and exact traces possible. This page covers the key primitives.
 
+## Choosing an authoring approach
+
+JamJet has three ways to build agents. All three compile to the same IR and run on the same Rust runtime — they differ in when to reach for each one.
+
+### Decision flowchart
+
+```
+Is your agent calling LLMs with reasoning strategies
+(react, plan-and-execute, critic)?
+│
+├─ YES → Use the Agent + Workflow SDK
+│        (from jamjet import Agent, Workflow, tool)
+│
+└─ NO → Is the flow mostly tool orchestration, routing,
+        or config you want to change without code deploys?
+        │
+        ├─ YES → Use YAML workflows
+        │
+        └─ NO → Use the Python decorator API
+                 (@workflow, @node)
+```
+
+### The three approaches
+
+| Approach | Best for | State | Example |
+|----------|----------|-------|---------|
+| **Agent + Workflow SDK** | Multi-agent systems with reasoning | Pydantic `BaseModel` (typed, validated) | [claims-processing](https://github.com/jamjet-labs/jamjet/tree/main/examples/claims-processing), [wealth-management](https://github.com/jamjet-labs/jamjet/tree/main/examples/wealth-management-agents) |
+| **YAML workflows** | Tool pipelines, config-driven flows | Schema in YAML (typed) | [rag-assistant](https://github.com/jamjet-labs/jamjet/tree/main/examples/rag-assistant) |
+| **Python decorator API** | Custom logic, Python library access | Dict-based `State` | [Python SDK docs](/docs/python-sdk) |
+
+### Agent + Workflow SDK
+
+Use this when your agents need to **think** — choose tools, reason about results, refine outputs. Each agent gets a reasoning strategy suited to its task.
+
+```python
+from jamjet import Agent, Workflow, tool
+from pydantic import BaseModel
+
+@tool
+def search_web(query: str) -> dict:
+    """Search the web for information."""
+    ...
+
+researcher = Agent(
+    name="researcher",
+    model="claude-sonnet-4-6",
+    tools=[search_web],
+    instructions="Find accurate information on the given topic.",
+    strategy="react",        # tight tool-use loop
+    max_iterations=5,
+)
+
+writer = Agent(
+    name="writer",
+    model="claude-sonnet-4-6",
+    instructions="Write a clear summary from the research.",
+    strategy="critic",       # draft → evaluate → refine
+    max_iterations=3,
+)
+
+workflow = Workflow("research-writer", version="0.1.0")
+
+@workflow.state
+class ResearchState(BaseModel):
+    topic: str
+    research: str | None = None
+    summary: str | None = None
+
+@workflow.step
+async def research(state: ResearchState) -> ResearchState:
+    result = await researcher.run(f"Research: {state.topic}")
+    return state.model_copy(update={"research": result.output})
+
+@workflow.step
+async def write(state: ResearchState) -> ResearchState:
+    result = await writer.run(f"Summarize:\n{state.research}")
+    return state.model_copy(update={"summary": result.output})
+```
+
+**Choose this when:** agents need strategies (react, plan-and-execute, critic, consensus, debate), you want typed Pydantic state, you need human-in-the-loop (`human_approval=True`), or multiple specialist agents collaborate.
+
+### YAML workflows
+
+Use this when the flow is **deterministic orchestration** — call this tool, then that model, route based on a condition. No agent reasoning needed.
+
+```yaml
+id: summarize-url
+version: "0.1.0"
+
+nodes:
+  fetch:
+    type: tool
+    server: web-fetcher
+    tool: fetch_page
+    arguments:
+      url: "{{ state.url }}"
+    output_key: page_content
+    next: summarize
+
+  summarize:
+    type: model
+    model: claude-haiku-4-5-20251001
+    prompt: "Summarize: {{ state.page_content }}"
+    output_key: summary
+```
+
+**Choose this when:** the flow is a fixed pipeline of tools and models, you want non-developers to edit the flow, or you need to change routing without redeploying code.
+
+### Python decorator API
+
+Use this when you need **custom Python logic** inside nodes — data transforms, library calls, conditional logic that is too complex for YAML.
+
+```python
+from jamjet import workflow, node, State
+
+@workflow(id="data-processor", version="0.1.0")
+class DataProcessor:
+    @node(start=True)
+    async def process(self, state: State) -> State:
+        import pandas as pd
+        df = pd.read_csv(state["file_path"])
+        summary = df.describe().to_dict()
+        return {"analysis": summary}
+
+    @node
+    async def report(self, state: State) -> State:
+        response = await self.model(
+            model="claude-sonnet-4-6",
+            prompt=f"Write a report from this analysis:\n{state['analysis']}",
+        )
+        return {"report": response.text}
+```
+
+**Choose this when:** you need Python libraries inside nodes, the logic is too complex for YAML but does not need agent reasoning, or you prefer class-based workflows.
+
+### Can I mix them?
+
+Yes. All three compile to the same IR. A YAML workflow can call an agent-as-tool. A Python workflow step can invoke a YAML-defined sub-workflow. The runtime does not care which authoring surface produced the IR.
+
+---
+
 ## Workflows
 
 A **workflow** is a directed graph of nodes. It has:

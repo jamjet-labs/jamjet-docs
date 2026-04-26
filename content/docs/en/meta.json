@@ -12,6 +12,8 @@
     "langchain4j-integration",
     "cli",
     "yaml-workflows",
+    "---Cloud---",
+    "cloud-quickstart",
     "---Guides---",
     "coordinator",
     "agent-as-tool",

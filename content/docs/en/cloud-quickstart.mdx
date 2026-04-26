@@ -1,0 +1,162 @@
+---
+title: Cloud Quickstart
+description: Add governance, cost tracking, and audit trails to any OpenAI or Anthropic agent in two lines. JamJet Cloud — the hosted control plane.
+---
+
+# JamJet Cloud — Developer Quickstart
+
+Add governance, cost tracking, and audit trails to any OpenAI or Anthropic agent in two lines.
+
+You'll have an instrumented agent reporting traces in **under five minutes**.
+
+> **Note:** JamJet Cloud is the hosted, paid product alongside the open-source JamJet runtime + Engram. Open-source JamJet stays free forever; Cloud adds the multi-tenant dashboard, retained audit trails, hosted memory, and policy/approval surfaces. See [the roadmap](https://jamjet.dev/cloud) for what's shipped and what's next.
+
+---
+
+## 1. Get an API key
+
+1. Sign in at [**app.jamjet.dev**](https://app.jamjet.dev) (GitHub OAuth, Google OAuth, or magic link).
+2. Open **Settings → Projects** and create a project.
+3. Copy the API key shown once at creation. It looks like `jj_xxxxxxxxxxxx`.
+
+> The key is not retrievable later. If you lose it, create a new project.
+
+---
+
+## 2. Install the SDK
+
+```bash
+pip install jamjet
+```
+
+The `jamjet.cloud` submodule ships in the main `jamjet` package starting at **0.6.0**.
+
+Optional: install the LLM SDK you use so JamJet can auto-instrument it.
+
+```bash
+pip install jamjet[openai]      # auto-instrument OpenAI
+pip install jamjet[anthropic]   # or Anthropic
+pip install jamjet[cloud-all]   # both
+```
+
+---
+
+## 3. Initialize and run
+
+Add two lines at process start, before any LLM call:
+
+```python
+import jamjet.cloud as jamjet
+
+jamjet.configure(api_key="jj_xxxxxxxxxxxx", project="my-agent")
+```
+
+Now your existing OpenAI calls are captured automatically:
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "hello"}],
+)
+```
+
+Open [**app.jamjet.dev/dashboard/traces**](https://app.jamjet.dev/dashboard/traces) — the call appears within ~5 seconds with model, token counts, cost, and duration.
+
+---
+
+## 4. Add governance (optional)
+
+### Block tools by name
+
+```python
+jamjet.policy("block", "payments.*")
+jamjet.policy("require_approval", "delete_*")
+```
+
+Blocked tools are filtered out before the model sees them. `require_approval` pauses execution until a human approves in the dashboard.
+
+### Cap spend
+
+```python
+jamjet.budget(max_cost_usd=5.00)
+```
+
+Calls that would exceed the budget raise `BudgetExceeded` instead of running.
+
+### Trace your own functions
+
+```python
+@jamjet.trace
+def lookup_customer(customer_id: str) -> dict:
+    ...
+```
+
+Each call becomes a span in the same trace as the LLM calls around it.
+
+### Human-in-the-loop approvals
+
+```python
+approval_id = jamjet.require_approval(
+    action="charge_card",
+    context={"amount_usd": 200, "customer": "cust_42"},
+    timeout_seconds=300,
+)
+```
+
+Blocks until a reviewer approves or rejects in **Approvals** in the dashboard.
+
+---
+
+## 5. Configuration
+
+`jamjet.configure(...)` accepts:
+
+| Argument | Default | Notes |
+|---|---|---|
+| `api_key` | required | The `jj_...` key from your project |
+| `project` | `"default"` | Logical grouping of traces |
+| `api_url` | `https://api.jamjet.dev` | Override for self-hosted (when available) |
+| `auto_patch` | `True` | Disable to skip OpenAI/Anthropic auto-instrumentation |
+| `flush_interval` | `5.0` (sec) | How often the background thread sends batches |
+| `flush_size` | `50` | Batch size that triggers an immediate send |
+| `capture_io` | `False` | If `True`, captures full prompt/response payloads |
+
+The same options can be set via env: `JJ_API_KEY`, `JJ_PROJECT`, `JJ_API_URL`.
+
+---
+
+## 6. What gets sent (and what doesn't)
+
+By default, JamJet Cloud captures **metadata**: model name, token counts, latency, cost estimate, tool names, status. Prompt and response *content* is **NOT** sent unless you set `capture_io=True`.
+
+The SDK is **fail-open**: if `api.jamjet.dev` is unreachable, your agent keeps running. Failed batches are retried with exponential backoff and dropped after 5 consecutive failures (circuit breaker).
+
+---
+
+## 7. What's coming next
+
+Active development. See [the roadmap](https://jamjet.dev/cloud) for full timing.
+
+- **Multi-agent visibility** — agent identity, cross-agent trace propagation, network graph view of how your agents communicate (Phase 1 / Q3 2026).
+- **Java SDK** — same drop-in for Spring AI / LangChain4j (Phase 1).
+- **Centralized policy enforcement** — server-side policy decisions, audited delegation chains.
+- **Hosted memory** — Engram bundled into Cloud, scoped per agent, shared across an agent fleet.
+- **Replay** — re-run any trace from the dashboard with input recordings.
+- **OTel GenAI ingestion** — point your existing Phoenix / OpenLLMetry / Langfuse-instrumented apps at JamJet without an SDK migration.
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| Calls aren't showing up | Wait 5 seconds (flush interval). If still missing, check the API key matches your project. |
+| `RuntimeError: JamJet Cloud not configured` | `jamjet.configure()` wasn't called before the first LLM call. |
+| `BudgetExceeded` | A call would push cumulative spend over `budget(max_cost_usd=...)`. Increase or remove. |
+| Anthropic calls not captured | `pip install jamjet[anthropic]` — auto-patching is conditional on the SDK being importable. |
+| OpenAI calls not captured | `pip install jamjet[openai]`. The SDK patches `OpenAI().chat.completions.create` at the class level — both module-level and instance usage are caught. |
+| 401 from API | Key was rotated or wrong. Create a fresh project at [app.jamjet.dev/dashboard/settings](https://app.jamjet.dev/dashboard/settings). |
+| 429 from API | You're being rate-limited. Default is 100 req/sec per API key. Reach out via Discord or `support@jamjet.dev` to raise. |

@@ -1,0 +1,162 @@
+---
+title: 云快速入门
+description: 仅需两行代码，即可为任何 OpenAI 或 Anthropic 代理添加治理、成本追踪和审计日志。JamJet Cloud——托管控制平面。
+---
+
+# JamJet Cloud — 开发者快速入门
+
+通过两行代码为任何 OpenAI 或 Anthropic 代理添加治理、成本跟踪和审计跟踪。
+
+您将在 **五分钟内** 拥有一个报告追踪的已检测代理。
+
+> **注意：** JamJet Cloud 是托管付费产品,与开源 JamJet 运行时 + Engram 并行。开源 JamJet 永久免费;Cloud 增加了多租户仪表板、保留的审计跟踪、托管内存以及策略/审批界面。查看 [路线图](https://jamjet.dev/cloud) 了解已发布和即将推出的功能。
+
+---
+
+## 1. 获取 API 密钥
+
+1. 在 [**app.jamjet.dev**](https://app.jamjet.dev) 登录(GitHub OAuth、Google OAuth 或魔术链接)。
+2. 打开 **设置 → 项目** 并创建一个项目。
+3. 复制创建时仅显示一次的 API 密钥。格式类似 `jj_xxxxxxxxxxxx`。
+
+> 密钥之后无法找回。如果丢失,请创建新项目。
+
+---
+
+## 2. 安装 SDK
+
+```bash
+pip install jamjet
+```
+
+`jamjet.cloud` 子模块从 **0.6.0** 版本开始包含在主 `jamjet` 包中。
+
+可选:安装您使用的 LLM SDK,以便 JamJet 自动检测它。
+
+```bash
+pip install jamjet[openai]      # 自动检测 OpenAI
+pip install jamjet[anthropic]   # 或 Anthropic
+pip install jamjet[cloud-all]   # 两者都安装
+```
+
+---
+
+## 3. 初始化并运行
+
+在进程启动时、任何 LLM 调用之前添加两行代码:
+
+```python
+import jamjet.cloud as jamjet
+
+jamjet.configure(api_key="jj_xxxxxxxxxxxx", project="my-agent")
+```
+
+现在您现有的 OpenAI 调用会自动被捕获:
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "hello"}],
+)
+```
+
+打开 [**app.jamjet.dev/dashboard/traces**](https://app.jamjet.dev/dashboard/traces) — 调用会在约 5 秒内显示,包含模型、令牌数、成本和持续时间。
+
+---
+
+## 4. 添加治理（可选）
+
+### 按名称阻止工具
+
+```python
+jamjet.policy("block", "payments.*")
+jamjet.policy("require_approval", "delete_*")
+```
+
+被阻止的工具在模型看到之前就会被过滤掉。`require_approval` 会暂停执行，直到人工在控制面板中批准。
+
+### 设置支出上限
+
+```python
+jamjet.budget(max_cost_usd=5.00)
+```
+
+超出预算的调用会抛出 `BudgetExceeded` 异常而不会执行。
+
+### 追踪自定义函数
+
+```python
+@jamjet.trace
+def lookup_customer(customer_id: str) -> dict:
+    ...
+```
+
+每次调用都会成为追踪中的一个片段，与周围的 LLM 调用在同一追踪链中。
+
+### 人工审批流程
+
+```python
+approval_id = jamjet.require_approval(
+    action="charge_card",
+    context={"amount_usd": 200, "customer": "cust_42"},
+    timeout_seconds=300,
+)
+```
+
+会阻塞执行，直到审核者在控制面板的 **审批** 中批准或拒绝。
+
+---
+
+## 5. 配置
+
+`jamjet.configure(...)` 接受以下参数：
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `api_key` | 必填 | 来自项目的 `jj_...` 密钥 |
+| `project` | `"default"` | 追踪的逻辑分组 |
+| `api_url` | `https://api.jamjet.dev` | 自托管时的覆盖地址（即将支持）|
+| `auto_patch` | `True` | 禁用以跳过 OpenAI/Anthropic 自动插桩 |
+| `flush_interval` | `5.0`（秒）| 后台线程发送批次的频率 |
+| `flush_size` | `50` | 触发立即发送的批次大小 |
+| `capture_io` | `False` | 如果为 `True`，捕获完整的提示词/响应负载 |
+
+这些选项也可以通过环境变量设置：`JJ_API_KEY`、`JJ_PROJECT`、`JJ_API_URL`。
+
+---
+
+## 6. 发送的数据（以及不发送的）
+
+默认情况下，JamJet Cloud 捕获 **元数据**：模型名称、token 数量、延迟、成本估算、工具名称、状态。提示词和响应的 *内容* **不会** 发送，除非设置 `capture_io=True`。
+
+SDK 采用 **故障开放** 设计：如果 `api.jamjet.dev` 无法访问，您的 agent 会继续运行。失败的批次会以指数退避重试，连续失败 5 次后丢弃（熔断机制）。
+
+---
+
+## 7. 后续计划
+
+正在积极开发中。完整时间安排请参阅[路线图](https://jamjet.dev/cloud)。
+
+- **多智能体可见性** — 智能体身份识别、跨智能体追踪传播、智能体通信网络图视图(第一阶段 / 2026年第三季度)。
+- **Java SDK** — 与Spring AI / LangChain4j相同的即插即用方式(第一阶段)。
+- **集中式策略执行** — 服务器端策略决策、经审计的委托链。
+- **托管内存** — Engram集成到Cloud中,按智能体范围划分,在智能体集群间共享。
+- **重放** — 使用输入记录从控制面板重新运行任何追踪。
+- **OTel GenAI接入** — 无需SDK迁移,将现有Phoenix / OpenLLMetry / Langfuse仪表化应用直接接入JamJet。
+
+---
+
+## 故障排查
+
+| 症状 | 原因 |
+|---|---|
+| 调用未显示 | 等待5秒(刷新间隔)。如果仍然缺失,检查API密钥是否与项目匹配。 |
+| `RuntimeError: JamJet Cloud not configured` | 在首次LLM调用前未调用`jamjet.configure()`。 |
+| `BudgetExceeded` | 某次调用会使累计支出超过`budget(max_cost_usd=...)`限制。提高或移除限制。 |
+| 未捕获Anthropic调用 | 执行`pip install jamjet[anthropic]` — 自动补丁功能依赖于SDK可被导入。 |
+| 未捕获OpenAI调用 | 执行`pip install jamjet[openai]`。SDK在类级别对`OpenAI().chat.completions.create`打补丁 — 模块级和实例级使用均会被捕获。 |
+| API返回401错误 | 密钥已轮换或错误。在[app.jamjet.dev/dashboard/settings](https://app.jamjet.dev/dashboard/settings)创建新项目。 |
+| API返回429错误 | 您被限流了。默认限制为每个API密钥100请求/秒。请通过Discord或`support@jamjet.dev`联系我们提高限额。 |

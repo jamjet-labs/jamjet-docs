@@ -1,0 +1,164 @@
+---
+title: Cloud Quickstart
+description: Fügen Sie Governance, Kostenverfolgung und Audit-Trails zu jedem
+  OpenAI- oder Anthropic-Agenten in zwei Zeilen hinzu. JamJet Cloud — die
+  gehostete Control Plane.
+---
+
+# JamJet Cloud — Schnellstart für Entwickler
+
+Füge Governance, Kostenverfolgung und Audit-Trails zu jedem OpenAI- oder Anthropic-Agent in zwei Zeilen hinzu.
+
+Du hast einen instrumentierten Agent mit Trace-Reporting in **unter fünf Minuten**.
+
+> **Hinweis:** JamJet Cloud ist das gehostete, kostenpflichtige Produkt neben der Open-Source-JamJet-Runtime + Engram. Open-Source-JamJet bleibt für immer kostenlos; Cloud fügt das Multi-Tenant-Dashboard, persistente Audit-Trails, gehosteten Speicher und Policy-/Freigabe-Oberflächen hinzu. Siehe [die Roadmap](https://jamjet.dev/cloud) für Ausgeliefertes und Geplantes.
+
+---
+
+## 1. API-Schlüssel beziehen
+
+1. Melde dich bei [**app.jamjet.dev**](https://app.jamjet.dev) an (GitHub OAuth, Google OAuth oder Magic Link).
+2. Öffne **Einstellungen → Projekte** und erstelle ein Projekt.
+3. Kopiere den API-Schlüssel, der einmalig bei der Erstellung angezeigt wird. Er sieht aus wie `jj_xxxxxxxxxxxx`.
+
+> Der Schlüssel kann später nicht erneut abgerufen werden. Falls du ihn verlierst, erstelle ein neues Projekt.
+
+---
+
+## 2. SDK installieren
+
+```bash
+pip install jamjet
+```
+
+Das `jamjet.cloud`-Submodul wird ab **0.6.0** im Hauptpaket `jamjet` mitgeliefert.
+
+Optional: installiere das von dir verwendete LLM-SDK, damit JamJet es automatisch instrumentieren kann.
+
+```bash
+pip install jamjet[openai]      # OpenAI auto-instrumentieren
+pip install jamjet[anthropic]   # oder Anthropic
+pip install jamjet[cloud-all]   # beides
+```
+
+---
+
+## 3. Initialisieren und ausführen
+
+Füge zwei Zeilen beim Prozessstart hinzu, bevor ein LLM-Call erfolgt:
+
+```python
+import jamjet.cloud as jamjet
+
+jamjet.configure(api_key="jj_xxxxxxxxxxxx", project="my-agent")
+```
+
+Jetzt werden deine bestehenden OpenAI-Calls automatisch erfasst:
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "hello"}],
+)
+```
+
+Öffne [**app.jamjet.dev/dashboard/traces**](https://app.jamjet.dev/dashboard/traces) — der Call erscheint innerhalb von ~5 Sekunden mit Modell, Token-Anzahl, Kosten und Dauer.
+
+---
+
+## 4. Governance hinzufügen (optional)
+
+### Tools nach Name blockieren
+
+```python
+jamjet.policy("block", "payments.*")
+jamjet.policy("require_approval", "delete_*")
+```
+
+Blockierte Tools werden herausgefiltert, bevor das Modell sie sieht. `require_approval` pausiert die Ausführung, bis ein Mensch im Dashboard genehmigt.
+
+### Ausgabenlimit setzen
+
+```python
+jamjet.budget(max_cost_usd=5.00)
+```
+
+Aufrufe, die das Budget überschreiten würden, lösen `BudgetExceeded` aus, anstatt ausgeführt zu werden.
+
+### Eigene Funktionen tracen
+
+```python
+@jamjet.trace
+def lookup_customer(customer_id: str) -> dict:
+    ...
+```
+
+Jeder Aufruf wird zu einem Span im selben Trace wie die umgebenden LLM-Aufrufe.
+
+### Human-in-the-Loop-Genehmigungen
+
+```python
+approval_id = jamjet.require_approval(
+    action="charge_card",
+    context={"amount_usd": 200, "customer": "cust_42"},
+    timeout_seconds=300,
+)
+```
+
+Blockiert, bis ein Prüfer unter **Approvals** im Dashboard genehmigt oder ablehnt.
+
+---
+
+## 5. Konfiguration
+
+`jamjet.configure(...)` akzeptiert:
+
+| Argument | Standard | Hinweise |
+|---|---|---|
+| `api_key` | erforderlich | Der `jj_...`-Schlüssel aus deinem Projekt |
+| `project` | `"default"` | Logische Gruppierung von Traces |
+| `api_url` | `https://api.jamjet.dev` | Überschreibung für Self-Hosted (wenn verfügbar) |
+| `auto_patch` | `True` | Deaktivieren, um automatische OpenAI/Anthropic-Instrumentierung zu überspringen |
+| `flush_interval` | `5.0` (Sek.) | Wie oft der Hintergrund-Thread Batches sendet |
+| `flush_size` | `50` | Batch-Größe, die sofortiges Senden auslöst |
+| `capture_io` | `False` | Wenn `True`, werden vollständige Prompt/Response-Payloads erfasst |
+
+Dieselben Optionen können über Umgebungsvariablen gesetzt werden: `JJ_API_KEY`, `JJ_PROJECT`, `JJ_API_URL`.
+
+---
+
+## 6. Was gesendet wird (und was nicht)
+
+Standardmäßig erfasst JamJet Cloud **Metadaten**: Modellname, Token-Anzahl, Latenz, Kostenschätzung, Tool-Namen, Status. Prompt- und Response-*Inhalte* werden **NICHT** gesendet, es sei denn, du setzt `capture_io=True`.
+
+Das SDK ist **fail-open**: Falls `api.jamjet.dev` nicht erreichbar ist, läuft dein Agent weiter. Fehlgeschlagene Batches werden mit exponentiellem Backoff wiederholt und nach 5 aufeinanderfolgenden Fehlversuchen verworfen (Circuit Breaker).
+
+---
+
+## 7. Was als Nächstes kommt
+
+Aktive Entwicklung. Den vollständigen Zeitplan finden Sie in der [Roadmap](https://jamjet.dev/cloud).
+
+- **Multi-Agent-Sichtbarkeit** — Agent-Identität, agentenübergreifende Trace-Propagierung, Netzwerkgrafik-Ansicht der Kommunikation zwischen Ihren Agenten (Phase 1 / Q3 2026).
+- **Java SDK** — gleiche Drop-in-Integration für Spring AI / LangChain4j (Phase 1).
+- **Zentrale Policy-Durchsetzung** — serverseitige Policy-Entscheidungen, auditierte Delegationsketten.
+- **Hosted Memory** — Engram in Cloud integriert, pro Agent abgegrenzt, gemeinsam über eine Agent-Flotte genutzt.
+- **Replay** — beliebige Traces aus dem Dashboard mit aufgezeichneten Eingaben erneut ausführen.
+- **OTel GenAI Ingestion** — Ihre bereits mit Phoenix / OpenLLMetry / Langfuse instrumentierten Apps auf JamJet ausrichten, ohne SDK-Migration.
+
+---
+
+## Troubleshooting
+
+| Symptom | Ursache |
+|---|---|
+| Aufrufe werden nicht angezeigt | 5 Sekunden warten (Flush-Intervall). Falls weiterhin fehlend, prüfen Sie, ob der API-Key mit Ihrem Projekt übereinstimmt. |
+| `RuntimeError: JamJet Cloud not configured` | `jamjet.configure()` wurde vor dem ersten LLM-Aufruf nicht aufgerufen. |
+| `BudgetExceeded` | Ein Aufruf würde die kumulierten Kosten über `budget(max_cost_usd=...)` drücken. Erhöhen oder entfernen. |
+| Anthropic-Aufrufe werden nicht erfasst | `pip install jamjet[anthropic]` — Auto-Patching ist davon abhängig, dass das SDK importierbar ist. |
+| OpenAI-Aufrufe werden nicht erfasst | `pip install jamjet[openai]`. Das SDK patcht `OpenAI().chat.completions.create` auf Klassenebene — sowohl Modul- als auch Instanz-Nutzung werden erfasst. |
+| 401 von der API | Key wurde rotiert oder ist falsch. Erstellen Sie ein neues Projekt unter [app.jamjet.dev/dashboard/settings](https://app.jamjet.dev/dashboard/settings). |
+| 429 von der API | Sie werden rate-limitiert. Standard ist 100 req/sec pro API-Key. Kontaktieren Sie uns via Discord oder `support@jamjet.dev` zur Erhöhung. |

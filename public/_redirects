@@ -1,5 +1,18 @@
 / /en 301
 
+# Bare-path shortcuts — let users type /cloud, /open-source/quickstart, etc.
+# without needing the /en/docs/ prefix. Defaults to English.
+/cloud            /en/docs/cloud            302
+/cloud/*          /en/docs/cloud/:splat     302
+/open-source      /en/docs/open-source      302
+/open-source/*    /en/docs/open-source/:splat 302
+/integrations     /en/docs/integrations     302
+/integrations/*   /en/docs/integrations/:splat 302
+/reference        /en/docs/reference        302
+/reference/*      /en/docs/reference/:splat 302
+/docs             /en/docs                  302
+/docs/*           /en/docs/:splat           302
+
 # Cloud quickstart — highest-traffic legacy URL
 /:lang/docs/quickstart              /:lang/docs/cloud/get-started/quickstart        301
 /:lang/docs/cloud-quickstart        /:lang/docs/cloud/get-started/quickstart        301

@@ -38,14 +38,10 @@ export default async function Layout({
         url: `/${lang}`,
       }}
       links={[
-        { text: 'Website', url: 'https://jamjet.dev' },
-        { text: 'Blog', url: 'https://jamjet.dev/blog' },
-        { text: 'Research', url: 'https://jamjet.dev/research' },
-        {
-          text: 'GitHub',
-          url: 'https://github.com/jamjet-labs/jamjet',
-          external: true,
-        },
+        { text: 'Cloud',        url: `/${lang}/docs/cloud` },
+        { text: 'Open Source',  url: `/${lang}/docs/open-source` },
+        { text: 'Integrations', url: `/${lang}/docs/integrations` },
+        { text: 'Reference',    url: `/${lang}/docs/reference` },
       ]}
       sidebar={{
         defaultOpenLevel: 1,

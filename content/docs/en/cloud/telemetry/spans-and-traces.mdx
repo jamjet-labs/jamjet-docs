@@ -1,0 +1,188 @@
+---
+title: Spans & Traces
+description: Every LLM call captured as a span. Wire format, sampling, redaction, traces.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Spans & Traces
+
+A **span** is the primary unit of observation in JamJet Cloud. Every call made through a wrapped LLM client produces one span. Spans carry identity, cost, latency, and governance signals in a single structured record — the same record the dashboard uses for cost breakdowns, the audit trail, and the network graph.
+
+## Wire format
+
+Each span is emitted as a JSON object with the following attributes:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `trace_id` | `string` | W3C-compatible trace identifier. Shared across all spans in a single request chain. |
+| `span_id` | `string` | Unique identifier for this span. |
+| `kind` | `string` | Always `'llm_call'` for LLM spans. |
+| `name` | `string` | Provider and model, e.g. `'openai.gpt-4o'`, `'anthropic.claude-3-5-sonnet'`. |
+| `model` | `string` | The model string as passed to the provider. |
+| `input_tokens` | `number` | Prompt token count reported by the provider. |
+| `output_tokens` | `number` | Completion token count reported by the provider. |
+| `cost_usd` | `number` | Estimated cost in USD calculated from token counts and model pricing. |
+| `agent_name` | `string` | Name of the agent that made this call. See [Agents](/cloud/governance/agents). |
+| `user_id` | `string` | End-user identifier from [User Context](/cloud/telemetry/user-context). |
+| `user_email` | `string` | Optional email from user context. |
+| `user_attrs` | `object` | Free-form attributes from user context (`plan`, `region`, etc.). |
+| `policy_decisions` | `array` | Array of `{ tool_name, policy_kind, pattern }` entries. One entry per tool matched by a policy rule. |
+| `policy_blocked_tool_calls` | `array` | Tool calls that were blocked post-decision. |
+| `approval_id` | `string` | Present when the span is associated with a human approval gate. See [Approvals](/cloud/governance/approvals). |
+| `budget_check` | `object` | `{ estimated, allowed }` — present when a budget check ran before this call. See [Budgets](/cloud/governance/budgets). |
+| `environment` | `string` | Deployment environment tag. See [Process Context](/cloud/telemetry/process-context). |
+| `release_version` | `string` | Release or commit SHA tag. See [Process Context](/cloud/telemetry/process-context). |
+| `source` | `string` | `'middleware'` for direct SDK calls; `'otel'` for spans from the OTel exporter via `@jamjet/cloud-vercel`. |
+
+## Trace linkage
+
+Spans that share a `trace_id` form a trace. When your application chains multiple LLM calls — a researcher agent feeding a writer agent, for example — JamJet propagates the `trace_id` across the chain so every span in that request appears as a single connected trace in the dashboard. Propagation is automatic via AsyncLocalStorage; no manual instrumentation is required.
+
+If you use `@jamjet/cloud-vercel`, the W3C `traceparent` header is read on ingress and used to link spans across service boundaries.
+
+## Sampling
+
+By default every span is emitted. For high-volume production deployments you can reduce ingestion by configuring a sampling rate at `init()` time. Two overrides ensure that operationally important spans are never dropped regardless of the rate.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+    sampling: {
+      rate: 0.1,                 // keep 10 % of spans
+      alwaysKeepErrors: true,    // never drop spans where the LLM call failed
+      alwaysKeepApprovals: true, // never drop spans with an approval_id
+    },
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+    sampling={
+      'rate': 0.1,                   # keep 10 % of spans
+      'always_keep_errors': True,    # never drop spans where the LLM call failed
+      'always_keep_approvals': True, # never drop spans with an approval_id
+    },
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+`rate` is a float in the range `[0, 1]`. A value of `1.0` (the default) keeps every span. A value of `0.0` drops everything except spans protected by the `alwaysKeep*` flags.
+
+## Redaction
+
+Span payloads include prompt and completion text by default. If your users send PII in prompts, enable redaction to scrub recognised patterns before spans leave the process.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+    redact: true,
+    redactTypes: ['email', 'ssn', 'phone'],
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+    redact=True,
+    redact_types=['email', 'ssn', 'phone'],
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+Recognised `redactTypes` values: `'email'`, `'ssn'`, `'phone'`, `'credit_card'`, `'ip_address'`. Matched values are replaced with `[REDACTED:<type>]` in the span payload before transmission. Token counts and cost figures are unaffected — only the text fields are scrubbed.
+
+Redaction is applied in-process before the span is sent over the network. No raw payload reaches JamJet Cloud servers when redaction is enabled.
+
+## Full initialisation example
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, wrap, setProcessContext } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+    sampling: { rate: 0.5, alwaysKeepErrors: true, alwaysKeepApprovals: true },
+    redact: true,
+    redactTypes: ['email', 'phone'],
+  })
+
+  setProcessContext({
+    environment: process.env.NODE_ENV ?? 'development',
+    releaseVersion: process.env.GIT_SHA ?? 'unknown',
+  })
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+    sampling={'rate': 0.5, 'always_keep_errors': True, 'always_keep_approvals': True},
+    redact=True,
+    redact_types=['email', 'phone'],
+  )
+
+  jamjet.set_process_context(
+    environment=os.environ.get('NODE_ENV', 'development'),
+    release_version=os.environ.get('GIT_SHA', 'unknown'),
+  )
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+## Next steps
+
+<Cards>
+  <Card title="User Context" href="/cloud/telemetry/user-context" description="Map every span to the end user that triggered it." />
+  <Card title="Process Context" href="/cloud/telemetry/process-context" description="Tag all spans with environment and release version." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Search, filter, and export spans in the dashboard." />
+  <Card title="Agents" href="/cloud/governance/agents" description="Named identities that appear on every span." />
+</Cards>

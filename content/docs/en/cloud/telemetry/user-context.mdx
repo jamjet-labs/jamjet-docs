@@ -1,0 +1,189 @@
+---
+title: User Context
+description: Per-request user attribution for SaaS apps. Maps every span to the end user that triggered it.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# User Context
+
+When you build a SaaS product on top of LLMs, every span in JamJet Cloud is attributed to your project — but not automatically to the specific end user that triggered it. User context fills that gap. Set it per HTTP request and every span produced inside that request carries `user_id`, `user_email`, and any custom attributes you attach. This lets you filter the dashboard by user, investigate a support ticket, track per-user spend, and identify abuse patterns.
+
+## The context shape
+
+```typescript
+type UserContext = {
+  userId: string                                    // required — stable identifier
+  email?: string                                    // optional
+  attrs?: Record<string, string | number | boolean> // optional free-form tags
+}
+```
+
+`userId` is the only required field. Use a value that is stable across sessions — a database primary key or a UUID from your auth system. `attrs` accepts any flat map of strings, numbers, or booleans. Common uses: `plan`, `region`, `org_id`, `feature_flag`.
+
+## `withUserContext` — per-request scoping
+
+The recommended pattern for server applications. Wrap each request handler in `withUserContext` and every LLM call inside that handler is automatically tagged with the user — including calls nested inside agent scopes or helper functions.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import express from 'express'
+  import { withUserContext } from '@jamjet/cloud'
+
+  const app = express()
+
+  // Middleware: set user context from your auth layer before any route handler runs
+  app.use((req, res, next) => {
+    if (!req.user) return next()
+    withUserContext(
+      {
+        userId: req.user.id,
+        email: req.user.email,
+        attrs: {
+          plan: req.user.plan,        // 'free' | 'pro' | 'enterprise'
+          region: req.user.region,
+        },
+      },
+      () => next(),
+    )
+  })
+
+  app.post('/chat', async (req, res) => {
+    // Every LLM call here is attributed to req.user.id
+    const reply = await openai.chat.completions.create({ /* ... */ })
+    res.json({ reply })
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from fastapi import FastAPI, Request
+  import jamjet.cloud as jamjet
+
+  app = FastAPI()
+
+  @app.middleware('http')
+  async def user_context_middleware(request: Request, call_next):
+      user = getattr(request.state, 'user', None)
+      if user is None:
+          return await call_next(request)
+
+      async with jamjet.with_user_context({
+          'user_id': user.id,
+          'email': user.email,
+          'attrs': {
+              'plan': user.plan,
+              'region': user.region,
+          },
+      }):
+          return await call_next(request)
+
+  @app.post('/chat')
+  async def chat(request: Request):
+      # Every LLM call here is attributed to user.id
+      reply = client.chat.completions.create(...)
+      return {'reply': reply}
+  ```
+
+  </Tab>
+</Tabs>
+
+`withUserContext` uses AsyncLocalStorage (ALS) under the hood. It propagates across `await` points and into nested async calls automatically. No need to thread a user object through function arguments.
+
+## Next.js example
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  // app/api/chat/route.ts
+  import { auth } from '@/lib/auth'
+  import { withUserContext } from '@jamjet/cloud'
+  import { NextRequest, NextResponse } from 'next/server'
+
+  export async function POST(req: NextRequest) {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    return withUserContext(
+      { userId: session.user.id, email: session.user.email ?? undefined },
+      async () => {
+        const body = await req.json()
+        const reply = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: body.messages,
+        })
+        return NextResponse.json(reply)
+      },
+    )
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  # No direct Next.js equivalent; use FastAPI middleware example above
+  # or adapt for your ASGI framework of choice
+  ```
+
+  </Tab>
+</Tabs>
+
+## `setUserContext` — process-level override
+
+`setUserContext` sets user context for the entire process rather than a single request scope. Use it only in situations where there is genuinely one user for the lifetime of the process — a single-user CLI tool or an admin script. For any server application with multiple concurrent users, use `withUserContext` instead.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { setUserContext } from '@jamjet/cloud'
+
+  // CLI tool: only ever one user per process
+  setUserContext({ userId: 'admin', attrs: { role: 'ops' } })
+
+  // Clear it when done (rare in practice for CLIs)
+  setUserContext(null)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  # CLI tool: only ever one user per process
+  jamjet.set_user_context({'user_id': 'admin', 'attrs': {'role': 'ops'}})
+
+  # Clear when done
+  jamjet.set_user_context(None)
+  ```
+
+  </Tab>
+</Tabs>
+
+If both `setUserContext` and `withUserContext` are active, the `withUserContext` ALS scope takes precedence for spans emitted inside it.
+
+## How user context appears in the dashboard
+
+Once spans carry `user_id`, the dashboard exposes several user-centric views:
+
+- **Audit Trail** — filter by `user_id` to see all LLM calls for a specific user. Useful for support tickets and abuse investigations.
+- **Cost view** — aggregate `cost_usd` grouped by `user_id` to produce per-user spend reports.
+- **Network Graph** — filter by user to isolate the agent chains that served a particular request.
+- **Search** — full-text and attribute search on `user_id`, `user_email`, and any key in `user_attrs`.
+
+## Next steps
+
+<Cards>
+  <Card title="Process Context" href="/cloud/telemetry/process-context" description="Tag all spans with environment and release version." />
+  <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="Full wire format — every attribute a span carries." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Search and filter spans by user in the dashboard." />
+  <Card title="Agents" href="/cloud/governance/agents" description="Named agent identities that appear alongside user_id." />
+</Cards>

@@ -5,29 +5,25 @@ const BASE_URL = 'https://docs.jamjet.dev';
 const locales = ['en', 'ja', 'zh', 'ko', 'es', 'de'];
 const docsDir = 'content/docs/en';
 
-// Get all doc slugs from English content
-function getDocSlugs() {
+// Recursively collect all doc slugs relative to docsDir
+function collectSlugs(dir, prefix) {
   const slugs = [];
-  const entries = readdirSync(docsDir);
-  for (const entry of entries) {
-    const path = join(docsDir, entry);
-    const stat = statSync(path);
+  for (const entry of readdirSync(dir)) {
+    const fullPath = join(dir, entry);
+    const stat = statSync(fullPath);
     if (stat.isFile() && (entry.endsWith('.mdx') || entry.endsWith('.md'))) {
-      const slug = entry.replace(/\.(mdx|md)$/, '');
+      const slug = (prefix ? prefix + '/' : '') + entry.replace(/\.(mdx|md)$/, '');
       if (slug !== 'index') slugs.push(slug);
-    }
-    if (stat.isDirectory()) {
-      // Handle subdirectories like migrate/
-      const subEntries = readdirSync(path);
-      for (const sub of subEntries) {
-        if (sub.endsWith('.mdx') || sub.endsWith('.md')) {
-          const subSlug = sub.replace(/\.(mdx|md)$/, '');
-          slugs.push(`${entry}/${subSlug}`);
-        }
-      }
+    } else if (stat.isDirectory()) {
+      slugs.push(...collectSlugs(fullPath, prefix ? prefix + '/' + entry : entry));
     }
   }
   return slugs;
+}
+
+// Get all doc slugs from English content
+function getDocSlugs() {
+  return collectSlugs(docsDir, '');
 }
 
 const slugs = getDocSlugs();

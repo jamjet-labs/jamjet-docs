@@ -1,0 +1,160 @@
+---
+title: Vercel AI SDK
+description: Add JamJet Cloud governance to streamText / generateText with one line of middleware. Streaming-aware enforcement.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+
+# Vercel AI SDK
+
+`@jamjet/cloud-vercel` provides a [`wrapLanguageModel`](https://ai-sdk.dev/docs/reference/ai-sdk-core/wrap-language-model) middleware that adds JamJet Cloud governance to any AI SDK 5.x call — `streamText`, `generateText`, `generateObject`, all of them. Streaming-aware: policy enforcement runs as tool-call events stream from the model.
+
+## Install
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add @jamjet/cloud @jamjet/cloud-vercel
+    ```
+  </Tab>
+  <Tab value="npm">
+    ```bash
+    npm install @jamjet/cloud @jamjet/cloud-vercel
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add @jamjet/cloud @jamjet/cloud-vercel
+    ```
+  </Tab>
+</Tabs>
+
+Peer deps: `ai >=5 <6`, `@jamjet/cloud >=0.2.0`. The `@opentelemetry/*` peers are optional — only needed for the telemetry exporter (see below).
+
+## Quick example
+
+```typescript
+import { wrapLanguageModel, streamText } from 'ai'
+import { openai } from '@ai-sdk/openai'
+import { init, agent, policy, withAgent } from '@jamjet/cloud'
+import { jamjetMiddleware } from '@jamjet/cloud-vercel'
+
+init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+policy('block', 'wire_*')
+
+const model = wrapLanguageModel({
+  model: openai('gpt-4o'),
+  middleware: jamjetMiddleware(),
+})
+
+await withAgent(agent('researcher'), async () => {
+  const result = await streamText({
+    model,
+    messages: [{ role: 'user', content: 'Hello!' }],
+    tools: { /* your tools */ },
+  })
+  for await (const chunk of result.textStream) {
+    process.stdout.write(chunk)
+  }
+})
+```
+
+## What the middleware does
+
+On every call (both `wrapGenerate` for non-streaming and `wrapStream` for streaming):
+
+1. **Pre-call tool filter** — strips tools matched by a `block` policy out of the request body before it reaches the model.
+2. **Pre-call budget check** — estimates cost from prompt tokens; throws `JamjetBudgetExceeded` if the call would exceed the project ceiling.
+3. **Span open** — attribution from the active agent + user context.
+4. **Stream wrapping** (streaming only) — `tool-call` stream parts are evaluated mid-stream. Blocked tool-calls throw `JamjetPolicyBlocked` via `controller.error()` — your `for await` loop throws.
+5. **Post-call cost** — actual cost computed from `usage.inputTokens` / `usage.outputTokens` on the `finish` event, recorded against the budget.
+6. **Span recorded** with `source: 'middleware'`.
+
+## Identity overrides
+
+`jamjetMiddleware()` accepts `agent` and `user` overrides for runtimes without `AsyncLocalStorage` (edge runtimes like Cloudflare Workers, Vercel Edge):
+
+```typescript
+import { agent } from '@jamjet/cloud'
+
+const model = wrapLanguageModel({
+  model: openai('gpt-4o'),
+  middleware: jamjetMiddleware({
+    agent: agent('explicit-agent'),
+    user: { userId: 'u_42' },
+  }),
+})
+```
+
+Resolution order: factory override → ALS context (`withAgent`/`withUserContext`) → `init({ agent: 'default' })` default.
+
+## Telemetry exporter (optional)
+
+`@jamjet/cloud-vercel` also includes an OTel `SpanProcessor` for the AI SDK's `experimental_telemetry` option. Use this to forward AI SDK telemetry spans into JamJet without using the middleware:
+
+```typescript
+import { trace } from '@opentelemetry/api'
+import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
+import { registerJamjetTelemetry } from '@jamjet/cloud-vercel'
+
+const provider = new BasicTracerProvider()
+trace.setGlobalTracerProvider(provider)
+
+registerJamjetTelemetry()
+
+// Now every AI SDK call with experimental_telemetry: { isEnabled: true } emits to JamJet
+const result = await generateText({
+  model: openai('gpt-4o'),
+  experimental_telemetry: { isEnabled: true, functionId: 'plan3-smoke-greet' },
+  messages: [{ role: 'user', content: 'Hi!' }],
+})
+```
+
+The exporter is **idempotent** — calling `registerJamjetTelemetry()` twice is a no-op.
+
+### Customizing which span names get forwarded
+
+By default, the exporter forwards spans matching common AI SDK span names (`ai.generateText`, `ai.streamText`, `ai.generateObject`, etc.). To customize:
+
+```typescript
+registerJamjetTelemetry({
+  spanNames: ['ai.generateText', 'my-custom-span'],
+})
+```
+
+Or pass your own `SpanProcessor` if you have a custom OTel pipeline:
+
+```typescript
+registerJamjetTelemetry({
+  spanProcessor: myCustomProcessor,
+})
+```
+
+## Streaming behavior — closes the Plan 2 gap
+
+`@jamjet/cloud@0.2.x` (the bare SDK) couldn't enforce policies mid-stream because it operated below the AI SDK's stream abstraction — by the time it saw chunks, they were already fragmented. The Vercel adapter sits at the right level: stream parts are typed (`text`, `tool-call`, `finish`, `error`) and the middleware can inspect each one as it flows through.
+
+When a `tool-call` part matches a `block` policy, the adapter calls `controller.error(new JamjetPolicyBlocked(...))` on the transform stream — your consumer's `for await` loop throws like a normal error. Earlier `text` and `tool-call-delta` parts that streamed before the block remain delivered (the consumer can render partial text up to the failure point).
+
+## Composition with telemetry
+
+You can use both middleware and `registerJamjetTelemetry` simultaneously. The middleware emits spans with `source: 'middleware'`; the telemetry exporter emits spans with `source: 'otel'`. Server-side dedupe (by trace_id) is JamJet Cloud's responsibility — both spans appear in your dashboard with distinct labels for clarity.
+
+## Errors
+
+| Error | When | Class from |
+|---|---|---|
+| `JamjetBudgetExceeded` | pre-call estimate exceeds the budget | `@jamjet/cloud` |
+| `JamjetPolicyBlocked` | tool-call (mid-stream or post-decision) matches a `block` policy | `@jamjet/cloud` |
+| `JamjetApprovalRejected` / `JamjetApprovalTimeout` | only when `requireApproval` is invoked alongside | `@jamjet/cloud` |
+
+Catch them as you would any other error in your `for await` loop or after `await streamText(...)`.
+
+## Versioning
+
+- `@jamjet/cloud-vercel` major version tracks AI SDK majors (1.x for AI SDK 4, 0.x for AI SDK 5 — current).
+- AI SDK 4.x users: keep using `@jamjet/cloud` with the OpenAI/Anthropic auto-patcher (the bare SDK works without the adapter).
+
+## Source
+
+[github.com/jamjet-labs/jamjet/tree/main/sdk/typescript/packages/cloud-vercel](https://github.com/jamjet-labs/jamjet/tree/main/sdk/typescript/packages/cloud-vercel)

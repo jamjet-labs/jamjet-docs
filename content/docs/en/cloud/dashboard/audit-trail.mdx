@@ -1,0 +1,81 @@
+---
+title: Audit Trail
+description: Search, filter, and export every span. Compliance-ready audit log.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Audit Trail
+
+The Audit Trail is the complete, immutable record of every span JamJet Cloud has received for your project. Every LLM call, every tool invocation, every policy decision, and every approval outcome lands here. You can search, filter, and export it — making it the primary surface for compliance reviews, incident postmortems, and cost investigations.
+
+## Span search
+
+The search bar at the top of the Audit Trail accepts free-text queries that match against agent names, model identifiers, user IDs, policy names, and span metadata. Typing `gpt-4o` returns all spans that used that model. Typing an agent name returns all spans emitted by that agent. Typing a user ID — if you use [User Context](/cloud/telemetry/user-context) — returns everything attributed to that user.
+
+Search results are ordered newest-first by default. You can reverse the order or sort by cost or latency using the column headers.
+
+## Filters
+
+Filters narrow the result set before or after a text search. They compose: all active filters are applied simultaneously.
+
+**Span attributes:**
+- Agent — one or more named agents.
+- User — a specific `user_id` (requires User Context in the SDK).
+- Model — e.g., `gpt-4o`, `claude-3-7-sonnet`, `gemini-2.5-pro`.
+- Cost — a minimum and/or maximum cost in USD per span.
+- Time range — absolute timestamps or relative windows (last 1h, 24h, 7d, or custom).
+
+**Approval status:**
+- `approved` — a human approved the action via `requireApproval`.
+- `rejected` — a human rejected the action.
+- `timed_out` — the approval request expired before a human acted.
+- `not_required` — the span completed without triggering an approval gate.
+
+**Policy decision:**
+- `allow` — the policy evaluated and permitted the tool call.
+- `block` — the policy blocked the tool call before it executed.
+- `require_approval` — the policy escalated to a human gate.
+
+Combining a `block` policy filter with a specific agent filter is the fastest way to answer "which tool calls did this agent attempt that my policies stopped?"
+
+## Span detail
+
+Clicking any row in the Audit Trail opens the span detail panel. It shows:
+
+- The full request payload sent to the model (masked if you have configured data redaction).
+- The full response, including tool calls and their arguments.
+- Timing breakdown: time to first token, total latency, prompt and completion token counts.
+- Cost in USD, computed from the model's published token prices at call time.
+- Policy decisions that evaluated against this span, with the matching rule and outcome.
+- Approval record if one was required — who approved or rejected, when, and any rejection reason they entered.
+- Agent, user, environment, and process context attributes.
+
+## Export
+
+The **Export** button above the results table produces a download in your choice of CSV or JSON. The export respects all active filters and the current search query — what you see is what you export.
+
+Use cases for export:
+
+- **SOC 2 audit windows.** Set the time range to the audit period, optionally filter to production, and export JSON. The result is a machine-readable record of every model interaction in that window, including cost, model, agent, and policy outcome.
+- **Incident postmortems.** Export the narrow time window of an incident for offline analysis or attachment to a post-mortem document.
+- **Billing reconciliation.** Export all spans for a billing period and sum `cost_usd` to cross-check against model provider invoices.
+
+Exports are synchronous for result sets under approximately 10,000 spans. Larger exports are queued and delivered via a download link sent to your account email.
+
+## Retention
+
+Span retention varies by plan tier:
+
+- **Free tier** — 7 days of rolling retention. Spans older than 7 days are automatically deleted.
+- **Paid tiers** — longer retention windows, configurable in **Settings → Data & Retention**. Check the current plan comparison at [app.jamjet.dev](https://app.jamjet.dev) for exact retention limits, as these may change.
+
+> If you need to preserve spans beyond your retention window, export them before the cutoff. JamJet does not offer retroactive exports after deletion.
+
+## Next steps
+
+<Cards>
+  <Card title="Policies" href="/cloud/governance/policies" description="Define block / allow / require-approval rules that appear in the policy decision filter." />
+  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop gates whose outcomes are recorded in the audit trail." />
+  <Card title="Network Graph" href="/cloud/dashboard/network-graph" description="Visualise the agent topology behind the spans in the audit trail." />
+</Cards>

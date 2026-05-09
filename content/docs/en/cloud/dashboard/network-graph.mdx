@@ -1,0 +1,64 @@
+---
+title: Network Graph
+description: Multi-agent visualization. See which agent did what, when, and to whom.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Network Graph
+
+The Network Graph at **app.jamjet.dev/projects/&lt;id&gt;/graph** is a live-updating canvas that shows how agents in your system relate to one another. It answers the questions that logs cannot: which agent handed off to which other agent, how many hops a request took, where in the chain a policy blocked a tool call, and which agents are the most heavily connected.
+
+## Reading the graph
+
+Every node on the canvas represents a named agent — a distinct identity you declare with [`agent()`](/cloud/governance/agents). Every edge represents an interaction: a tool call from one agent to another, a span emitted while one agent was running inside another's scope, or an explicit handoff in a multi-agent workflow.
+
+Node size scales with span volume. Thicker edges mean more interactions between those two agents in the selected time window. A node with no outgoing edges is a leaf agent — it consumes context but does not delegate further.
+
+Clicking a node opens the **agent detail panel**: a chronological list of every span that agent emitted in the current time window, with cost, model, latency, and policy outcome for each. Clicking an edge opens the **edge detail panel**: the subset of spans that crossed that specific agent-to-agent boundary, ordered by time.
+
+## Time-range scoping
+
+The time-range picker in the top-right of the graph controls which spans are included. Available windows:
+
+- **Last 1 hour** — default. Useful during active development or incident triage.
+- **Last 24 hours** — broad view of a single day's traffic.
+- **Last 7 days** — architecture review and longer-running incident analysis.
+- **Custom range** — pick any start and end time. The graph recomputes for that window.
+
+Narrowing the time range is the most effective way to isolate an incident: set the window to the exact interval where anomalous behaviour occurred, then inspect which agents were active and which edges were hot.
+
+## Filters
+
+Three filter controls sit above the canvas:
+
+- **Agent filter** — show only the selected agent(s) and their direct neighbours. Useful when you have many agents and want to focus on one service boundary.
+- **User filter** — show only the call chains that served a specific end user. Requires [User Context](/cloud/telemetry/user-context) to be set by the SDK. When a user filter is active, edges and nodes not touched by any span attributed to that user are greyed out.
+- **Environment filter** — if you tag spans with `environment` via [Process Context](/cloud/telemetry/process-context), you can restrict the graph to `production`, `staging`, or any other value you use.
+
+Filters compose: you can show user `u_123` in the `production` environment over the last 24 hours simultaneously.
+
+## Coordinator scoring annotations
+
+When your call chain includes a JamJet open-source [Coordinator Node](/open-source/research/coordinator), the dashboard renders additional annotations on the edges that flow through it. These annotations show the scoring delta the coordinator computed when selecting which downstream agent to delegate to — the numeric difference between the top-ranked agent and the next alternative.
+
+A large delta indicates the coordinator had high confidence in its routing decision. A small delta means it was a close call — worth reviewing if the downstream agent underperformed. The annotations are only visible when the coordinator emits structured scoring spans; pure heuristic routing does not produce them.
+
+## Use cases
+
+**Incident postmortems.** Set the time range to the incident window and apply an environment filter for production. The graph immediately surfaces which agents were involved and which edges carried the most traffic. Click into hot edges to find the exact spans where latency spiked or a policy blocked a tool call.
+
+**Architecture review.** Switch to a 7-day window in production. The graph reveals your actual agent topology — not the one you designed, but the one that emerged. Nodes with unexpectedly high connectivity, cycles between agents, and leaf agents that should be active sub-orchestrators all become visible.
+
+**Agent-to-agent dependency tracing.** When you add a new agent to the system, watch the graph over the first 24 hours to confirm it connects to the agents you intended and does not unexpectedly reach agents it should not.
+
+**Per-user support tickets.** Apply the user filter for the reporting user's ID. The graph shows only the call chain that served that user's requests, making it straightforward to trace what happened, in what order, and where something went wrong.
+
+## Next steps
+
+<Cards>
+  <Card title="Agents" href="/cloud/governance/agents" description="Create named agent identities that appear as nodes in the graph." />
+  <Card title="User Context" href="/cloud/telemetry/user-context" description="Attribute call chains to end users for per-user graph filtering." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Span search and export for the interactions the graph surfaces." />
+  <Card title="Coordinator Node" href="/open-source/research/coordinator" description="Open-source routing node whose scoring deltas appear on graph edges." />
+</Cards>

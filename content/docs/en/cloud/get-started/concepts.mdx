@@ -1,0 +1,84 @@
+---
+title: Concepts
+description: The five primitives of JamJet Cloud — Span, Agent, Policy, Budget, Approval.
+---
+
+# Cloud Concepts
+
+JamJet Cloud has five core primitives. This page is a one-page tour. Each section links to deeper documentation.
+
+## Span
+
+A **span** is a single unit of observed work — typically one LLM call. Spans carry:
+
+- The model, the prompt, the response (full payloads, opt-in via `capture_io=True`)
+- The agent that produced it
+- The user context, environment, release version
+- Token counts, latency, cost in USD
+- Any policy decisions or approvals that applied
+
+You don't create spans manually. The SDK creates one per wrapped LLM call.
+
+[→ Spans & Traces](/cloud/telemetry/spans-and-traces)
+
+## Agent
+
+An **agent** is a named identity. Spans are tagged with the agent that produced them. You can have a single default agent or many — `researcher`, `writer-bot`, `code-reviewer`. The dashboard renders agents as nodes in a network graph.
+
+```typescript
+import { agent, withAgent } from '@jamjet/cloud'
+
+const researcher = agent('researcher', { description: 'reads + summarises' })
+
+await withAgent(researcher, async () => {
+  // every span emitted here is tagged researcher
+  await openai.chat.completions.create(/* ... */)
+})
+```
+
+[→ Agents](/cloud/governance/agents)
+
+## Policy
+
+A **policy** is a rule that controls which tools an LLM can call. Policies match by glob.
+
+```typescript
+import { policy } from '@jamjet/cloud'
+
+policy('block', 'wire_*')                  // block any tool starting with wire_
+policy('require_approval', 'send_email')   // gate this tool with an approval
+```
+
+Policies enforce both **pre-call** (filter the tool list before sending to the LLM) and **post-decision** (re-check tool calls in the response). Both required-approval and blocked tools are recorded in the span.
+
+[→ Policies](/cloud/governance/policies)
+
+## Budget
+
+A **budget** is a cost ceiling. JamJet pre-checks every call against it and throws `JamjetBudgetExceeded` if the call would push you over.
+
+```typescript
+import { budget } from '@jamjet/cloud'
+
+budget(50)   // $50 ceiling for this project
+```
+
+The pre-check uses an estimated cost from the prompt token count; actual cost is recorded post-call.
+
+[→ Budgets](/cloud/governance/budgets)
+
+## Approval
+
+An **approval** is a human-in-the-loop gate. `requireApproval('production_deploy')` blocks until a human approves or rejects in the dashboard.
+
+```typescript
+import { requireApproval } from '@jamjet/cloud'
+
+const approvalId = await requireApproval('production_deploy', {
+  context: { service: 'auth-api', version: '2.3.1' },
+  timeoutMs: 600_000,   // 10 minutes
+})
+// proceeds only if approved; throws JamjetApprovalRejected on reject
+```
+
+[→ Approvals](/cloud/governance/approvals)

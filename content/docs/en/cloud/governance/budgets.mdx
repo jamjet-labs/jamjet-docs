@@ -1,0 +1,215 @@
+---
+title: Budgets
+description: Per-project cost ceilings. Pre-call estimation throws before billing; post-call records truth.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Budgets
+
+`budget(maxCostUsd)` sets a cost ceiling for your project. JamJet enforces it in two phases: a **pre-call estimation** that throws before the LLM is even contacted if the projected spend would exceed the ceiling, and a **post-call recording** that updates the running total with the actual cost from `response.usage`.
+
+## Setting a budget
+
+Pass a positive USD number to `budget()`. Call it once at startup, after `init()`.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, budget, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  budget(50)   // $50 ceiling for this project
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  jamjet.budget(max_cost_usd=50)   # $50 ceiling for this project
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+The budget applies to all wrapped calls in the process. It is per-process, not per-API-key — different processes with the same key each have independent ceilings.
+
+## Pre-call estimation
+
+Before sending a request to the LLM, JamJet estimates the cost of the call from the prompt token count using a model-keyed price table. If the estimated total spend (cumulative across the process lifetime) would exceed the ceiling, `JamjetBudgetExceeded` is thrown immediately — the LLM is never called and no charges are incurred.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetBudgetExceeded } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Long prompt...' }],
+    })
+  } catch (err) {
+    if (err instanceof JamjetBudgetExceeded) {
+      console.error(
+        `Budget exceeded. Spent: $${err.spent.toFixed(4)}, Limit: $${err.limit.toFixed(2)}`
+      )
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetBudgetExceeded
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Long prompt...'}],
+      )
+  except JamjetBudgetExceeded as err:
+      print(f'Budget exceeded. Spent: ${err.spent:.4f}, Limit: ${err.limit:.2f}')
+  ```
+
+  </Tab>
+</Tabs>
+
+## JamjetBudgetExceeded fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `spent` | `number` | Cumulative USD spend recorded so far in this process |
+| `limit` | `number` | The ceiling set via `budget()` |
+
+Both values are in USD. `spent` reflects actual post-call costs from previous calls plus the pre-call estimate for the call that triggered the exception.
+
+## Post-call recording
+
+When a call completes successfully, JamJet reads `response.usage.input_tokens` and `response.usage.output_tokens` from the response, computes the actual cost using the same price table, and updates the running total. The pre-call estimate is replaced by the actual cost in the span.
+
+This means the running total is always grounded in real billing data from the API, not just estimates.
+
+## Changing the ceiling
+
+Call `budget(N)` again at any point to replace the current ceiling. The running total is not reset — only the ceiling changes. To effectively reset, set a new ceiling equal to the current limit plus however much additional spend you want to allow.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  // Initial ceiling
+  budget(50)
+
+  // ... after approval from a human operator ...
+
+  // Raise ceiling to $100
+  budget(100)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  # Initial ceiling
+  jamjet.budget(max_cost_usd=50)
+
+  # ... after approval from a human operator ...
+
+  # Raise ceiling to $100
+  jamjet.budget(max_cost_usd=100)
+  ```
+
+  </Tab>
+</Tabs>
+
+## Model recognition limitation
+
+JamJet uses an internal price table keyed by model name (e.g. `gpt-4o`, `claude-3-5-sonnet-20241022`). If the model name in a request is not in the table — for example, a newly released model or a custom fine-tune — the estimated cost is treated as **$0**.
+
+A $0 estimate means the budget gate effectively allows the call, even if actual billing turns out to be significant. The post-call recording still updates the running total with the real cost, so subsequent calls will be gate-checked accurately.
+
+To verify that your model is recognized, check the dashboard span for a non-zero `cost_usd` value on a completed call. If it shows `$0.0000` for a model that should be billable, open the project settings and file a model-table update request.
+
+## Combined example
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { init, budget, wrap, JamjetBudgetExceeded } from '@jamjet/cloud'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'research-pipeline' })
+  budget(5)   // $5 hard ceiling — useful for development
+
+  const openai = wrap(new OpenAI())
+
+  async function runResearch(prompt: string): Promise<string | null> {
+    try {
+      const res = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+      })
+      return res.choices[0].message.content
+    } catch (err) {
+      if (err instanceof JamjetBudgetExceeded) {
+        console.warn(`Research halted — budget exhausted ($${err.spent.toFixed(4)} / $${err.limit})`)
+        return null
+      }
+      throw err
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+  import jamjet.cloud as jamjet
+  from jamjet.cloud.errors import JamjetBudgetExceeded
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='research-pipeline')
+  jamjet.budget(max_cost_usd=5)   # $5 hard ceiling — useful for development
+
+  client = jamjet.wrap(OpenAI())
+
+  def run_research(prompt: str) -> str | None:
+      try:
+          res = client.chat.completions.create(
+              model='gpt-4o',
+              messages=[{'role': 'user', 'content': prompt}],
+          )
+          return res.choices[0].message.content
+      except JamjetBudgetExceeded as err:
+          print(f'Research halted — budget exhausted (${err.spent:.4f} / ${err.limit})')
+          return None
+  ```
+
+  </Tab>
+</Tabs>
+
+## Next steps
+
+<Cards>
+  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop gates for high-stakes actions." />
+  <Card title="Policies" href="/cloud/governance/policies" description="Block dangerous tools before they reach the model." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Review every cost event and policy decision." />
+</Cards>

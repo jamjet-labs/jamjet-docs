@@ -1,0 +1,274 @@
+---
+title: Agents
+description: Named identities that produce spans. Multi-agent attribution. ALS-scoped lifecycle.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Agents
+
+An **agent** is a named identity in JamJet Cloud. Every span emitted by a wrapped LLM call carries an agent tag so the dashboard can attribute cost, latency, and policy decisions per agent. With multiple agents in one process you get a network graph showing which agents called which tools and how they relate.
+
+## What is an AgentRef
+
+`agent()` returns a frozen `AgentRef` object — a lightweight, immutable record with three fields:
+
+| Field | Type | Required |
+|-------|------|----------|
+| `name` | `string` | yes |
+| `cardUri` | `string` | no — A2A agent card URL |
+| `description` | `string` | no — shown in dashboard |
+
+The object is frozen: you cannot mutate it after creation. Pass it around freely.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { agent } from '@jamjet/cloud'
+
+  const researcher = agent('researcher', {
+    description: 'reads web content and summarises findings',
+    cardUri: 'https://api.example.com/.well-known/agent.json',
+  })
+
+  // researcher.name        === 'researcher'
+  // researcher.description === 'reads web content and summarises...'
+  // researcher.cardUri     === 'https://...'
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  researcher = jamjet.agent('researcher',
+    description='reads web content and summarises findings',
+    card_uri='https://api.example.com/.well-known/agent.json',
+  )
+
+  # researcher.name        == 'researcher'
+  # researcher.description == 'reads web content and summarises...'
+  # researcher.card_uri    == 'https://...'
+  ```
+
+  </Tab>
+</Tabs>
+
+## Scoping spans with withAgent
+
+Wrap any async work in `withAgent(ref, fn)` and every span produced inside that scope is tagged with the agent. Scoping is implemented with Node.js AsyncLocalStorage (ALS) so it propagates across `await` points automatically — you do not need to pass the ref to each call.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { init, agent, withAgent, wrap } from '@jamjet/cloud'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  const openai = wrap(new OpenAI())
+  const researcher = agent('researcher', { description: 'reads + summarises' })
+
+  await withAgent(researcher, async () => {
+    // this span is tagged agent=researcher
+    const summary = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Summarise the JamJet docs.' }],
+    })
+    return summary
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  client = jamjet.wrap(OpenAI())
+  researcher = jamjet.agent('researcher', description='reads + summarises')
+
+  async with jamjet.with_agent(researcher):
+      # this span is tagged agent=researcher
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Summarise the JamJet docs.'}],
+      )
+  ```
+
+  </Tab>
+</Tabs>
+
+`withAgent` calls can be nested. The innermost scope wins for any spans emitted inside it.
+
+## Process-wide default agent
+
+If you have a single-agent app, set a default at init time instead of wrapping every call:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+    agent: 'default-name',   // all spans get this agent unless overridden
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+    agent='default-name',    # all spans get this agent unless overridden
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+A `withAgent` scope always overrides the process-wide default for spans inside that scope.
+
+## Edge runtimes and explicit override
+
+ALS is not available in all environments (some edge runtimes, Cloudflare Workers). In those cases, pass the agent directly to `wrap`:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { wrap, agent } from '@jamjet/cloud'
+
+  const researcher = agent('researcher')
+  // override: every call on this client instance is tagged researcher
+  const openai = wrap(new OpenAI(), { agent: researcher })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+
+  researcher = jamjet.agent('researcher')
+  # override: every call on this client instance is tagged researcher
+  client = jamjet.wrap(OpenAI(), agent=researcher)
+  ```
+
+  </Tab>
+</Tabs>
+
+The `wrap` override takes precedence over both the ALS scope and the process-wide default.
+
+## Multi-agent example
+
+The following pipeline uses two agents sequentially. Each agent's spans are attributed separately in the dashboard network graph.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { init, agent, withAgent, wrap } from '@jamjet/cloud'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'research-pipeline' })
+
+  const openai = wrap(new OpenAI())
+  const researcher = agent('researcher', { description: 'finds and reads sources' })
+  const writer    = agent('writer-bot',  { description: 'drafts the final report' })
+
+  async function runPipeline(topic: string) {
+    // Step 1 — researcher gathers notes
+    const notes = await withAgent(researcher, async () => {
+      const res = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: `Research: ${topic}` }],
+      })
+      return res.choices[0].message.content ?? ''
+    })
+
+    // Step 2 — writer turns notes into a report
+    const report = await withAgent(writer, async () => {
+      const res = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'user', content: `Write a report using these notes:\n\n${notes}` },
+        ],
+      })
+      return res.choices[0].message.content ?? ''
+    })
+
+    return report
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='research-pipeline')
+
+  client     = jamjet.wrap(OpenAI())
+  researcher = jamjet.agent('researcher', description='finds and reads sources')
+  writer     = jamjet.agent('writer-bot', description='drafts the final report')
+
+  async def run_pipeline(topic: str) -> str:
+      # Step 1 — researcher gathers notes
+      async with jamjet.with_agent(researcher):
+          res = client.chat.completions.create(
+              model='gpt-4o',
+              messages=[{'role': 'user', 'content': f'Research: {topic}'}],
+          )
+          notes = res.choices[0].message.content or ''
+
+      # Step 2 — writer turns notes into a report
+      async with jamjet.with_agent(writer):
+          res = client.chat.completions.create(
+              model='gpt-4o',
+              messages=[{'role': 'user', 'content': f'Write a report:\n\n{notes}'}],
+          )
+          return res.choices[0].message.content or ''
+  ```
+
+  </Tab>
+</Tabs>
+
+Open the dashboard and navigate to **Network Graph** — each agent appears as a node with edges to the tools it called. See [Network Graph](/cloud/dashboard/network-graph) for details on reading the visualization.
+
+## Attribution resolution order
+
+When a span is emitted, the agent is resolved in this order:
+
+1. `withAgent` scope (innermost wins)
+2. `wrap(client, { agent })` override
+3. `init({ agent })` process-wide default
+4. Literal string `"default"` if none of the above are set
+
+## Next steps
+
+<Cards>
+  <Card title="Policies" href="/cloud/governance/policies" description="Block or gate tool calls with glob rules." />
+  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop gates with polling and AbortSignal." />
+  <Card title="Network Graph" href="/cloud/dashboard/network-graph" description="See your agents as nodes with cost and latency edges." />
+</Cards>

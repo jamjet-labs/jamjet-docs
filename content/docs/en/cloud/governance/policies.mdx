@@ -1,0 +1,209 @@
+---
+title: Policies
+description: Block dangerous tools at runtime. Glob-based rules. Pre-call filter and post-decision check.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Policies
+
+A **policy** is a rule that controls which tools an LLM can call. JamJet enforces policies at two points in the request lifecycle: before the request reaches the model (pre-call filter) and after the model responds (post-decision check). Both enforcement points are synchronous and in-process — no network round-trip required.
+
+## Three actions
+
+Every policy rule pairs a glob pattern with one of three actions:
+
+| Action | Behavior |
+|--------|----------|
+| `'block'` | Matched tools are filtered out of the request before the LLM sees them. If the model still requests a blocked tool in its response, `JamjetPolicyBlocked` is thrown. |
+| `'allow'` | Explicitly permits matched tools. Useful for building an allowlist after a broad block. |
+| `'require_approval'` | Registers intent to gate the tool via human approval. See [current limitation](#require_approval-current-limitation) below. |
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { policy } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')             // block any tool whose name starts with wire_
+  policy('allow', 'wire_read')          // except wire_read — allow it explicitly
+  policy('require_approval', 'send_*')  // intent to gate send_* tools (see limitation)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  jamjet.policy('block', 'wire_*')             # block any tool starting with wire_
+  jamjet.policy('allow', 'wire_read')          # except wire_read — allow it explicitly
+  jamjet.policy('require_approval', 'send_*')  # intent to gate send_* (see limitation)
+  ```
+
+  </Tab>
+</Tabs>
+
+## Glob pattern semantics
+
+JamJet uses fnmatch-style glob matching:
+
+| Pattern | Matches | Does not match |
+|---------|---------|----------------|
+| `wire_*` | `wire_transfer`, `wire_send`, `wire_read` | `read_wire` |
+| `payments.*` | `payments.send`, `payments.read` | `payments` |
+| `*_admin` | `db_admin`, `user_admin` | `admin_db` |
+| `?_transfer` | `a_transfer` | `ab_transfer` |
+
+`*` matches any sequence of characters including dots. `?` matches exactly one character. Patterns are matched against the tool name as a whole string (implicitly anchored at both ends).
+
+## Last-matching-rule wins
+
+When multiple rules match the same tool, the **last** rule in registration order wins. This lets you write a broad block first and then carve out exceptions:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, policy, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  // Rule 1: block everything in payments namespace
+  policy('block', 'payments.*')
+
+  // Rule 2: allow the safe read operation (registered after rule 1 — wins for payments.read)
+  policy('allow', 'payments.read')
+
+  // Rule 3: require approval for high-value transfers (wins for payments.send)
+  policy('require_approval', 'payments.send')
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  # Rule 1: block everything in payments namespace
+  jamjet.policy('block', 'payments.*')
+
+  # Rule 2: allow the safe read operation (registered after rule 1 — wins for payments.read)
+  jamjet.policy('allow', 'payments.read')
+
+  # Rule 3: require approval for high-value transfers (wins for payments.send)
+  jamjet.policy('require_approval', 'payments.send')
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+For `payments.read`: rule 1 says block, rule 2 says allow. Rule 2 was registered last, so `allow` wins — the tool is permitted.
+
+For `payments.send`: rule 1 says block, rule 3 says require_approval. Rule 3 was registered last, so `require_approval` wins (subject to the [current limitation](#require_approval-current-limitation)).
+
+For `payments.delete`: only rule 1 matches — it is blocked.
+
+## Pre-call enforcement
+
+Before the wrapped client sends a request to the LLM, JamJet inspects the `tools` array in the request. Any tool whose name is matched by a `block` rule (and not subsequently overridden by `allow`) is removed from the list. The LLM never sees the tool exists.
+
+This prevents the model from being tempted to call a dangerous tool even if your prompt says not to.
+
+## Post-decision enforcement
+
+After the LLM responds, JamJet inspects every `tool_call` in the response. If a tool_call matches a `block` rule:
+
+1. The span is marked with `policy_blocked: true`.
+2. `JamjetPolicyBlocked` is thrown. The error's `cause` property carries the original tool_call object.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetPolicyBlocked } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Transfer $10 to Alice.' }],
+      tools: [/* ... */],
+    })
+  } catch (err) {
+    if (err instanceof JamjetPolicyBlocked) {
+      console.error('Tool call blocked by policy:', err.cause)
+      // err.cause is the original tool_call from the LLM response
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetPolicyBlocked
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Transfer $10 to Alice.'}],
+          tools=[...],
+      )
+  except JamjetPolicyBlocked as err:
+      print('Tool call blocked by policy:', err.cause)
+      # err.cause is the original tool_call from the LLM response
+  ```
+
+  </Tab>
+</Tabs>
+
+## `require_approval` — current limitation
+
+In 0.2.x, `require_approval` **does not gate execution at runtime**. Rules registered with this action are recorded in the span and surface in the dashboard as `policy_approval_pending` span attributes — enabling retrospective review — but tools matched by them pass through to the model unchanged.
+
+Full runtime gating (blocking the call until a human approves in the dashboard) is planned for 0.3.x. If you need immediate enforcement today, use `'block'` and implement the approval gate manually via [`requireApproval`](/cloud/governance/approvals).
+
+```typescript
+// Today: block the tool and require approval manually
+policy('block', 'send_email')
+
+// Then, in your agent loop, before invoking the tool yourself:
+const approvalId = await requireApproval('send_email', {
+  context: { to: recipient, subject },
+})
+// Only reaches here if approved. Now call the tool.
+```
+
+## Streaming enforcement
+
+Policy enforcement in streaming mode (`stream: true`) is limited on the bare SDK because tool_calls arrive in fragments across chunks. Full streaming enforcement — buffering, reassembly, and post-decision check — is provided by the `@jamjet/cloud-vercel` middleware.
+
+See [Vercel AI SDK integration](/integrations/vercel-ai-sdk) for how to add `jamjetMiddleware()` to `streamText`.
+
+## Viewing policy decisions in the dashboard
+
+Every blocked or approval-pending decision is recorded in the span. Open any span in the dashboard to see:
+
+- Which tools were filtered at pre-call
+- Which tool_calls were blocked post-decision
+- Which rules matched (pattern and action)
+
+For retrospective audit across many spans, use the [Audit Trail](/cloud/dashboard/audit-trail).
+
+## Next steps
+
+<Cards>
+  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop polling for production-safe gates." />
+  <Card title="Budgets" href="/cloud/governance/budgets" description="Cost ceilings enforced before billing." />
+  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="Full streaming policy enforcement via middleware." />
+</Cards>

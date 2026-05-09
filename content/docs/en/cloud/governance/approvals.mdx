@@ -1,0 +1,267 @@
+---
+title: Approvals
+description: Human-in-the-loop gates. Polling with AbortSignal. Reject/timeout error handling.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Approvals
+
+`requireApproval(action, opts?)` pauses your agent and waits for a human to approve or reject in the JamJet Cloud dashboard. It returns a `Promise<string>` that resolves to an `approval_id` when the human approves — or throws if they reject, the timeout elapses, or the connection fails.
+
+This is the correct tool for production deploys, payment authorizations, bulk communications, or any action where the cost of a mistake is high enough that human sign-off is worth the latency.
+
+## Basic usage
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { requireApproval } from '@jamjet/cloud'
+
+  const approvalId = await requireApproval('production_deploy', {
+    context: {
+      service: 'auth-api',
+      version: '2.3.1',
+      environment: 'production',
+    },
+  })
+
+  // Reaches here only if a human approved in the dashboard.
+  console.log('Approved. Approval ID:', approvalId)
+  await deployService()
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  approval_id = await jamjet.require_approval('production_deploy',
+    context={
+      'service': 'auth-api',
+      'version': '2.3.1',
+      'environment': 'production',
+    },
+  )
+
+  # Reaches here only if a human approved in the dashboard.
+  print('Approved. Approval ID:', approval_id)
+  await deploy_service()
+  ```
+
+  </Tab>
+</Tabs>
+
+## Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `context` | `Record<string, unknown>` | `{}` | Free-form metadata shown to the approver in the dashboard. Use it to give context: what action is being requested, why, and what the impact is. |
+| `timeoutMs` | `number` | `3_600_000` (1 hour) | How long to poll before giving up. When elapsed, `JamjetApprovalTimeout` is thrown. |
+| `signal` | `AbortSignal` | none | Web-standard cancellation signal. When aborted, an `AbortError` is thrown immediately. |
+| `pollIntervalMs` | `number` | `5_000` (5 s) | How frequently the SDK polls the API for a resolution. Lower values increase dashboard responsiveness; higher values reduce network traffic. |
+
+## Polling lifecycle
+
+`requireApproval` polls the JamJet Cloud API at `pollIntervalMs` intervals. It resolves or throws based on these transitions:
+
+```
+requireApproval('action') called
+        │
+        ▼
+  poll → pending  ──────────────────────────────────────────────────┐
+        │                                                            │ (waiting)
+        ├── human approves   → resolves with approval_id            │
+        │                                                            │
+        ├── human rejects    → throws JamjetApprovalRejected        │
+        │                                                            │
+        ├── timeoutMs elapsed → throws JamjetApprovalTimeout        │
+        │                                                            │
+        ├── AbortSignal fired → throws AbortError (web standard)    │
+        │                                                            │
+        └── 3 consecutive 5xx responses → throws JamjetApprovalTimeout
+                                          with cause: 'server_error' ◄──┘
+```
+
+### JamjetApprovalRejected
+
+Thrown when a human clicks Reject in the dashboard.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { requireApproval, JamjetApprovalRejected } from '@jamjet/cloud'
+
+  try {
+    const approvalId = await requireApproval('send_bulk_email', {
+      context: { recipient_count: 12_000, campaign: 'q2-launch' },
+    })
+    await sendCampaign()
+  } catch (err) {
+    if (err instanceof JamjetApprovalRejected) {
+      console.warn('Rejected by approver:', err.reason ?? '(no reason given)')
+      // err.reason is the optional rejection note the human entered in the dashboard
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetApprovalRejected
+
+  try:
+      approval_id = await jamjet.require_approval('send_bulk_email',
+        context={'recipient_count': 12_000, 'campaign': 'q2-launch'},
+      )
+      await send_campaign()
+  except JamjetApprovalRejected as err:
+      print('Rejected by approver:', err.reason or '(no reason given)')
+      # err.reason is the optional rejection note from the dashboard
+  ```
+
+  </Tab>
+</Tabs>
+
+### JamjetApprovalTimeout
+
+Thrown when `timeoutMs` elapses with no resolution, or when 3 consecutive 5xx responses occur. Check `err.cause`:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { requireApproval, JamjetApprovalTimeout } from '@jamjet/cloud'
+
+  try {
+    const approvalId = await requireApproval('payment_authorization', {
+      context: { amount_usd: 4500, payee: 'vendor-acme' },
+      timeoutMs: 10 * 60 * 1000,   // 10 minutes
+    })
+    await authorizePayment()
+  } catch (err) {
+    if (err instanceof JamjetApprovalTimeout) {
+      if (err.cause === 'server_error') {
+        console.error('Approval polling failed: API returned 5xx 3 times in a row')
+      } else {
+        console.warn('Approval timed out after 10 minutes — no action taken')
+      }
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetApprovalTimeout
+
+  try:
+      approval_id = await jamjet.require_approval('payment_authorization',
+        context={'amount_usd': 4500, 'payee': 'vendor-acme'},
+        timeout_ms=10 * 60 * 1000,   # 10 minutes
+      )
+      await authorize_payment()
+  except JamjetApprovalTimeout as err:
+      if err.cause == 'server_error':
+          print('Approval polling failed: API returned 5xx 3 times in a row')
+      else:
+          print('Approval timed out after 10 minutes — no action taken')
+  ```
+
+  </Tab>
+</Tabs>
+
+### AbortSignal cancellation
+
+Pass an `AbortSignal` to cancel an in-flight approval request — for example, if the user navigates away or a parent operation is cancelled. When the signal fires, an `AbortError` is thrown immediately (this is the web-standard `DOMException`, not a JamJet class).
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { requireApproval } from '@jamjet/cloud'
+
+  const controller = new AbortController()
+
+  // Cancel after 30 seconds regardless
+  setTimeout(() => controller.abort(), 30_000)
+
+  try {
+    const approvalId = await requireApproval('risky_operation', {
+      context: { details: 'mass account update' },
+      signal: controller.signal,
+    })
+    await performOperation()
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      console.log('Approval cancelled — operation not performed')
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import asyncio
+  import jamjet.cloud as jamjet
+
+  async def run_with_cancel():
+      task = asyncio.create_task(
+          jamjet.require_approval('risky_operation',
+            context={'details': 'mass account update'},
+          )
+      )
+      # Cancel after 30 seconds
+      await asyncio.sleep(30)
+      task.cancel()
+
+      try:
+          approval_id = await task
+          await perform_operation()
+      except asyncio.CancelledError:
+          print('Approval cancelled — operation not performed')
+  ```
+
+  </Tab>
+</Tabs>
+
+## Dashboard approver experience
+
+When `requireApproval` is called, a pending approval card appears in the **Approvals** section of the project dashboard at [app.jamjet.dev](https://app.jamjet.dev). The approver sees:
+
+- **Action name** — the string passed as the first argument (e.g. `production_deploy`)
+- **Context** — the `context` object rendered as a key-value table
+- **Timestamp** — when the request was created and how long it has been pending
+- **Agent** — which agent triggered the request (from the current ALS scope)
+- **Approve / Reject buttons** — with an optional text field for a rejection reason
+
+There is no special permission required to approve — any team member with project access can act on a pending approval. Access control is managed at the project level in **Settings → Members**.
+
+## Recommended use cases
+
+- **Production deploys** — gate infrastructure changes behind a human checkpoint
+- **Payment authorizations** — require sign-off before transferring funds or charging customers
+- **Mass communications** — email or SMS campaigns over a threshold recipient count
+- **Irreversible data mutations** — bulk deletes, schema migrations, data exports
+- **Privilege escalation** — any action that acquires elevated permissions
+
+For actions where `requireApproval` is too slow (sub-second latency required), use [`policy('block', ...)`](/cloud/governance/policies) to prevent the action entirely and expose a separate, synchronous approval UI at the application layer.
+
+## Retrospective audit
+
+Every approval decision — approved, rejected, or timed out — is recorded in the [Audit Trail](/cloud/dashboard/audit-trail). You can filter by action name, agent, approver, and outcome. Approval IDs are stable and can be stored in your own database for cross-system audit correlation.
+
+## Next steps
+
+<Cards>
+  <Card title="Policies" href="/cloud/governance/policies" description="Block tools pre-call. Use with manual approval for immediate enforcement." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Retrospective access to every approval decision." />
+  <Card title="Agents" href="/cloud/governance/agents" description="Attribute approvals to the agent that requested them." />
+</Cards>

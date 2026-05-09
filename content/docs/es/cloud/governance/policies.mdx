@@ -1,0 +1,210 @@
+---
+title: Políticas
+description: Bloquea herramientas peligrosas en tiempo de ejecución. Reglas
+  basadas en glob. Filtro pre-call y verificación post-decisión.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Políticas
+
+Una **política** es una regla que controla qué herramientas puede llamar un LLM. JamJet aplica las políticas en dos puntos del ciclo de vida de la solicitud: antes de que la solicitud llegue al modelo (filtro pre-llamada) y después de que el modelo responda (verificación post-decisión). Ambos puntos de aplicación son síncronos y en proceso — no se requiere ida y vuelta de red.
+
+## Tres acciones
+
+Cada regla de política combina un patrón glob con una de tres acciones:
+
+| Acción | Comportamiento |
+|--------|----------------|
+| `'block'` | Las herramientas coincidentes se filtran de la solicitud antes de que el LLM las vea. Si el modelo aún solicita una herramienta bloqueada en su respuesta, se lanza `JamjetPolicyBlocked`. |
+| `'allow'` | Permite explícitamente las herramientas coincidentes. Útil para construir una lista de permitidos después de un bloqueo amplio. |
+| `'require_approval'` | Registra la intención de controlar la herramienta mediante aprobación humana. Ver [limitación actual](#require_approval-current-limitation) más abajo. |
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { policy } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')             // bloquea cualquier herramienta cuyo nombre comience con wire_
+  policy('allow', 'wire_read')          // excepto wire_read — la permite explícitamente
+  policy('require_approval', 'send_*')  // intención de controlar herramientas send_* (ver limitación)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  jamjet.policy('block', 'wire_*')             # bloquea cualquier herramienta que comience con wire_
+  jamjet.policy('allow', 'wire_read')          # excepto wire_read — la permite explícitamente
+  jamjet.policy('require_approval', 'send_*')  # intención de controlar send_* (ver limitación)
+  ```
+
+  </Tab>
+</Tabs>
+
+## Semántica de patrones glob
+
+JamJet utiliza coincidencia glob estilo fnmatch:
+
+| Patrón | Coincide con | No coincide con |
+|---------|--------------|------------------|
+| `wire_*` | `wire_transfer`, `wire_send`, `wire_read` | `read_wire` |
+| `payments.*` | `payments.send`, `payments.read` | `payments` |
+| `*_admin` | `db_admin`, `user_admin` | `admin_db` |
+| `?_transfer` | `a_transfer` | `ab_transfer` |
+
+`*` coincide con cualquier secuencia de caracteres incluyendo puntos. `?` coincide con exactamente un carácter. Los patrones se comparan con el nombre de la herramienta como una cadena completa (implícitamente anclada en ambos extremos).
+
+## Gana la última regla coincidente
+
+Cuando múltiples reglas coinciden con la misma herramienta, **gana** la última regla en orden de registro. Esto te permite escribir primero un bloqueo amplio y luego definir excepciones:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, policy, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  // Regla 1: bloquear todo en el namespace payments
+  policy('block', 'payments.*')
+
+  // Regla 2: permitir la operación de lectura segura (registrada después de la regla 1 — gana para payments.read)
+  policy('allow', 'payments.read')
+
+  // Regla 3: requerir aprobación para transferencias de alto valor (gana para payments.send)
+  policy('require_approval', 'payments.send')
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  # Regla 1: bloquear todo en el namespace payments
+  jamjet.policy('block', 'payments.*')
+
+  # Regla 2: permitir la operación de lectura segura (registrada después de la regla 1 — gana para payments.read)
+  jamjet.policy('allow', 'payments.read')
+
+  # Regla 3: requerir aprobación para transferencias de alto valor (gana para payments.send)
+  jamjet.policy('require_approval', 'payments.send')
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+Para `payments.read`: la regla 1 dice bloquear, la regla 2 dice permitir. La regla 2 se registró al final, por lo que gana `allow` — la herramienta está permitida.
+
+Para `payments.send`: la regla 1 dice bloquear, la regla 3 dice require_approval. La regla 3 se registró al final, por lo que gana `require_approval` (sujeto a la [limitación actual](#require_approval-current-limitation)).
+
+Para `payments.delete`: solo coincide la regla 1 — está bloqueada.
+
+## Aplicación antes de la llamada
+
+Antes de que el cliente envuelto envíe una solicitud al LLM, JamJet inspecciona el array `tools` en la solicitud. Cualquier herramienta cuyo nombre coincida con una regla `block` (y no sea posteriormente sobrescrita por `allow`) se elimina de la lista. El LLM nunca ve que la herramienta existe.
+
+Esto evita que el modelo se sienta tentado a llamar una herramienta peligrosa incluso si tu prompt dice no hacerlo.
+
+## Aplicación de políticas tras la decisión
+
+Después de que el LLM responda, JamJet inspecciona cada `tool_call` en la respuesta. Si un tool_call coincide con una regla `block`:
+
+1. El span se marca con `policy_blocked: true`.
+2. Se lanza `JamjetPolicyBlocked`. La propiedad `cause` del error contiene el objeto tool_call original.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetPolicyBlocked } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Transfer $10 to Alice.' }],
+      tools: [/* ... */],
+    })
+  } catch (err) {
+    if (err instanceof JamjetPolicyBlocked) {
+      console.error('Tool call blocked by policy:', err.cause)
+      // err.cause is the original tool_call from the LLM response
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetPolicyBlocked
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Transfer $10 to Alice.'}],
+          tools=[...],
+      )
+  except JamjetPolicyBlocked as err:
+      print('Tool call blocked by policy:', err.cause)
+      # err.cause is the original tool_call from the LLM response
+  ```
+
+  </Tab>
+</Tabs>
+
+## `require_approval` — limitación actual
+
+En 0.2.x, `require_approval` **no bloquea la ejecución en tiempo de ejecución**. Las reglas registradas con esta acción se registran en el span y aparecen en el dashboard como atributos de span `policy_approval_pending` — permitiendo revisión retrospectiva — pero las herramientas que coincidan con ellas pasan al modelo sin cambios.
+
+El bloqueo completo en tiempo de ejecución (bloqueando la llamada hasta que un humano apruebe en el dashboard) está planificado para 0.3.x. Si necesitas aplicación inmediata hoy, usa `'block'` e implementa la puerta de aprobación manualmente mediante [`requireApproval`](/cloud/governance/approvals).
+
+```typescript
+// Hoy: bloquear la herramienta y requerir aprobación manualmente
+policy('block', 'send_email')
+
+// Luego, en tu bucle de agente, antes de invocar la herramienta tú mismo:
+const approvalId = await requireApproval('send_email', {
+  context: { to: recipient, subject },
+})
+// Solo llega aquí si fue aprobado. Ahora llama a la herramienta.
+```
+
+## Aplicación de políticas en streaming
+
+La aplicación de políticas en modo streaming (`stream: true`) es limitada en el SDK básico porque los tool_calls llegan fragmentados a través de chunks. La aplicación completa en streaming — buffering, reensamblaje y verificación post-decisión — se proporciona mediante el middleware `@jamjet/cloud-vercel`.
+
+Consulta [Integración con Vercel AI SDK](/integrations/vercel-ai-sdk) para ver cómo añadir `jamjetMiddleware()` a `streamText`.
+
+## Visualización de decisiones de política en el dashboard
+
+Cada decisión bloqueada o pendiente de aprobación queda registrada en el span. Abre cualquier span en el dashboard para ver:
+
+- Qué herramientas fueron filtradas en pre-call
+- Qué tool_calls fueron bloqueados post-decisión
+- Qué reglas coincidieron (patrón y acción)
+
+Para auditoría retrospectiva a través de múltiples spans, usa el [Registro de auditoría](/cloud/dashboard/audit-trail).
+
+## Próximos pasos
+
+<Cards>
+  <Card title="Aprobaciones" href="/cloud/governance/approvals" description="Polling con humano en el loop para gates seguros en producción." />
+  <Card title="Presupuestos" href="/cloud/governance/budgets" description="Límites de coste aplicados antes de la facturación." />
+  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="Aplicación completa de políticas en streaming vía middleware." />
+</Cards>

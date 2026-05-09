@@ -1,0 +1,20 @@
+---
+title: Integraciones
+description: Usa JamJet Cloud con los frameworks de IA que ya tienes — Vercel AI
+  SDK, LangChain4j, Spring Boot.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Integraciones Cloud
+
+Los SDKs de TypeScript y Python de JamJet Cloud funcionan con cualquier framework que use protocolos OpenAI / Anthropic. Para frameworks con sus propias abstracciones, las integraciones dedicadas te dan un control más limpio y telemetría más rica.
+
+<Cards>
+  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="Middleware `wrapLanguageModel`. Control de políticas con soporte para streaming." />
+  <Card title="LangChain4j" href="/integrations/langchain4j" description="Agentes y herramientas Java. Patrón Advisor." />
+  <Card title="Spring Boot" href="/integrations/spring-boot" description="Starter con auto-configuración. ChatMemoryStore Engram." />
+  <Card title="Mastra / Express / CF Workers" href="/integrations" description="Próximamente." />
+</Cards>
+
+> Cada integración es un adaptador ligero sobre `@jamjet/cloud`. Si tu framework no está en la lista, el SDK básico también funciona.

@@ -1,0 +1,84 @@
+---
+title: 核心概念
+description: JamJet Cloud 的五个基本构建块 — Span、Agent、Policy、Budget、Approval。
+---
+
+# 云概念
+
+JamJet Cloud 有五个核心原语。本页是一站式导览。每个章节都链接到更深入的文档。
+
+## Span（跨度）
+
+**span** 是一个被观测的单个工作单元——通常是一次 LLM 调用。Span 携带：
+
+- 模型、提示词、响应（完整载荷，通过 `capture_io=True` 选择加入）
+- 产生它的 agent
+- 用户上下文、环境、发布版本
+- token 数量、延迟、美元成本
+- 任何适用的策略决策或审批
+
+你不需要手动创建 span。SDK 会为每个封装的 LLM 调用创建一个。
+
+[→ Spans 与 Traces](/cloud/telemetry/spans-and-traces)
+
+## Agent（代理）
+
+**agent** 是一个命名身份。Span 会标记产生它们的 agent。你可以有一个默认 agent 或多个——`researcher`、`writer-bot`、`code-reviewer`。仪表板将 agent 渲染为网络图中的节点。
+
+```typescript
+import { agent, withAgent } from '@jamjet/cloud'
+
+const researcher = agent('researcher', { description: 'reads + summarises' })
+
+await withAgent(researcher, async () => {
+  // 这里发出的每个 span 都标记为 researcher
+  await openai.chat.completions.create(/* ... */)
+})
+```
+
+[→ Agents](/cloud/governance/agents)
+
+## Policy（策略）
+
+**policy** 是控制 LLM 可以调用哪些工具的规则。策略通过 glob 匹配。
+
+```typescript
+import { policy } from '@jamjet/cloud'
+
+policy('block', 'wire_*')                  // 阻止任何以 wire_ 开头的工具
+policy('require_approval', 'send_email')   // 对此工具设置审批门控
+```
+
+策略同时执行**调用前**（在发送给 LLM 之前过滤工具列表）和**决策后**（重新检查响应中的工具调用）控制。需要审批和被阻止的工具都会记录在 span 中。
+
+[→ 策略](/cloud/governance/policies)
+
+## 预算
+
+**预算**是成本上限。JamJet 会在每次调用前进行预检查,如果调用会导致超出预算,将抛出 `JamjetBudgetExceeded` 异常。
+
+```typescript
+import { budget } from '@jamjet/cloud'
+
+budget(50)   // 为此项目设置 50 美元的上限
+```
+
+预检查使用基于提示词 token 数量的估算成本;实际成本在调用后记录。
+
+[→ 预算](/cloud/governance/budgets)
+
+## 审批
+
+**审批**是人工介入的关卡。`requireApproval('production_deploy')` 会阻塞执行,直到有人在控制台中批准或拒绝。
+
+```typescript
+import { requireApproval } from '@jamjet/cloud'
+
+const approvalId = await requireApproval('production_deploy', {
+  context: { service: 'auth-api', version: '2.3.1' },
+  timeoutMs: 600_000,   // 10 分钟
+})
+// 仅在批准后继续;拒绝时抛出 JamjetApprovalRejected
+```
+
+[→ 审批](/cloud/governance/approvals)

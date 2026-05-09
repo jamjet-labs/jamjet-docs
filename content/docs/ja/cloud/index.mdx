@@ -1,0 +1,32 @@
+---
+title: JamJet Cloud
+description: 本番環境で安全に動作するAIエージェント。あらゆるAIアプリに簡単導入できるガバナンス、テレメトリー、承認フロー。
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# JamJet Cloud
+
+JamJet Cloudは、AIエージェントのためのホスト型ガバナンスレイヤーです。SDKを2行追加するだけで、ポリシー適用、予算追跡、承認フロー、監査証跡を、あらゆるフレームワーク上のあらゆるAIアプリに導入できます。
+
+<Cards>
+  <Card title="クイックスタート" href="/cloud/get-started/quickstart" description="サインアップ、@jamjet/cloudをインストール、ポリシーと予算を追加。約5分で完了。" />
+  <Card title="CloudとOSS版の比較" href="/cloud/get-started/cloud-vs-open-source" description="必要なJamJetを選択。両者は連携して動作します。" />
+  <Card title="コンセプト" href="/cloud/get-started/concepts" description="Span、Agent、Policy、Budget、Approval — 5つの基本要素。" />
+</Cards>
+
+## 機能
+
+<Cards>
+  <Card title="ガバナンス" href="/cloud/governance/policies" description="危険なツールをブロック。機密性の高いアクションに人間の承認を要求。" />
+  <Card title="予算管理" href="/cloud/governance/budgets" description="プロジェクト単位のコスト上限。呼び出し前の推定、呼び出し後の実績。" />
+  <Card title="テレメトリー" href="/cloud/telemetry/spans-and-traces" description="すべてのLLM呼び出しをスパンとしてキャプチャ。ユーザー属性、環境タグ付き。" />
+  <Card title="ダッシュボード" href="/cloud/dashboard/network-graph" description="マルチエージェントのネットワークグラフ。監査検索。承認/却下UI。" />
+</Cards>
+
+## 連携
+
+<Cards>
+  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="`streamText` / `generateText`向けの`wrapLanguageModel`ミドルウェア。" />
+  <Card title="すべての連携" href="/integrations" description="LangChain4j、Spring Bootなど。" />
+</Cards>

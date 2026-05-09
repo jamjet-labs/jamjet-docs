@@ -1,0 +1,59 @@
+---
+title: 정책
+description: Block dangerous tools at runtime. Glob-based rules. Pre-call filter and post-decision check.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 정책
+
+**정책**은 LLM이 호출할 수 있는 도구를 제어하는 규칙입니다. JamJet은 요청 생명주기의 두 지점에서 정책을 적용합니다: 요청이 모델에 도달하기 전(사전 호출 필터)과 모델이 응답한 후(사후 결정 검사)입니다. 두 적용 지점 모두 동기적이며 프로세스 내부에서 처리되므로 네트워크 왕복이 필요하지 않습니다.
+
+## 세 가지 액션
+
+모든 정책 규칙은 glob 패턴과 세 가지 액션 중 하나를 조합합니다:
+
+| 액션 | 동작 |
+|--------|----------|
+| `'block'` | 일치하는 도구는 LLM이 보기 전에 요청에서 필터링됩니다. 모델이 응답에서 차단된 도구를 여전히 요청하면 `JamjetPolicyBlocked`가 발생합니다. |
+| `'allow'` | 일치하는 도구를 명시적으로 허용합니다. 광범위한 차단 후 허용 목록을 만드는 데 유용합니다. |
+| `'require_approval'` | 사람의 승인을 통해 도구를 제어하려는 의도를 등록합니다. 아래 [현재 제한사항](#require_approval-current-limitation)을 참조하세요. |
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { policy } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')             // wire_로 시작하는 모든 도구 차단
+  policy('allow', 'wire_read')          // 단, wire_read는 명시적으로 허용
+  policy('require_approval', 'send_*')  // send_* 도구 제어 의도 (제한사항 참조)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  jamjet.policy('block', 'wire_*')             # wire_로 시작하는 모든 도구 차단
+  jamjet.policy('allow', 'wire_read')          # 단, wire_read는 명시적으로 허용
+  jamjet.policy('require_approval', 'send_*')  # send_* 제어 의도 (제한사항 참조)
+  ```
+
+  </Tab>
+</Tabs>
+
+## Glob 패턴 의미
+
+JamJet은 fnmatch 스타일의 glob 매칭을 사용합니다:
+
+| 패턴 | 일치함 | 일치하지 않음 |
+|---------|---------|----------------|
+| `wire_*` | `wire_transfer`, `wire_send`, `wire_read` | `read_wire` |
+| `payments.*` | `payments.send`, `payments.read` | `payments` |
+| `*_admin` | `db_admin`, `user_admin` | `admin_db` |
+| `?_transfer` | `a_transfer` | `ab_transfer` |
+
+`*`는 점을 포함한 모든 문자 시퀀스와 일치합니다. `?`는 정확히 한 문자와 일치합니다. 패턴은 도구 이름 전체 문자열에 대해 매칭됩니다(양쪽 끝에 암시적으로 고정됨).

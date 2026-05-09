@@ -1,0 +1,84 @@
+---
+title: 개념
+description: JamJet Cloud의 다섯 가지 기본 요소 — Span, Agent, Policy, Budget, Approval.
+---
+
+# 클라우드 개념
+
+JamJet Cloud는 다섯 가지 핵심 요소로 구성됩니다. 이 페이지는 한 페이지 개요이며, 각 섹션은 더 심층적인 문서로 연결됩니다.
+
+## Span
+
+**Span**은 관찰된 작업의 단일 단위로, 일반적으로 하나의 LLM 호출을 의미합니다. Span은 다음을 포함합니다:
+
+- 모델, 프롬프트, 응답 (전체 페이로드, `capture_io=True`로 선택 가능)
+- 이를 생성한 에이전트
+- 사용자 컨텍스트, 환경, 릴리스 버전
+- 토큰 개수, 지연 시간, USD 비용
+- 적용된 정책 결정 또는 승인
+
+Span은 수동으로 생성하지 않습니다. SDK가 래핑된 LLM 호출마다 자동으로 생성합니다.
+
+[→ Spans & Traces](/cloud/telemetry/spans-and-traces)
+
+## Agent
+
+**Agent**는 명명된 식별자입니다. Span은 이를 생성한 에이전트로 태그됩니다. 단일 기본 에이전트를 사용하거나 `researcher`, `writer-bot`, `code-reviewer`처럼 여러 개를 둘 수 있습니다. 대시보드는 에이전트를 네트워크 그래프의 노드로 렌더링합니다.
+
+```typescript
+import { agent, withAgent } from '@jamjet/cloud'
+
+const researcher = agent('researcher', { description: 'reads + summarises' })
+
+await withAgent(researcher, async () => {
+  // 여기서 발생하는 모든 span은 researcher로 태그됨
+  await openai.chat.completions.create(/* ... */)
+})
+```
+
+[→ Agents](/cloud/governance/agents)
+
+## Policy
+
+**Policy**는 LLM이 호출할 수 있는 도구를 제어하는 규칙입니다. 정책은 glob 패턴으로 매칭됩니다.
+
+```typescript
+import { policy } from '@jamjet/cloud'
+
+policy('block', 'wire_*')                  // wire_로 시작하는 모든 도구 차단
+policy('require_approval', 'send_email')   // 이 도구에 승인 게이트 적용
+```
+
+정책은 **호출 전** (LLM에 전송하기 전에 도구 목록 필터링)과 **결정 후** (응답에서 도구 호출 재검증) 모두에서 적용됩니다. 승인 필요 및 차단된 도구는 모두 span에 기록됩니다.
+
+[→ 정책](/cloud/governance/policies)
+
+## 예산
+
+**예산**은 비용 상한선입니다. JamJet은 모든 호출을 사전 검사하여 호출이 상한선을 초과할 경우 `JamjetBudgetExceeded`를 발생시킵니다.
+
+```typescript
+import { budget } from '@jamjet/cloud'
+
+budget(50)   // 이 프로젝트의 $50 상한선
+```
+
+사전 검사는 프롬프트 토큰 수에서 추정된 비용을 사용하며, 실제 비용은 호출 후 기록됩니다.
+
+[→ 예산](/cloud/governance/budgets)
+
+## 승인
+
+**승인**은 사람이 개입하는 게이트입니다. `requireApproval('production_deploy')`는 대시보드에서 사람이 승인하거나 거부할 때까지 차단됩니다.
+
+```typescript
+import { requireApproval } from '@jamjet/cloud'
+
+const approvalId = await requireApproval('production_deploy', {
+  context: { service: 'auth-api', version: '2.3.1' },
+  timeoutMs: 600_000,   // 10분
+})
+// 승인된 경우에만 진행되며, 거부 시 JamjetApprovalRejected 발생
+```
+
+[→ 승인](/cloud/governance/approvals)

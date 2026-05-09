@@ -1,0 +1,60 @@
+---
+title: Cloud vs Código Abierto
+description: "Decide qué JamJet necesitas: la plataforma de gobernanza alojada,
+  el runtime de código abierto, o ambos."
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Cloud vs Código Abierto
+
+JamJet son dos productos que funcionan juntos. Esta página te ayuda a elegir el que necesitas.
+
+## ¿Qué es JamJet Cloud?
+
+JamJet Cloud es una **plataforma de gobernanza alojada** para agentes de IA. Instalas un SDK pequeño (`@jamjet/cloud` o `jamjet`), envuelves tu cliente existente de OpenAI / Anthropic y obtienes:
+
+- **Políticas** — bloquea herramientas peligrosas en tiempo de ejecución
+- **Presupuestos** — límites de costo por proyecto, aplicados antes de la llamada
+- **Aprobaciones** — controles con intervención humana para acciones sensibles
+- **Telemetría** — cada llamada al LLM capturada como un span; dashboards, búsqueda, auditoría
+- **Atribución multi-agente** — vista de grafo de red de qué agente hizo qué
+
+No necesitas reestructurar tu aplicación. El SDK es un wrapper, no un framework.
+
+## ¿Qué es el runtime de código abierto?
+
+El runtime de código abierto de JamJet es un **motor de workflows duraderos** para agentes de IA. El núcleo es Rust; la superficie de desarrollo es Python y Java. Escribes workflows que:
+
+- Guardan su estado después de cada nodo, para que un reinicio del proceso se reanude sin problemas
+- Se reproducen de manera determinista, para que puedas reproducir bugs
+- Hablan protocolos MCP y A2A de forma nativa, para comunicación entre agentes
+- Escalan horizontalmente con entrega al-menos-una-vez
+
+Usas el runtime cuando necesitas *ejecutar* workflows de múltiples pasos — cuando "envolver mi llamada al LLM" no es suficiente.
+
+## Matriz de decisión
+
+| Quieres... | Usa |
+|---|---|
+| Gobernar una aplicación de IA existente (chatbot, bucle de agente) — bloquear herramientas, establecer límites de costo, obtener un dashboard | **Cloud** |
+| Construir un workflow durable de múltiples pasos con reproducción de checkpoints, A2A, MCP | **Runtime de código abierto** |
+| Ejecutar workflows duraderos Y gobernarlos | **Ambos** — El SDK de Cloud envuelve las llamadas al LLM del runtime automáticamente |
+| Agregar memoria (conocimiento a largo plazo) a cualquiera de los dos | **Engram** (producto separado, ver [java-ai-memory.dev](https://java-ai-memory.dev)) |
+
+## Cómo funcionan juntos
+
+Cloud y el runtime de código abierto son independientes: puedes usar uno sin el otro. Cuando usas ambos, el SDK de Cloud detecta las llamadas LLM del runtime y emite spans para ellas, obteniendo gobernanza sobre los flujos de trabajo del runtime sin configuración adicional.
+
+## Precios
+
+- **JamJet Cloud:** Nivel gratuito con límites generosos. El uso en producción comienza en $0.50 por millón de spans. Ver [app.jamjet.dev/pricing](https://app.jamjet.dev/pricing).
+- **Runtime de código abierto:** Apache 2.0. Ejecuta donde quieras.
+- **Engram:** Apache 2.0 (código abierto) + una versión alojada en Cloud (en beta).
+
+## Siguiente
+
+<Cards>
+  <Card title="Inicio rápido de Cloud" href="/cloud/get-started/quickstart" description="Configuración en 5 minutos." />
+  <Card title="Inicio rápido OSS" href="/open-source/quickstart" description="Flujo de trabajo durable en Python o Java." />
+</Cards>

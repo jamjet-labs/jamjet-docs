@@ -1,0 +1,64 @@
+---
+title: 网络图谱
+description: 多智能体可视化。查看哪个智能体在何时对谁做了什么。
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 网络图
+
+**app.jamjet.dev/projects/&lt;id&gt;/graph** 上的网络图是一个实时更新的画布,展示了系统中各个 agent 之间的关系。它能回答日志无法回答的问题:哪个 agent 将任务交给了哪个其他 agent,一个请求经过了多少跳,策略在链的哪个位置阻止了工具调用,以及哪些 agent 的连接最密集。
+
+## 读懂图形
+
+画布上的每个节点代表一个命名的 agent —— 你使用 [`agent()`](/cloud/governance/agents) 声明的独立身份。每条边代表一次交互:从一个 agent 到另一个 agent 的工具调用、在一个 agent 运行于另一个 agent 作用域内时发出的 span,或多 agent 工作流中的显式交接。
+
+节点大小与 span 数量成正比。较粗的边表示在所选时间窗口内这两个 agent 之间有更多交互。没有出边的节点是叶子 agent —— 它消费上下文但不再进一步委托。
+
+点击节点会打开 **agent 详情面板**:该 agent 在当前时间窗口内发出的所有 span 的时间顺序列表,包含每个 span 的成本、模型、延迟和策略结果。点击边会打开 **边详情面板**:跨越该特定 agent 到 agent 边界的 span 子集,按时间排序。
+
+## 时间范围限定
+
+图形右上角的时间范围选择器控制包含哪些 span。可用窗口:
+
+- **最近 1 小时** — 默认选项。适用于活跃开发或事件分类期间。
+- **最近 24 小时** — 单日流量的广泛视图。
+- **最近 7 天** — 架构审查和长期事件分析。
+- **自定义范围** — 选择任意起止时间。图形会针对该窗口重新计算。
+
+缩小时间范围是隔离事件的最有效方法:将窗口设置为异常行为发生的确切时间段,然后检查哪些 agent 处于活跃状态以及哪些边是热点。
+
+## 筛选器
+
+画布上方有三个筛选控件：
+
+- **Agent 筛选器** — 仅显示所选 agent 及其直接邻居。当你有多个 agent 并希望专注于某个服务边界时非常有用。
+- **用户筛选器** — 仅显示为特定最终用户服务的调用链。需要 SDK 设置[用户上下文](/cloud/telemetry/user-context)。当用户筛选器处于活动状态时，未被归属于该用户的任何 span 触及的边和节点会显示为灰色。
+- **环境筛选器** — 如果你通过[进程上下文](/cloud/telemetry/process-context)为 span 标记 `environment`，则可以将图限制为 `production`、`staging` 或你使用的任何其他值。
+
+筛选器可组合使用：你可以同时显示过去 24 小时内 `production` 环境中的用户 `u_123`。
+
+## Coordinator 评分标注
+
+当你的调用链包含 JamJet 开源 [Coordinator Node](/open-source/research/coordinator) 时，控制面板会在流经它的边上渲染额外的标注。这些标注显示了 coordinator 在选择将任务委托给哪个下游 agent 时计算的评分差值 — 即排名最高的 agent 与次优选项之间的数值差异。
+
+较大的差值表示 coordinator 对其路由决策有很高的信心。较小的差值意味着这是一个接近的选择 — 如果下游 agent 表现不佳，值得审查。这些标注仅在 coordinator 发出结构化评分 span 时可见；纯启发式路由不会产生它们。
+
+## 使用场景
+
+**故障复盘。** 将时间范围设置为故障窗口并为生产环境应用环境筛选器。图形会立即显示涉及了哪些 agent 以及哪些边承载了最多流量。点击热点边查找延迟激增或策略阻止工具调用的确切 span。
+
+**架构审查。** 在生产环境中切换到 7 天窗口。图形会揭示你实际的 agent 拓扑 — 不是你设计的那个，而是实际演化出来的。具有意外高连接度的节点、agent 之间的循环以及应该是活跃子编排器的叶子 agent 都会变得可见。
+
+**Agent 间依赖追踪。** 当你向系统添加新 agent 时，观察前 24 小时内的图形，以确认它连接到你预期的 agent，并且没有意外连接到不应该连接的 agent。
+
+**按用户工单支持。** 为报告用户的 ID 应用用户筛选器。图形仅显示为该用户请求服务的调用链，使追踪发生了什么、以什么顺序以及哪里出错变得简单明了。
+
+## 下一步
+
+<Cards>
+  <Card title="智能体" href="/cloud/governance/agents" description="创建具名智能体身份，在图中以节点形式呈现。" />
+  <Card title="用户上下文" href="/cloud/telemetry/user-context" description="将调用链归属到最终用户，实现按用户筛选图数据。" />
+  <Card title="审计追踪" href="/cloud/dashboard/audit-trail" description="对图中呈现的交互进行 Span 搜索和导出。" />
+  <Card title="协调节点" href="/open-source/research/coordinator" description="开源路由节点，其评分增量显示在图的边上。" />
+</Cards>

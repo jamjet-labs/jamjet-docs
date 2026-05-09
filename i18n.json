@@ -7,9 +7,18 @@
   "buckets": {
     "markdown": {
       "include": [
-        "content/docs/[locale]/*.mdx",
-        "content/docs/[locale]/*.md",
-        "content/docs/[locale]/migrate/*.mdx"
+        "content/docs/[locale]/cloud/*.mdx",
+        "content/docs/[locale]/cloud/dashboard/*.mdx",
+        "content/docs/[locale]/cloud/get-started/*.mdx",
+        "content/docs/[locale]/cloud/governance/*.mdx",
+        "content/docs/[locale]/cloud/telemetry/*.mdx",
+        "content/docs/[locale]/integrations/*.mdx",
+        "content/docs/[locale]/open-source/*.mdx",
+        "content/docs/[locale]/open-source/*.md",
+        "content/docs/[locale]/open-source/protocols/*.mdx",
+        "content/docs/[locale]/open-source/research/*.mdx",
+        "content/docs/[locale]/reference/*.mdx",
+        "content/docs/[locale]/reference/migrate/*.mdx"
       ]
     }
   },

@@ -1,0 +1,185 @@
+---
+title: 策略
+description: Block dangerous tools at runtime. Glob-based rules. Pre-call filter and post-decision check.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 策略
+
+**策略**是控制 LLM 可以调用哪些工具的规则。JamJet 在请求生命周期的两个时间点执行策略：在请求到达模型之前（调用前过滤）和模型响应之后（决策后检查）。两个执行点都是同步的且在进程内完成——无需网络往返。
+
+## 三种操作
+
+每条策略规则将一个 glob 模式与以下三种操作之一配对：
+
+| 操作 | 行为 |
+|--------|----------|
+| `'block'` | 匹配的工具在 LLM 看到它们之前就被过滤掉。如果模型在响应中仍然请求被阻止的工具，将抛出 `JamjetPolicyBlocked` 异常。 |
+| `'allow'` | 显式允许匹配的工具。适用于在广泛阻止后构建允许列表。 |
+| `'require_approval'` | 注册通过人工审批来控制工具的意图。请参阅下方的[当前限制](#require_approval-current-limitation)。 |
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { policy } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')             // 阻止任何以 wire_ 开头的工具
+  policy('allow', 'wire_read')          // 但 wire_read 除外——显式允许它
+  policy('require_approval', 'send_*')  // 意图对 send_* 工具设置审批（见限制说明）
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  jamjet.policy('block', 'wire_*')             # 阻止任何以 wire_ 开头的工具
+  jamjet.policy('allow', 'wire_read')          # 但 wire_read 除外——显式允许它
+  jamjet.policy('require_approval', 'send_*')  # 意图对 send_* 设置审批（见限制说明）
+  ```
+
+  </Tab>
+</Tabs>
+
+## Glob 模式语义
+
+JamJet 使用 fnmatch 风格的 glob 匹配：
+
+| 模式 | 匹配 | 不匹配 |
+|---------|---------|----------------|
+| `wire_*` | `wire_transfer`、`wire_send`、`wire_read` | `read_wire` |
+| `payments.*` | `payments.send`、`payments.read` | `payments` |
+| `*_admin` | `db_admin`、`user_admin` | `admin_db` |
+| `?_transfer` | `a_transfer` | `ab_transfer` |
+
+`*` 匹配任何字符序列，包括点号。`?` 精确匹配一个字符。模式与工具名称作为整体字符串进行匹配（两端隐式锚定）。
+
+## 最后匹配的规则获胜
+
+当多个规则匹配同一个工具时，注册顺序中的**最后**一条规则获胜。这让你可以先编写一个广泛的阻止规则,然后再针对例外情况进行调整:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, policy, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  // 规则 1: 阻止 payments 命名空间下的所有内容
+  policy('block', 'payments.*')
+
+  // 规则 2: 允许安全的读取操作(在规则 1 之后注册 — 对 payments.read 生效)
+  policy('allow', 'payments.read')
+
+  // 规则 3: 对高额转账要求审批(对 payments.send 生效)
+  policy('require_approval', 'payments.send')
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  # 规则 1: 阻止 payments 命名空间下的所有内容
+  jamjet.policy('block', 'payments.*')
+
+  # 规则 2: 允许安全的读取操作(在规则 1 之后注册 — 对 payments.read 生效)
+  jamjet.policy('allow', 'payments.read')
+
+  # 规则 3: 对高额转账要求审批(对 payments.send 生效)
+  jamjet.policy('require_approval', 'payments.send')
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+对于 `payments.read`:规则 1 说阻止,规则 2 说允许。规则 2 最后注册,所以 `allow` 获胜 — 该工具被允许使用。
+
+对于 `payments.send`:规则 1 说阻止,规则 3 说要求审批。规则 3 最后注册,所以 `require_approval` 获胜(受[当前限制](#require_approval-current-limitation)约束)。
+
+对于 `payments.delete`:只有规则 1 匹配 — 它被阻止。
+
+## 调用前强制执行
+
+在包装的客户端向大语言模型发送请求之前,JamJet 会检查请求中的 `tools` 数组。任何名称被 `block` 规则匹配(且未被后续 `allow` 规则覆盖)的工具都会从列表中移除。大语言模型永远不会看到该工具的存在。
+
+这可以防止模型试图调用危险工具,即使你的提示词明确说明不要这样做。
+
+## 决策后执行
+
+在 LLM 响应后，JamJet 会检查响应中的每个 `tool_call`。如果某个 tool_call 匹配 `block` 规则：
+
+1. 该 span 会被标记为 `policy_blocked: true`。
+2. 抛出 `JamjetPolicyBlocked` 异常。错误的 `cause` 属性携带原始的 tool_call 对象。
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetPolicyBlocked } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Transfer $10 to Alice.' }],
+      tools: [/* ... */],
+    })
+  } catch (err) {
+    if (err instanceof JamjetPolicyBlocked) {
+      console.error('Tool call blocked by policy:', err.cause)
+      // err.cause is the original tool_call from the LLM response
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetPolicyBlocked
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Transfer $10 to Alice.'}],
+          tools=[...],
+      )
+  except JamjetPolicyBlocked as err:
+      print('Tool call blocked by policy:', err.cause)
+      # err.cause is the original tool_call from the LLM response
+  ```
+
+  </Tab>
+</Tabs>
+
+## `require_approval` — 当前限制
+
+在 0.2.x 版本中，`require_approval` **不会在运行时阻止执行**。使用此操作注册的规则会记录在 span 中，并在控制面板中显示为 `policy_approval_pending` span 属性——支持事后审查——但匹配到的工具会原样传递给模型。
+
+完整的运行时阻止功能（在控制面板中等待人工批准后才能调用）计划在 0.3.x 版本中实现。如果您现在需要立即执行，请使用 `'block'` 并通过 [`requireApproval`](/cloud/governance/approvals) 手动实现审批流程。
+
+```typescript
+// 当前做法：阻止工具并手动要求审批
+policy('block', 'send_email')
+
+// 然后，在您的智能体循环中，在自己调用工具之前：
+const approvalId = await requireApproval('send_email', {
+  context: { to: recipient, subject },
+})
+// 只有在批准后才会执行到这里。现在可以调用工具。
+```

@@ -1,0 +1,65 @@
+---
+title: Netzwerk-Graph
+description: Multi-Agent-Visualisierung. Sehen Sie, welcher Agent was, wann und
+  mit wem getan hat.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Netzwerkgraph
+
+Der Netzwerkgraph unter **app.jamjet.dev/projects/&lt;id&gt;/graph** ist eine Echtzeit-Canvas, die zeigt, wie Agenten in Ihrem System miteinander verbunden sind. Er beantwortet Fragen, die Logs nicht beantworten können: welcher Agent an welchen anderen Agent übergeben hat, wie viele Hops eine Anfrage durchlaufen hat, wo in der Kette eine Policy einen Tool-Aufruf blockiert hat und welche Agenten am stärksten vernetzt sind.
+
+## Graph lesen
+
+Jeder Knoten auf der Canvas repräsentiert einen benannten Agenten — eine eindeutige Identität, die Sie mit [`agent()`](/cloud/governance/agents) deklarieren. Jede Kante repräsentiert eine Interaktion: einen Tool-Aufruf von einem Agenten zu einem anderen, einen Span, der emittiert wurde, während ein Agent im Scope eines anderen lief, oder eine explizite Übergabe in einem Multi-Agenten-Workflow.
+
+Die Knotengröße skaliert mit dem Span-Volumen. Dickere Kanten bedeuten mehr Interaktionen zwischen diesen beiden Agenten im ausgewählten Zeitfenster. Ein Knoten ohne ausgehende Kanten ist ein Blatt-Agent — er konsumiert Kontext, delegiert aber nicht weiter.
+
+Durch Klicken auf einen Knoten öffnet sich das **Agenten-Detailpanel**: eine chronologische Liste aller Spans, die dieser Agent im aktuellen Zeitfenster emittiert hat, mit Kosten, Modell, Latenz und Policy-Ergebnis für jeden Span. Durch Klicken auf eine Kante öffnet sich das **Kanten-Detailpanel**: die Teilmenge der Spans, die diese spezifische Agent-zu-Agent-Grenze überschritten haben, sortiert nach Zeit.
+
+## Zeitbereichs-Scoping
+
+Der Zeitbereichs-Picker oben rechts im Graphen steuert, welche Spans einbezogen werden. Verfügbare Fenster:
+
+- **Letzte Stunde** — Standard. Nützlich während aktiver Entwicklung oder Incident-Triage.
+- **Letzte 24 Stunden** — breiter Überblick über den Traffic eines einzelnen Tages.
+- **Letzte 7 Tage** — Architektur-Review und längerfristige Incident-Analyse.
+- **Benutzerdefinierter Bereich** — wählen Sie beliebige Start- und Endzeiten. Der Graph wird für dieses Fenster neu berechnet.
+
+Das Eingrenzen des Zeitbereichs ist der effektivste Weg, einen Incident zu isolieren: setzen Sie das Fenster auf das exakte Intervall, in dem anomales Verhalten auftrat, und prüfen Sie dann, welche Agenten aktiv waren und welche Kanten heiß liefen.
+
+## Filter
+
+Drei Filtersteuerungen befinden sich oberhalb des Canvas:
+
+- **Agent-Filter** — zeigt nur die ausgewählten Agenten und ihre direkten Nachbarn an. Nützlich, wenn viele Agenten vorhanden sind und man sich auf eine Service-Grenze konzentrieren möchte.
+- **Nutzer-Filter** — zeigt nur die Call-Chains an, die einen bestimmten Endnutzer bedient haben. Setzt voraus, dass der [User Context](/cloud/telemetry/user-context) durch das SDK gesetzt wurde. Wenn ein Nutzer-Filter aktiv ist, werden Kanten und Knoten, die von keinem Span dieses Nutzers berührt wurden, ausgegraut.
+- **Environment-Filter** — wenn Spans mit `environment` über [Process Context](/cloud/telemetry/process-context) getaggt werden, lässt sich der Graph auf `production`, `staging` oder einen anderen verwendeten Wert beschränken.
+
+Filter lassen sich kombinieren: Es ist möglich, gleichzeitig Nutzer `u_123` in der `production`-Umgebung über die letzten 24 Stunden anzuzeigen.
+
+## Coordinator-Scoring-Annotationen
+
+Wenn die Call-Chain einen JamJet Open-Source [Coordinator Node](/open-source/research/coordinator) enthält, rendert das Dashboard zusätzliche Annotationen auf den Kanten, die durch ihn verlaufen. Diese Annotationen zeigen das Scoring-Delta, das der Coordinator beim Auswählen des nachgelagerten Agenten berechnet hat — die numerische Differenz zwischen dem bestplatzierten Agenten und der nächsten Alternative.
+
+Ein großes Delta signalisiert, dass der Coordinator hohe Zuversicht in seiner Routing-Entscheidung hatte. Ein kleines Delta bedeutet, dass die Wahl knapp war — lohnenswert zu prüfen, falls der nachgelagerte Agent unterdurchschnittlich performt hat. Die Annotationen sind nur sichtbar, wenn der Coordinator strukturierte Scoring-Spans ausgibt; rein heuristisches Routing erzeugt sie nicht.
+
+## Anwendungsfälle
+
+**Incident-Postmortems.** Zeitbereich auf das Incident-Fenster setzen und einen Environment-Filter für Production anwenden. Der Graph zeigt sofort, welche Agenten beteiligt waren und welche Kanten den meisten Traffic trugen. In heiße Kanten klicken, um die exakten Spans zu finden, bei denen Latenz anstieg oder eine Policy einen Tool-Call blockiert hat.
+
+**Architektur-Review.** Auf ein 7-Tage-Fenster in Production umschalten. Der Graph offenbart die tatsächliche Agenten-Topologie — nicht die geplante, sondern die entstandene. Knoten mit unerwartet hoher Konnektivität, Zyklen zwischen Agenten und Leaf-Agents, die eigentlich aktive Sub-Orchestratoren sein sollten, werden sichtbar.
+
+**Agent-zu-Agent-Dependency-Tracing.** Beim Hinzufügen eines neuen Agenten den Graph über die ersten 24 Stunden beobachten, um zu bestätigen, dass er sich mit den vorgesehenen Agenten verbindet und nicht unerwartet Agenten erreicht, die er nicht erreichen sollte.
+
+**Per-User-Support-Tickets.** Nutzer-Filter für die ID des meldenden Nutzers anwenden. Der Graph zeigt nur die Call-Chain, die die Requests dieses Nutzers bedient hat, und macht es unkompliziert nachzuvollziehen, was passiert ist, in welcher Reihenfolge und wo etwas schiefgelaufen ist.
+
+## Nächste Schritte
+
+<Cards>
+  <Card title="Agents" href="/cloud/governance/agents" description="Erstellen Sie benannte Agent-Identitäten, die als Knoten im Graphen erscheinen." />
+  <Card title="User Context" href="/cloud/telemetry/user-context" description="Ordnen Sie Call-Chains Endbenutzern zu, um den Graphen pro Benutzer zu filtern." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Span-Suche und -Export für die Interaktionen, die der Graph sichtbar macht." />
+  <Card title="Coordinator Node" href="/open-source/research/coordinator" description="Open-Source-Routing-Knoten, dessen Scoring-Deltas auf Graph-Kanten erscheinen." />
+</Cards>

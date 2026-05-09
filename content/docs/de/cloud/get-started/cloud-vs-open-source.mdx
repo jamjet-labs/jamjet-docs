@@ -1,0 +1,60 @@
+---
+title: Cloud vs. Open Source
+description: Entscheiden Sie, welches JamJet Sie brauchen — die gehostete
+  Governance-Plattform, die Open-Source-Runtime oder beides.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Cloud vs. Open Source
+
+JamJet besteht aus zwei Produkten, die zusammenarbeiten. Diese Seite hilft dir, das (oder die) passende(n) für deine Anforderungen zu wählen.
+
+## Was ist JamJet Cloud?
+
+JamJet Cloud ist eine **gehostete Governance-Plattform** für KI-Agenten. Du installierst ein kleines SDK (`@jamjet/cloud` oder `jamjet`), wrapst deinen bestehenden OpenAI- oder Anthropic-Client und erhältst:
+
+- **Policies** — blockiere gefährliche Tools zur Laufzeit
+- **Budgets** — projektbezogene Kostenobergrenzen, die vor dem Aufruf durchgesetzt werden
+- **Freigaben** — Human-in-the-Loop-Gates für sensible Aktionen
+- **Telemetrie** — jeder LLM-Call wird als Span erfasst; Dashboards, Suche, Audit
+- **Multi-Agenten-Attribution** — Netzwerkgraph-Ansicht, welcher Agent was getan hat
+
+Du musst deine App nicht umstrukturieren. Das SDK ist ein Wrapper, kein Framework.
+
+## Was ist die Open-Source-Runtime?
+
+Die Open-Source-Runtime von JamJet ist eine **durable Workflow-Engine** für KI-Agenten. Der Kern ist in Rust geschrieben; die Authoring-Oberfläche ist Python und Java. Du schreibst Workflows, die:
+
+- Ihren Zustand nach jedem Knoten checkpointen, sodass ein Prozess-Neustart nahtlos fortgesetzt wird
+- Deterministisch replayed werden, sodass du Bugs reproduzieren kannst
+- MCP- und A2A-Protokolle nativ sprechen, für agentenübergreifende Kommunikation
+- Horizontal skalieren mit at-least-once Delivery
+
+Du nutzt die Runtime, wenn du mehrstufige Workflows *ausführen* musst — wenn "LLM-Call wrappen" nicht ausreicht.
+
+## Entscheidungsmatrix
+
+| Du möchtest... | Verwende |
+|---|---|
+| Eine bestehende KI-App (Chatbot, Agent-Loop) steuern — Tools blockieren, Kostenobergrenzen setzen, ein Dashboard erhalten | **Cloud** |
+| Einen mehrstufigen durable Workflow mit Checkpoint-Replay, A2A, MCP bauen | **Open-Source-Runtime** |
+| Durable Workflows ausführen UND sie steuern | **Beides** — das SDK von Cloud wrappt die LLM-Calls der Runtime automatisch |
+| Memory (langfristiges Wissen) zu einem der beiden hinzufügen | **Engram** (separates Produkt, siehe [java-ai-memory.dev](https://java-ai-memory.dev)) |
+
+## Wie sie zusammenpassen
+
+Cloud und die Open-Source-Runtime sind unabhängig — Sie können jede davon ohne die andere nutzen. Wenn Sie beide verwenden, erkennt das SDK von Cloud die LLM-Aufrufe der Runtime und gibt Spans für sie aus, sodass Sie Governance über Runtime-Workflows erhalten, ohne zusätzliche Verdrahtung.
+
+## Preise
+
+- **JamJet Cloud:** Free Tier mit großzügigen Limits. Produktionsnutzung beginnt bei $0,50 pro Million Spans. Siehe [app.jamjet.dev/pricing](https://app.jamjet.dev/pricing).
+- **Open-Source-Runtime:** Apache 2.0. Läuft überall.
+- **Engram:** Apache 2.0 (Open Source) + eine gehostete Version auf Cloud (in Beta).
+
+## Weiter
+
+<Cards>
+  <Card title="Cloud Quickstart" href="/cloud/get-started/quickstart" description="5-Minuten-Setup." />
+  <Card title="OSS Quickstart" href="/open-source/quickstart" description="Python- oder Java-Durable-Workflow." />
+</Cards>

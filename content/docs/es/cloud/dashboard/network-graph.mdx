@@ -1,0 +1,64 @@
+---
+title: Grafo de Red
+description: Visualización multiagente. Ve qué agente hizo qué, cuándo y a quién.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Grafo de Red
+
+El Grafo de Red en **app.jamjet.dev/projects/&lt;id&gt;/graph** es un lienzo que se actualiza en vivo y muestra cómo se relacionan los agentes en tu sistema. Responde las preguntas que los logs no pueden: qué agente delegó a qué otro agente, cuántos saltos tomó una solicitud, dónde en la cadena una política bloqueó una llamada a herramienta y qué agentes están más conectados.
+
+## Leer el grafo
+
+Cada nodo en el lienzo representa un agente nombrado — una identidad distinta que declaras con [`agent()`](/cloud/governance/agents). Cada arista representa una interacción: una llamada a herramienta de un agente a otro, un span emitido mientras un agente se ejecutaba dentro del alcance de otro, o una delegación explícita en un flujo de trabajo multiagente.
+
+El tamaño del nodo escala con el volumen de spans. Aristas más gruesas significan más interacciones entre esos dos agentes en la ventana de tiempo seleccionada. Un nodo sin aristas salientes es un agente hoja — consume contexto pero no delega más.
+
+Hacer clic en un nodo abre el **panel de detalles del agente**: una lista cronológica de cada span que ese agente emitió en la ventana de tiempo actual, con costo, modelo, latencia y resultado de política para cada uno. Hacer clic en una arista abre el **panel de detalles de arista**: el subconjunto de spans que cruzaron ese límite específico agente-a-agente, ordenados por tiempo.
+
+## Alcance de rango temporal
+
+El selector de rango temporal en la esquina superior derecha del grafo controla qué spans se incluyen. Ventanas disponibles:
+
+- **Última 1 hora** — predeterminado. Útil durante desarrollo activo o triaje de incidentes.
+- **Últimas 24 horas** — vista amplia del tráfico de un solo día.
+- **Últimos 7 días** — revisión de arquitectura y análisis de incidentes de mayor duración.
+- **Rango personalizado** — elige cualquier tiempo de inicio y fin. El grafo se recalcula para esa ventana.
+
+Reducir el rango temporal es la forma más efectiva de aislar un incidente: configura la ventana al intervalo exacto donde ocurrió el comportamiento anómalo, luego inspecciona qué agentes estaban activos y qué aristas estaban activas.
+
+## Filtros
+
+Tres controles de filtrado están ubicados sobre el lienzo:
+
+- **Filtro de agente** — muestra únicamente el o los agentes seleccionados y sus vecinos directos. Útil cuando tienes muchos agentes y quieres enfocarte en un límite de servicio específico.
+- **Filtro de usuario** — muestra únicamente las cadenas de llamadas que atendieron a un usuario final específico. Requiere que el SDK configure el [Contexto de Usuario](/cloud/telemetry/user-context). Cuando hay un filtro de usuario activo, los enlaces y nodos no tocados por ningún span atribuido a ese usuario aparecen atenuados.
+- **Filtro de entorno** — si etiquetas spans con `environment` mediante [Contexto de Proceso](/cloud/telemetry/process-context), puedes restringir el grafo a `production`, `staging` o cualquier otro valor que uses.
+
+Los filtros se componen: puedes mostrar al usuario `u_123` en el entorno `production` durante las últimas 24 horas simultáneamente.
+
+## Anotaciones de puntuación del coordinador
+
+Cuando tu cadena de llamadas incluye un [Nodo Coordinador](/open-source/research/coordinator) de código abierto de JamJet, el panel renderiza anotaciones adicionales en los enlaces que fluyen a través de él. Estas anotaciones muestran el delta de puntuación que el coordinador calculó al seleccionar a qué agente descendente delegar — la diferencia numérica entre el agente mejor clasificado y la siguiente alternativa.
+
+Un delta grande indica que el coordinador tenía alta confianza en su decisión de enrutamiento. Un delta pequeño significa que fue una decisión ajustada — vale la pena revisar si el agente descendente tuvo bajo rendimiento. Las anotaciones solo son visibles cuando el coordinador emite spans de puntuación estructurados; el enrutamiento puramente heurístico no los produce.
+
+## Casos de uso
+
+**Análisis post-incidentes.** Configura el rango de tiempo a la ventana del incidente y aplica un filtro de entorno para producción. El grafo muestra inmediatamente qué agentes estuvieron involucrados y qué enlaces llevaron más tráfico. Haz clic en enlaces activos para encontrar los spans exactos donde la latencia se disparó o una política bloqueó una llamada de herramienta.
+
+**Revisión de arquitectura.** Cambia a una ventana de 7 días en producción. El grafo revela tu topología de agentes real — no la que diseñaste, sino la que emergió. Los nodos con conectividad inesperadamente alta, ciclos entre agentes y agentes hoja que deberían ser suborquestadores activos se vuelven visibles.
+
+**Rastreo de dependencias entre agentes.** Cuando agregas un nuevo agente al sistema, observa el grafo durante las primeras 24 horas para confirmar que se conecta a los agentes que pretendías y no alcanza inesperadamente agentes que no debería.
+
+**Tickets de soporte por usuario.** Aplica el filtro de usuario para el ID del usuario que reporta. El grafo muestra únicamente la cadena de llamadas que atendió las solicitudes de ese usuario, facilitando rastrear qué sucedió, en qué orden y dónde algo salió mal.
+
+## Próximos pasos
+
+<Cards>
+  <Card title="Agentes" href="/cloud/governance/agents" description="Crea identidades de agente con nombre que aparecen como nodos en el grafo." />
+  <Card title="Contexto de Usuario" href="/cloud/telemetry/user-context" description="Atribuye cadenas de llamadas a usuarios finales para filtrar el grafo por usuario." />
+  <Card title="Registro de Auditoría" href="/cloud/dashboard/audit-trail" description="Búsqueda y exportación de spans para las interacciones que el grafo muestra." />
+  <Card title="Nodo Coordinador" href="/open-source/research/coordinator" description="Nodo de enrutamiento de código abierto cuyos deltas de puntuación aparecen en las aristas del grafo." />
+</Cards>

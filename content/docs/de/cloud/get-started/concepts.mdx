@@ -1,0 +1,85 @@
+---
+title: Konzepte
+description: Die fünf Grundbausteine von JamJet Cloud — Span, Agent, Policy,
+  Budget, Approval.
+---
+
+# Cloud-Konzepte
+
+JamJet Cloud basiert auf fünf Kernprimitive. Diese Seite bietet einen kompakten Überblick. Jeder Abschnitt verweist auf ausführliche Dokumentation.
+
+## Span
+
+Ein **Span** ist eine einzelne Einheit beobachteter Arbeit – typischerweise ein LLM-Aufruf. Spans enthalten:
+
+- Das Modell, den Prompt, die Antwort (vollständige Payloads, opt-in via `capture_io=True`)
+- Den Agent, der ihn erzeugt hat
+- Den Benutzerkontext, die Umgebung, die Release-Version
+- Token-Anzahl, Latenz, Kosten in USD
+- Alle Policy-Entscheidungen oder Genehmigungen, die angewendet wurden
+
+Sie erstellen Spans nicht manuell. Das SDK erzeugt einen pro gewrapptem LLM-Aufruf.
+
+[→ Spans & Traces](/cloud/telemetry/spans-and-traces)
+
+## Agent
+
+Ein **Agent** ist eine benannte Identität. Spans werden mit dem Agent getaggt, der sie erzeugt hat. Sie können einen einzelnen Standard-Agent oder viele haben – `researcher`, `writer-bot`, `code-reviewer`. Das Dashboard stellt Agents als Knoten in einem Netzwerkgraph dar.
+
+```typescript
+import { agent, withAgent } from '@jamjet/cloud'
+
+const researcher = agent('researcher', { description: 'reads + summarises' })
+
+await withAgent(researcher, async () => {
+  // jeder hier emittierte Span wird als researcher getaggt
+  await openai.chat.completions.create(/* ... */)
+})
+```
+
+[→ Agents](/cloud/governance/agents)
+
+## Policy
+
+Eine **Policy** ist eine Regel, die steuert, welche Tools ein LLM aufrufen darf. Policies matchen per Glob.
+
+```typescript
+import { policy } from '@jamjet/cloud'
+
+policy('block', 'wire_*')                  // blockiert alle Tools, die mit wire_ beginnen
+policy('require_approval', 'send_email')   // setzt Genehmigung für dieses Tool voraus
+```
+
+Policies setzen sowohl **Pre-Call** (filtern die Tool-Liste vor dem Senden an das LLM) als auch **Post-Decision** (prüfen Tool-Calls in der Antwort erneut) durch. Sowohl genehmigungspflichtige als auch blockierte Tools werden im Span erfasst.
+
+[→ Richtlinien](/cloud/governance/policies)
+
+## Budget
+
+Ein **Budget** ist eine Kostenobergrenze. JamJet prüft jeden Aufruf vorab gegen das Budget und wirft `JamjetBudgetExceeded`, falls der Aufruf die Grenze überschreiten würde.
+
+```typescript
+import { budget } from '@jamjet/cloud'
+
+budget(50)   // Obergrenze von $50 für dieses Projekt
+```
+
+Die Vorabprüfung verwendet geschätzte Kosten basierend auf der Anzahl der Prompt-Token; die tatsächlichen Kosten werden nach dem Aufruf erfasst.
+
+[→ Budgets](/cloud/governance/budgets)
+
+## Genehmigung
+
+Eine **Genehmigung** ist eine Human-in-the-Loop-Freigabe. `requireApproval('production_deploy')` blockiert, bis ein Mensch im Dashboard genehmigt oder ablehnt.
+
+```typescript
+import { requireApproval } from '@jamjet/cloud'
+
+const approvalId = await requireApproval('production_deploy', {
+  context: { service: 'auth-api', version: '2.3.1' },
+  timeoutMs: 600_000,   // 10 Minuten
+})
+// läuft nur bei Genehmigung weiter; wirft JamjetApprovalRejected bei Ablehnung
+```
+
+[→ Genehmigungen](/cloud/governance/approvals)

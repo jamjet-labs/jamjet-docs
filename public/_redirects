@@ -1,1 +1,34 @@
 / /en 301
+
+# Cloud quickstart — highest-traffic legacy URL
+/:lang/docs/quickstart              /:lang/docs/cloud/get-started/quickstart        301
+/:lang/docs/cloud-quickstart        /:lang/docs/cloud/get-started/quickstart        301
+
+# Open Source moves
+/:lang/docs/python-sdk              /:lang/docs/open-source/python-runtime          301
+/:lang/docs/java-sdk                /:lang/docs/open-source/java-runtime            301
+/:lang/docs/java-quickstart         /:lang/docs/open-source/quickstart              301
+/:lang/docs/concepts                /:lang/docs/open-source/concepts                301
+/:lang/docs/yaml-workflows          /:lang/docs/open-source/yaml-workflows          301
+/:lang/docs/cli                     /:lang/docs/open-source/cli                     301
+/:lang/docs/mcp                     /:lang/docs/open-source/protocols/mcp           301
+/:lang/docs/a2a                     /:lang/docs/open-source/protocols/a2a           301
+/:lang/docs/coordinator             /:lang/docs/open-source/research/coordinator    301
+/:lang/docs/agent-as-tool           /:lang/docs/open-source/research/agent-as-tool  301
+/:lang/docs/eval                    /:lang/docs/open-source/research/eval           301
+/:lang/docs/research-guide          /:lang/docs/open-source/research/research-guide 301
+/:lang/docs/observability           /:lang/docs/open-source/observability           301
+/:lang/docs/deployment              /:lang/docs/open-source/deployment              301
+/:lang/docs/enterprise              /:lang/docs/open-source/enterprise              301
+
+# Integrations moves
+/:lang/docs/spring-boot-starter     /:lang/docs/integrations/spring-boot            301
+/:lang/docs/langchain4j-integration /:lang/docs/integrations/langchain4j            301
+
+# Reference moves
+/:lang/docs/api-reference           /:lang/docs/reference/rest-api                  301
+/:lang/docs/compare                 /:lang/docs/reference/compare                   301
+/:lang/docs/migrate/langgraph       /:lang/docs/reference/migrate/langgraph         301
+/:lang/docs/migrate/crewai          /:lang/docs/reference/migrate/crewai            301
+/:lang/docs/migrate/google-adk      /:lang/docs/reference/migrate/google-adk        301
+/:lang/docs/migrate/openai-direct   /:lang/docs/reference/migrate/openai-direct     301

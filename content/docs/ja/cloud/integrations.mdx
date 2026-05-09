@@ -1,0 +1,19 @@
+---
+title: 統合
+description: 既に使用しているAIフレームワーク（Vercel AI SDK、LangChain4j、Spring Boot）でJamJet Cloudを活用できます。
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# クラウド統合
+
+JamJet CloudのTypeScriptおよびPython SDKは、OpenAI / Anthropicプロトコルに対応する任意のフレームワークで動作します。独自の抽象化を持つフレームワークには、専用の統合により、よりクリーンなポリシー適用と充実したテレメトリを提供します。
+
+<Cards>
+  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="`wrapLanguageModel`ミドルウェア。ストリーミング対応のポリシー適用。" />
+  <Card title="LangChain4j" href="/integrations/langchain4j" description="Javaエージェントとツール。Advisorパターン。" />
+  <Card title="Spring Boot" href="/integrations/spring-boot" description="自動設定スターター。Engram ChatMemoryStore。" />
+  <Card title="Mastra / Express / CF Workers" href="/integrations" description="近日公開予定。" />
+</Cards>
+
+> 各統合は`@jamjet/cloud`の薄いアダプターです。お使いのフレームワークがリストにない場合でも、基本SDKで動作します。

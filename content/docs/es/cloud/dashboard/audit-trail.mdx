@@ -1,0 +1,82 @@
+---
+title: Registro de auditoría
+description: Busca, filtra y exporta cada span. Registro de auditoría listo para
+  cumplimiento normativo.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Registro de auditoría
+
+El Registro de auditoría es el historial completo e inmutable de cada span que JamJet Cloud ha recibido para tu proyecto. Cada llamada a LLM, cada invocación de herramienta, cada decisión de política y cada resultado de aprobación queda registrado aquí. Puedes buscar, filtrar y exportar — convirtiéndolo en la superficie principal para revisiones de cumplimiento, análisis post-incidentes e investigaciones de costos.
+
+## Búsqueda de spans
+
+La barra de búsqueda en la parte superior del Registro de auditoría acepta consultas de texto libre que coinciden con nombres de agentes, identificadores de modelos, IDs de usuarios, nombres de políticas y metadatos de spans. Escribir `gpt-4o` devuelve todos los spans que usaron ese modelo. Escribir el nombre de un agente devuelve todos los spans emitidos por ese agente. Escribir un ID de usuario — si usas [Contexto de usuario](/cloud/telemetry/user-context) — devuelve todo lo atribuido a ese usuario.
+
+Los resultados de búsqueda se ordenan del más reciente al más antiguo por defecto. Puedes invertir el orden o clasificar por costo o latencia usando los encabezados de columna.
+
+## Filtros
+
+Los filtros reducen el conjunto de resultados antes o después de una búsqueda de texto. Se componen: todos los filtros activos se aplican simultáneamente.
+
+**Atributos de span:**
+- Agente — uno o más agentes con nombre.
+- Usuario — un `user_id` específico (requiere Contexto de usuario en el SDK).
+- Modelo — p. ej., `gpt-4o`, `claude-3-7-sonnet`, `gemini-2.5-pro`.
+- Costo — un costo mínimo y/o máximo en USD por span.
+- Rango de tiempo — marcas de tiempo absolutas o ventanas relativas (última 1h, 24h, 7d o personalizado).
+
+**Estado de aprobación:**
+- `approved` — un humano aprobó la acción mediante `requireApproval`.
+- `rejected` — un humano rechazó la acción.
+- `timed_out` — la solicitud de aprobación expiró antes de que un humano actuara.
+- `not_required` — el span se completó sin activar una compuerta de aprobación.
+
+**Decisión de política:**
+- `allow` — la política evaluó y permitió la llamada a herramienta.
+- `block` — la política bloqueó la llamada a herramienta antes de ejecutarse.
+- `require_approval` — la política escaló a una compuerta humana.
+
+Combinar un filtro de política `block` con un filtro de agente específico es la forma más rápida de responder "¿qué llamadas a herramientas intentó este agente que mis políticas detuvieron?"
+
+## Detalle del span
+
+Al hacer clic en cualquier fila del Audit Trail se abre el panel de detalle del span. Muestra:
+
+- El payload completo de la solicitud enviada al modelo (enmascarado si has configurado la redacción de datos).
+- La respuesta completa, incluidas las llamadas a herramientas y sus argumentos.
+- Desglose de tiempos: tiempo hasta el primer token, latencia total, recuentos de tokens de prompt y de completado.
+- Costo en USD, calculado a partir de los precios de tokens publicados del modelo al momento de la llamada.
+- Decisiones de políticas evaluadas contra este span, con la regla coincidente y el resultado.
+- Registro de aprobación si fue requerido — quién aprobó o rechazó, cuándo, y cualquier motivo de rechazo ingresado.
+- Atributos de contexto de agente, usuario, entorno y proceso.
+
+## Exportar
+
+El botón **Exportar** encima de la tabla de resultados genera una descarga en formato CSV o JSON según tu elección. La exportación respeta todos los filtros activos y la consulta de búsqueda actual — lo que ves es lo que exportas.
+
+Casos de uso para exportación:
+
+- **Ventanas de auditoría SOC 2.** Configura el rango temporal al período de auditoría, filtra opcionalmente a producción y exporta JSON. El resultado es un registro legible por máquina de cada interacción con el modelo en esa ventana, incluidos costo, modelo, agente y resultado de política.
+- **Postmortems de incidentes.** Exporta la ventana temporal estrecha de un incidente para análisis offline o como adjunto a un documento de postmortem.
+- **Reconciliación de facturación.** Exporta todos los spans de un período de facturación y suma `cost_usd` para verificar contra las facturas del proveedor de modelos.
+
+Las exportaciones son síncronas para conjuntos de resultados menores a aproximadamente 10,000 spans. Las exportaciones más grandes se ponen en cola y se entregan mediante un enlace de descarga enviado al correo de tu cuenta.
+
+## Retención
+
+La retención de spans varía según el nivel del plan:
+
+- **Nivel gratuito** — 7 días de retención continua. Los spans con más de 7 días se eliminan automáticamente.
+- **Niveles de pago** — períodos de retención más largos, configurables en **Configuración → Datos y retención**. Consulta la comparativa actual de planes en [app.jamjet.dev](https://app.jamjet.dev) para conocer los límites exactos de retención, ya que pueden cambiar.
+
+> Si necesitas conservar spans más allá de tu período de retención, expórtalos antes del corte. JamJet no ofrece exportaciones retroactivas después de la eliminación.
+
+## Siguientes pasos
+
+<Cards>
+  <Card title="Políticas" href="/cloud/governance/policies" description="Define reglas de bloqueo / permiso / requiere-aprobación que aparecen en el filtro de decisión de políticas." />
+  <Card title="Aprobaciones" href="/cloud/governance/approvals" description="Controles de aprobación humana cuyos resultados se registran en el registro de auditoría." />
+  <Card title="Gráfico de red" href="/cloud/dashboard/network-graph" description="Visualiza la topología de agentes detrás de los spans en el registro de auditoría." />
+</Cards>

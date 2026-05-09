@@ -1,0 +1,91 @@
+---
+title: 予算管理
+description: Per-project cost ceilings. Pre-call estimation throws before billing; post-call records truth.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 予算管理
+
+`budget(maxCostUsd)` はプロジェクトのコスト上限を設定します。JamJetは2つのフェーズで上限を強制します：**呼び出し前の見積もり**では、予測支出が上限を超える場合にLLMに接続する前に例外をスローし、**呼び出し後の記録**では、`response.usage` からの実際のコストで累計を更新します。
+
+## 予算の設定
+
+`budget()` に正のUSD金額を渡します。`init()` の後、起動時に一度呼び出してください。
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, budget, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  budget(50)   // このプロジェクトの上限は$50
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  jamjet.budget(max_cost_usd=50)   # このプロジェクトの上限は$50
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+予算はプロセス内のすべてのラップされた呼び出しに適用されます。これはプロセスごとの設定であり、APIキーごとではありません。同じキーを持つ異なるプロセスはそれぞれ独立した上限を持ちます。
+
+## 呼び出し前の見積もり
+
+LLMにリクエストを送信する前に、JamJetはモデルごとの価格表を使用してプロンプトのトークン数から呼び出しのコストを見積もります。予測される総支出（プロセスのライフタイム全体での累計）が上限を超える場合、`JamjetBudgetExceeded` が即座にスローされます。LLMは呼び出されず、料金は発生しません。
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetBudgetExceeded } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Long prompt...' }],
+    })
+  } catch (err) {
+    if (err instanceof JamjetBudgetExceeded) {
+      console.error(
+        `予算を超過しました。支出: $${err.spent.toFixed(4)}, 上限: $${err.limit.toFixed(2)}`
+      )
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetBudgetExceeded
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Long prompt...'}],
+      )
+  except JamjetBudgetExceeded as err:
+      print(f'予算を超過しました。支出: ${err.spent:.4f}, 上限: ${err.limit:.2f}')
+  ```
+
+  </Tab>
+</Tabs>

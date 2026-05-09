@@ -1,0 +1,110 @@
+---
+title: Agentes
+description: Named identities that produce spans. Multi-agent attribution. ALS-scoped lifecycle.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Agentes
+
+Un **agente** es una identidad con nombre en JamJet Cloud. Cada span emitido por una llamada LLM envuelta lleva una etiqueta de agente para que el panel de control pueda atribuir costos, latencia y decisiones de políticas por agente. Con múltiples agentes en un mismo proceso obtienes un grafo de red que muestra qué agentes llamaron qué herramientas y cómo se relacionan.
+
+## Qué es un AgentRef
+
+`agent()` devuelve un objeto `AgentRef` congelado — un registro ligero e inmutable con tres campos:
+
+| Campo | Tipo | Requerido |
+|-------|------|----------|
+| `name` | `string` | sí |
+| `cardUri` | `string` | no — URL de tarjeta de agente A2A |
+| `description` | `string` | no — se muestra en el panel de control |
+
+El objeto está congelado: no puedes modificarlo después de su creación. Pásalo libremente.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { agent } from '@jamjet/cloud'
+
+  const researcher = agent('researcher', {
+    description: 'reads web content and summarises findings',
+    cardUri: 'https://api.example.com/.well-known/agent.json',
+  })
+
+  // researcher.name        === 'researcher'
+  // researcher.description === 'reads web content and summarises...'
+  // researcher.cardUri     === 'https://...'
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  researcher = jamjet.agent('researcher',
+    description='reads web content and summarises findings',
+    card_uri='https://api.example.com/.well-known/agent.json',
+  )
+
+  # researcher.name        == 'researcher'
+  # researcher.description == 'reads web content and summarises...'
+  # researcher.card_uri    == 'https://...'
+  ```
+
+  </Tab>
+</Tabs>
+
+## Definir alcance de spans con withAgent
+
+Envuelve cualquier trabajo asíncrono en `withAgent(ref, fn)` y cada span producido dentro de ese alcance es etiquetado con el agente. El alcance se implementa con AsyncLocalStorage (ALS) de Node.js, por lo que se propaga automáticamente a través de puntos `await` — no necesitas pasar el ref a cada llamada.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { init, agent, withAgent, wrap } from '@jamjet/cloud'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  const openai = wrap(new OpenAI())
+  const researcher = agent('researcher', { description: 'reads + summarises' })
+
+  await withAgent(researcher, async () => {
+    // este span está etiquetado agent=researcher
+    const summary = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Summarise the JamJet docs.' }],
+    })
+    return summary
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  client = jamjet.wrap(OpenAI())
+  researcher = jamjet.agent('researcher', description='reads + summarises')
+
+  async with jamjet.with_agent(researcher):
+      # este span está etiquetado agent=researcher
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Summarise the JamJet docs.'}],
+      )
+  ```
+
+  </Tab>
+</Tabs>
+
+Las llamadas a `withAgent` se pueden anidar. El alcance más interno prevalece para cualquier span emitido dentro de él.

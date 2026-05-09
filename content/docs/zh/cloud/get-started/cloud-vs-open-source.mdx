@@ -1,0 +1,59 @@
+---
+title: Cloud 与开源版本对比
+description: 选择你需要的 JamJet — 托管治理平台、开源运行时，或两者兼用。
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 云服务 vs 开源版
+
+JamJet 是两个协同工作的产品。本页面帮助您选择所需的产品。
+
+## 什么是 JamJet Cloud?
+
+JamJet Cloud 是一个**托管式治理平台**,专为 AI 智能体设计。您只需安装一个小型 SDK(`@jamjet/cloud` 或 `jamjet`),包装现有的 OpenAI / Anthropic 客户端,即可获得:
+
+- **策略** — 在运行时阻止危险工具
+- **预算** — 按项目设置成本上限,在调用前强制执行
+- **审批** — 为敏感操作设置人工介入关卡
+- **遥测** — 每次 LLM 调用都作为 span 捕获;提供仪表板、搜索、审计功能
+- **多智能体归因** — 以网络图形式展示各智能体的操作
+
+无需重构应用。SDK 是包装器,而非框架。
+
+## 什么是开源运行时?
+
+JamJet 开源运行时是一个**持久化工作流引擎**,专为 AI 智能体设计。核心使用 Rust 编写;编程界面支持 Python 和 Java。您可以编写具有以下特性的工作流:
+
+- 每个节点后自动检查点保存状态,进程重启后无缝恢复
+- 确定性重放,便于复现问题
+- 原生支持 MCP 和 A2A 协议,实现跨智能体通信
+- 水平扩展,保证至少一次交付
+
+当您需要*运行*多步骤工作流时使用该运行时 — 当"包装 LLM 调用"不够用时。
+
+## 决策矩阵
+
+| 您想要... | 使用 |
+|---|---|
+| 治理现有 AI 应用(聊天机器人、智能体循环)— 阻止工具、设置成本上限、获取仪表板 | **Cloud** |
+| 构建多步骤持久化工作流,具备检查点重放、A2A、MCP 功能 | **开源运行时** |
+| 运行持久化工作流并同时治理它们 | **两者** — Cloud 的 SDK 会自动包装运行时的 LLM 调用 |
+| 为任一产品添加记忆(长期知识) | **Engram**(独立产品,详见 [java-ai-memory.dev](https://java-ai-memory.dev)) |
+
+## 它们如何协同工作
+
+Cloud 和开源运行时是独立的 — 你可以单独使用其中任何一个。当两者同时使用时，Cloud 的 SDK 会检测运行时的 LLM 调用并为其生成 span，这样你无需额外配置即可对运行时工作流进行治理。
+
+## 定价
+
+- **JamJet Cloud:** 提供慷慨额度的免费套餐。生产环境使用价格从每百万 span $0.50 起。详见 [app.jamjet.dev/pricing](https://app.jamjet.dev/pricing)。
+- **开源运行时:** Apache 2.0 许可。可在任何地方运行。
+- **Engram:** Apache 2.0（开源）+ Cloud 上的托管版本（测试版）。
+
+## 下一步
+
+<Cards>
+  <Card title="Cloud 快速入门" href="/cloud/get-started/quickstart" description="5 分钟完成设置。" />
+  <Card title="OSS 快速入门" href="/open-source/quickstart" description="Python 或 Java 持久化工作流。" />
+</Cards>

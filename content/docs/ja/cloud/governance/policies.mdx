@@ -1,0 +1,59 @@
+---
+title: ポリシー
+description: Block dangerous tools at runtime. Glob-based rules. Pre-call filter and post-decision check.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# ポリシー
+
+**ポリシー**とは、LLMが呼び出せるツールを制御するルールです。JamJetは、リクエストライフサイクルの2つの時点でポリシーを強制します：リクエストがモデルに到達する前（呼び出し前フィルター）と、モデルが応答した後（決定後チェック）です。両方の強制ポイントは同期的かつプロセス内で実行されるため、ネットワークラウンドトリップは不要です。
+
+## 3つのアクション
+
+すべてのポリシールールは、globパターンと以下の3つのアクションのいずれかを組み合わせます：
+
+| アクション | 動作 |
+|--------|----------|
+| `'block'` | マッチしたツールは、LLMがそれを認識する前にリクエストから除外されます。モデルがレスポンス内でブロックされたツールをリクエストした場合、`JamjetPolicyBlocked`がスローされます。 |
+| `'allow'` | マッチしたツールを明示的に許可します。広範なブロックの後に許可リストを構築する際に便利です。 |
+| `'require_approval'` | 人間による承認を介してツールをゲートする意図を登録します。下記の[現在の制限](#require_approval-current-limitation)を参照してください。 |
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { policy } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')             // wire_で始まる名前のツールをすべてブロック
+  policy('allow', 'wire_read')          // ただしwire_readは明示的に許可
+  policy('require_approval', 'send_*')  // send_*ツールをゲートする意図（制限を参照）
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  jamjet.policy('block', 'wire_*')             # wire_で始まるツールをブロック
+  jamjet.policy('allow', 'wire_read')          # ただしwire_readは明示的に許可
+  jamjet.policy('require_approval', 'send_*')  # send_*をゲートする意図（制限を参照）
+  ```
+
+  </Tab>
+</Tabs>
+
+## Globパターンのセマンティクス
+
+JamJetはfnmatch形式のglobマッチングを使用します：
+
+| パターン | マッチ | マッチしない |
+|---------|---------|----------------|
+| `wire_*` | `wire_transfer`, `wire_send`, `wire_read` | `read_wire` |
+| `payments.*` | `payments.send`, `payments.read` | `payments` |
+| `*_admin` | `db_admin`, `user_admin` | `admin_db` |
+| `?_transfer` | `a_transfer` | `ab_transfer` |
+
+`*`はドットを含む任意の文字列にマッチします。`?`はちょうど1文字にマッチします。パターンはツール名全体に対してマッチされます（両端で暗黙的にアンカーされます）。

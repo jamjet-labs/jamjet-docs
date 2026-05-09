@@ -1,0 +1,19 @@
+---
+title: 集成
+description: 将 JamJet Cloud 与您现有的 AI 框架配合使用 — Vercel AI SDK、LangChain4j、Spring Boot。
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 云集成
+
+JamJet Cloud 的 TypeScript 和 Python SDK 可与任何支持 OpenAI / Anthropic 协议的框架配合使用。对于具有自身抽象层的框架,专用集成可提供更清晰的策略执行和更丰富的遥测数据。
+
+<Cards>
+  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="`wrapLanguageModel` 中间件。流式感知策略执行。" />
+  <Card title="LangChain4j" href="/integrations/langchain4j" description="Java 智能体和工具。Advisor 模式。" />
+  <Card title="Spring Boot" href="/integrations/spring-boot" description="自动配置启动器。Engram ChatMemoryStore。" />
+  <Card title="Mastra / Express / CF Workers" href="/integrations" description="即将推出。" />
+</Cards>
+
+> 每个集成都是基于 `@jamjet/cloud` 的轻量适配器。如果您使用的框架不在列表中,裸 SDK 同样适用。

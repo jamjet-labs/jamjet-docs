@@ -1,0 +1,81 @@
+---
+title: Audit Trail
+description: Durchsuche, filtere und exportiere jeden Span. Compliance-fähiges Audit-Log.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Audit Trail
+
+Der Audit Trail ist die vollständige, unveränderliche Aufzeichnung jedes Spans, den JamJet Cloud für Ihr Projekt empfangen hat. Jeder LLM-Aufruf, jede Tool-Invokation, jede Policy-Entscheidung und jedes Freigabe-Ergebnis landet hier. Sie können durchsuchen, filtern und exportieren – das macht den Audit Trail zur primären Oberfläche für Compliance-Reviews, Incident-Postmortems und Kostenanalysen.
+
+## Span-Suche
+
+Die Suchleiste oben im Audit Trail akzeptiert Freitextabfragen, die gegen Agentennamen, Modell-IDs, User-IDs, Policy-Namen und Span-Metadaten matchen. Die Eingabe von `gpt-4o` liefert alle Spans, die dieses Modell verwendet haben. Die Eingabe eines Agentennamens liefert alle Spans, die von diesem Agenten emittiert wurden. Die Eingabe einer User-ID – wenn Sie [User Context](/cloud/telemetry/user-context) nutzen – liefert alles, was diesem User zugeordnet ist.
+
+Suchergebnisse sind standardmäßig nach Neuheit sortiert. Sie können die Reihenfolge umkehren oder nach Kosten oder Latenz sortieren, indem Sie die Spaltenüberschriften verwenden.
+
+## Filter
+
+Filter grenzen die Ergebnismenge vor oder nach einer Textsuche ein. Sie sind kombinierbar: Alle aktiven Filter werden gleichzeitig angewendet.
+
+**Span-Attribute:**
+- Agent – einer oder mehrere benannte Agenten.
+- User – eine spezifische `user_id` (erfordert User Context im SDK).
+- Model – z. B. `gpt-4o`, `claude-3-7-sonnet`, `gemini-2.5-pro`.
+- Cost – Mindest- und/oder Maximalkosten in USD pro Span.
+- Time range – absolute Zeitstempel oder relative Fenster (letzte 1h, 24h, 7d oder custom).
+
+**Freigabestatus:**
+- `approved` – ein Mensch hat die Aktion über `requireApproval` freigegeben.
+- `rejected` – ein Mensch hat die Aktion abgelehnt.
+- `timed_out` – die Freigabeanfrage ist abgelaufen, bevor ein Mensch reagiert hat.
+- `not_required` – der Span wurde abgeschlossen, ohne ein Freigabe-Gate auszulösen.
+
+**Policy-Entscheidung:**
+- `allow` – die Policy wurde ausgewertet und hat den Tool-Call erlaubt.
+- `block` – die Policy hat den Tool-Call vor der Ausführung blockiert.
+- `require_approval` – die Policy hat zu einem menschlichen Gate eskaliert.
+
+Die Kombination eines `block`-Policy-Filters mit einem spezifischen Agentenfilter ist der schnellste Weg, um die Frage zu beantworten: „Welche Tool-Calls hat dieser Agent versucht, die meine Policies gestoppt haben?"
+
+## Span-Details
+
+Durch Klicken auf eine beliebige Zeile im Audit Trail öffnet sich das Span-Detailpanel. Es zeigt:
+
+- Den vollständigen Request-Payload, der an das Modell gesendet wurde (maskiert, falls Sie Datenredaktion konfiguriert haben).
+- Die vollständige Response, einschließlich Tool-Calls und deren Argumente.
+- Timing-Aufschlüsselung: Zeit bis zum ersten Token, Gesamtlatenz, Prompt- und Completion-Token-Anzahl.
+- Kosten in USD, berechnet aus den veröffentlichten Token-Preisen des Modells zum Zeitpunkt des Calls.
+- Policy-Entscheidungen, die gegen diesen Span ausgewertet wurden, mit der zutreffenden Regel und dem Ergebnis.
+- Genehmigungsdatensatz, falls erforderlich — wer genehmigt oder abgelehnt hat, wann und welchen Ablehnungsgrund sie eingegeben haben.
+- Agent-, User-, Environment- und Process-Kontext-Attribute.
+
+## Export
+
+Die Schaltfläche **Export** oberhalb der Ergebnistabelle erzeugt einen Download in Ihrer Wahl aus CSV oder JSON. Der Export berücksichtigt alle aktiven Filter und die aktuelle Suchanfrage — was Sie sehen, exportieren Sie.
+
+Anwendungsfälle für Export:
+
+- **SOC-2-Audit-Zeiträume.** Setzen Sie den Zeitraum auf die Audit-Periode, filtern Sie optional auf Produktion und exportieren Sie JSON. Das Ergebnis ist ein maschinenlesbarer Datensatz jeder Modellinteraktion in diesem Zeitraum, einschließlich Kosten, Modell, Agent und Policy-Ergebnis.
+- **Incident-Postmortems.** Exportieren Sie das enge Zeitfenster eines Incidents zur Offline-Analyse oder als Anhang für ein Postmortem-Dokument.
+- **Abrechnungsabgleich.** Exportieren Sie alle Spans für einen Abrechnungszeitraum und summieren Sie `cost_usd`, um dies gegen die Rechnungen des Modellanbieters abzugleichen.
+
+Exporte sind synchron für Ergebnismengen unter etwa 10.000 Spans. Größere Exports werden in eine Warteschlange gestellt und über einen Download-Link an Ihre Account-E-Mail zugestellt.
+
+## Aufbewahrung
+
+Die Aufbewahrungsdauer von Spans variiert je nach Plan-Stufe:
+
+- **Free-Tier** — 7 Tage rollende Aufbewahrung. Spans, die älter als 7 Tage sind, werden automatisch gelöscht.
+- **Bezahlte Tiers** — längere Aufbewahrungszeiträume, konfigurierbar unter **Einstellungen → Daten & Aufbewahrung**. Die aktuellen Limits findest du im Plan-Vergleich auf [app.jamjet.dev](https://app.jamjet.dev), da sich diese ändern können.
+
+> Falls du Spans über dein Aufbewahrungsfenster hinaus sichern möchtest, exportiere sie vor Ablauf der Frist. JamJet bietet keine rückwirkenden Exporte nach der Löschung an.
+
+## Nächste Schritte
+
+<Cards>
+  <Card title="Policies" href="/cloud/governance/policies" description="Definiere Block-, Allow- und Approve-Regeln, die im Policy-Entscheidungsfilter erscheinen." />
+  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-Loop-Gates, deren Ergebnisse im Audit Trail aufgezeichnet werden." />
+  <Card title="Network Graph" href="/cloud/dashboard/network-graph" description="Visualisiere die Agenten-Topologie hinter den Spans im Audit Trail." />
+</Cards>

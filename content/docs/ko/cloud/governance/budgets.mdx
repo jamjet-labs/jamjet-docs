@@ -1,0 +1,147 @@
+---
+title: 예산
+description: Per-project cost ceilings. Pre-call estimation throws before billing; post-call records truth.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 예산
+
+`budget(maxCostUsd)`는 프로젝트의 비용 상한선을 설정합니다. JamJet은 두 단계로 이를 적용합니다: LLM에 연락하기 전에 예상 지출이 상한선을 초과하면 즉시 예외를 발생시키는 **호출 전 추정**, 그리고 `response.usage`의 실제 비용으로 누적 합계를 업데이트하는 **호출 후 기록**입니다.
+
+## 예산 설정
+
+`budget()`에 양수의 USD 금액을 전달합니다. `init()` 호출 후 시작 시점에 한 번 호출하세요.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, budget, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  budget(50)   // 이 프로젝트의 $50 상한선
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  jamjet.budget(max_cost_usd=50)   # 이 프로젝트의 $50 상한선
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+예산은 프로세스 내 모든 래핑된 호출에 적용됩니다. 프로세스별로 적용되며 API 키별이 아닙니다 — 동일한 키를 사용하는 다른 프로세스는 각각 독립적인 상한선을 갖습니다.
+
+## 호출 전 추정
+
+LLM에 요청을 보내기 전에 JamJet은 모델별 가격 테이블을 사용하여 프롬프트 토큰 수로부터 호출 비용을 추정합니다. 추정된 총 지출(프로세스 수명 동안의 누적)이 상한선을 초과하면 `JamjetBudgetExceeded`가 즉시 발생합니다 — LLM은 호출되지 않으며 비용이 청구되지 않습니다.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetBudgetExceeded } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Long prompt...' }],
+    })
+  } catch (err) {
+    if (err instanceof JamjetBudgetExceeded) {
+      console.error(
+        `예산 초과. 사용: $${err.spent.toFixed(4)}, 한도: $${err.limit.toFixed(2)}`
+      )
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetBudgetExceeded
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Long prompt...'}],
+      )
+  except JamjetBudgetExceeded as err:
+      print(f'예산 초과. 사용: ${err.spent:.4f}, 한도: ${err.limit:.2f}')
+  ```
+
+  </Tab>
+</Tabs>
+
+## JamjetBudgetExceeded 필드
+
+| 필드 | 타입 | 설명 |
+|-------|------|-------------|
+| `spent` | `number` | 현재 프로세스에서 지금까지 기록된 누적 USD 지출 |
+| `limit` | `number` | `budget()`를 통해 설정된 상한선 |
+
+두 값 모두 USD 단위입니다. `spent`는 이전 호출의 실제 사후 비용과 예외를 발생시킨 호출의 사전 예상 비용을 합산한 값입니다.
+
+## 사후 호출 기록
+
+호출이 성공적으로 완료되면 JamJet는 응답에서 `response.usage.input_tokens`와 `response.usage.output_tokens`를 읽어 동일한 가격표를 사용하여 실제 비용을 계산하고 누적 합계를 업데이트합니다. 사전 예상 비용은 스팬에서 실제 비용으로 대체됩니다.
+
+이는 누적 합계가 단순 예측이 아닌 API의 실제 청구 데이터에 항상 기반한다는 것을 의미합니다.
+
+## 상한선 변경
+
+언제든지 `budget(N)`을 다시 호출하여 현재 상한선을 변경할 수 있습니다. 누적 합계는 초기화되지 않으며 상한선만 변경됩니다. 실질적으로 초기화하려면 현재 제한값에 추가로 허용할 지출을 더한 값으로 새 상한선을 설정하세요.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  // 초기 상한선
+  budget(50)
+
+  // ... 운영자 승인 후 ...
+
+  // 상한선을 $100로 상향
+  budget(100)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  # 초기 상한선
+  jamjet.budget(max_cost_usd=50)
+
+  # ... 운영자 승인 후 ...
+
+  # 상한선을 $100로 상향
+  jamjet.budget(max_cost_usd=100)
+  ```
+
+  </Tab>
+</Tabs>
+
+## 모델 인식 제한사항
+
+JamJet는 모델명(예: `gpt-4o`, `claude-3-5-sonnet-20241022`)을 키로 하는 내부 가격표를 사용합니다. 요청의 모델명이 테이블에 없는 경우(예: 새로 출시된 모델이나 커스텀 파인튜닝), 예상 비용은 **$0**으로 처리됩니다.
+
+$0 예상값은 실제 청구가 상당할 수 있더라도 예산 게이트가 사실상 호출을 허용한다는 의미입니다. 사후 호출 기록은 여전히 실제 비용으로 누적 합계를 업데이트하므로, 이후 호출은 정확하게 게이트 검사가 수행됩니다.
+
+모델이 인식되는지 확인하려면 완료된 호출의 대시보드 스팬에서 0이 아닌 `cost_usd` 값을 확인하세요. 청구 가능한 모델임에도 `$0.0000`으로 표시되면 프로젝트 설정을 열고 모델 테이블 업데이트 요청을 제출하세요.

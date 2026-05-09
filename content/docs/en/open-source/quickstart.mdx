@@ -1,0 +1,178 @@
+---
+title: Quickstart
+description: Run a durable JamJet workflow in 60 seconds. Python or Java.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+
+# Quickstart
+
+JamJet is a durable workflow runtime for AI agents. Pick your language to get started.
+
+> Looking for **JamJet Cloud** (governance, dashboard, audit trail)? See the [Cloud Quickstart](/cloud/get-started/quickstart) instead.
+
+## 1. Install
+
+<Tabs items={['Python', 'Java']} groupId="lang">
+  <Tab value="Python">
+
+```bash
+pip install jamjet
+```
+
+  </Tab>
+  <Tab value="Java">
+
+The Java SDK is published on Maven Central as `dev.jamjet:jamjet-sdk`.
+
+**Prerequisites:** Java 21+ and Maven 3.9+ or Gradle 8+.
+
+**Maven:**
+
+```xml
+<dependency>
+    <groupId>dev.jamjet</groupId>
+    <artifactId>jamjet-sdk</artifactId>
+    <version>0.5.0</version>
+</dependency>
+```
+
+**Gradle (Kotlin DSL):**
+
+```kotlin
+implementation("dev.jamjet:jamjet-sdk:0.5.0")
+```
+
+**Gradle (Groovy DSL):**
+
+```groovy
+implementation 'dev.jamjet:jamjet-sdk:0.5.0'
+```
+
+Make sure your project targets Java 21 or later. In Maven:
+
+```xml
+<properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+</properties>
+```
+
+  </Tab>
+</Tabs>
+
+## 2. Write a workflow
+
+<Tabs items={['Python', 'Java']} groupId="lang">
+  <Tab value="Python">
+
+```python
+# agent.py
+from jamjet import task, tool
+
+@tool
+async def web_search(query: str) -> str:
+    """Search the web for current information."""
+    # plug in your actual search implementation
+    return f"Results for: {query}"
+
+@task(model="claude-sonnet-4-6", tools=[web_search])
+async def research(question: str) -> str:
+    """You are a research assistant. Search first, then summarize clearly."""
+
+import asyncio
+result = asyncio.run(research("What is JamJet?"))
+print(result)
+```
+
+The `@tool` decorator exposes any Python function to the agent. The `@task` docstring becomes the agent's instructions. Works with OpenAI, Anthropic, Ollama, Groq — any model.
+
+> **tip:**
+> **Using Ollama locally? No API key needed:**
+> ```bash
+> OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
+> ```
+> Change `model=` to any Ollama model (e.g. `"llama3.2"`).
+
+  </Tab>
+  <Tab value="Java">
+
+Define a tool — the bridge between your agent and the outside world:
+
+```java
+import dev.jamjet.tool.Tool;
+import dev.jamjet.tool.ToolCall;
+
+@Tool(description = "Search the web for information about a topic")
+record WebSearch(String query) implements ToolCall<String> {
+    public String execute() {
+        // In production, call your search API here
+        return "Results for '" + query + "': JamJet is a performance-first, "
+                + "agent-native runtime and framework for AI agents.";
+    }
+}
+```
+
+Build an agent with a reasoning strategy and runtime-enforced limits:
+
+```java
+import dev.jamjet.agent.Agent;
+
+var agent = Agent.builder("researcher")
+        .model("claude-haiku-4-5-20251001")
+        .tools(WebSearch.class)
+        .instructions("You are a helpful research assistant. "
+                + "Always search first, then provide a thorough summary.")
+        .strategy("react")
+        .maxIterations(5)
+        .build();
+```
+
+  </Tab>
+</Tabs>
+
+## 3. Run it
+
+<Tabs items={['Python', 'Java']} groupId="lang">
+  <Tab value="Python">
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-... python agent.py
+```
+
+  </Tab>
+  <Tab value="Java">
+
+```java
+public static void main(String[] args) {
+    var agent = Agent.builder("researcher")
+            .model("claude-haiku-4-5-20251001")
+            .tools(WebSearch.class)
+            .instructions("You are a helpful research assistant. "
+                    + "Always search first, then provide a thorough summary.")
+            .strategy("react")
+            .maxIterations(5)
+            .build();
+
+    var result = agent.run("What is JamJet?");
+
+    System.out.println(result.output());
+    System.out.printf("Duration: %.2f ms%n", result.durationUs() / 1000.0);
+    System.out.printf("Tool calls: %d%n", result.toolCalls().size());
+}
+```
+
+```bash
+export OPENAI_API_KEY=sk-...
+mvn compile exec:java -Dexec.mainClass=com.example.MyAgent
+```
+
+  </Tab>
+</Tabs>
+
+## Next steps
+
+- [Concepts](/open-source/concepts) — Agent, Workflow, Span, Checkpoint
+- [Python Runtime deep dive](/open-source/python-runtime)
+- [Java Runtime deep dive](/open-source/java-runtime)
+- [Add governance with JamJet Cloud](/cloud/get-started/quickstart)

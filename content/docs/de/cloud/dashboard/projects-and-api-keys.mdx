@@ -1,0 +1,76 @@
+---
+title: Projekte & API-Schlüssel
+description: Registrieren, Projekte erstellen, API-Schlüssel verwalten, Umgebungen trennen.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Projekte & API-Keys
+
+JamJet Cloud organisiert alle Ihre Telemetrie-, Governance- und Genehmigungsdaten in Projekten. Ein Projekt ist eine logische Grenze: Jeder Span, jede Policy-Entscheidung, jedes Budget-Limit und jedes Audit-Event gehört zu genau einem Projekt. API-Keys gewähren Zugriff auf ein Projekt und sind die einzige Berechtigung, die das SDK benötigt.
+
+## Registrierung
+
+Erstellen Sie einen kostenlosen Account unter [app.jamjet.dev](https://app.jamjet.dev). Keine Kreditkarte erforderlich. Der kostenlose Tarif bietet sofortigen Zugriff auf das vollständige Dashboard — Telemetrie, Governance, Audit-Trail und Netzwerk-Graph — mit rollierendem Aufbewahrungsfenster.
+
+Nach der Registrierung landen Sie im **Projekte**-Screen, wo Sie Ihr erstes Projekt anlegen können.
+
+## Projekte
+
+Ein Projekt ist die oberste Gruppierungsebene für alles in JamJet Cloud. Gängige Muster:
+
+- **Ein Projekt pro Service.** Eine Inference-API, ein Background-Job-Runner und ein internes Chat-Tool erhalten jeweils ein eigenes Projekt. Spans bleiben getrennt; Kosten werden separat erfasst; Policies sind unabhängig voneinander gültig.
+- **Ein Projekt pro Umgebung.** Ein einzelner Service erhält je ein `my-app-dev`-, `my-app-staging`- und `my-app-prod`-Projekt. Das ist der einfachste Weg, Entwicklungs-Traffic aus den Production-Audit-Logs herauszuhalten.
+- **Ein Projekt pro Team.** Nützlich in größeren Organisationen, in denen die Governance-Verantwortung teamweise unterschiedlich ist. Jedes Team verwaltet seine eigenen Policies, Budgets und Mitgliederliste.
+
+Projekte sind nicht hierarchisch — es gibt keine Unterprojekte oder Workspaces. Wenn Sie eine Kostenerfassung über mehrere Projekte hinweg benötigen, können Sie Spans aus jedem Projekt exportieren und extern aggregieren, oder Sie verwenden die pro-Span-Tags `environment` und `service`, die über [Process Context](/cloud/telemetry/process-context) gesetzt werden.
+
+## API-Schlüssel
+
+API-Schlüssel authentifizieren das SDK gegenüber JamJet Cloud. Jeder Schlüssel ist exakt einem Projekt zugeordnet. Du generierst sie unter **Einstellungen → API-Schlüssel** innerhalb des Projekts. Schlüssel sehen so aus: `jj_xxxxxxxxxxxx`.
+
+> Schlüssel werden nur einmalig bei der Erstellung angezeigt. Kopiere und speichere deinen sofort. Falls du ihn verlierst, erstelle einen Ersatz und widerrufe den alten.
+
+### Trennung nach Umgebung
+
+Der zuverlässigste Weg, Umgebungen zu trennen, ist die Erstellung eines dedizierten Schlüssels pro Umgebung, jeweils auf ein anderes Projekt verweisend (oder dasselbe Projekt – das SDK sendet `environment` ohnehin als Span-Attribut, aber separate Projekte bieten sauberere Filterung und unabhängige Aufbewahrungseinstellungen).
+
+Ein typisches Setup:
+
+- `JAMJET_API_KEY_DEV` → Projekt `my-app-dev`
+- `JAMJET_API_KEY_STAGING` → Projekt `my-app-staging`
+- `JAMJET_API_KEY_PROD` → Projekt `my-app-prod`
+
+Setze den entsprechenden Schlüssel per Umgebungsvariable in jedem Deployment-Ziel. Das SDK liest standardmäßig `JAMJET_API_KEY`, oder du übergibst ihn explizit beim `init()` / `configure()`-Aufruf.
+
+### Schlüsselrotation ohne Ausfallzeit
+
+Ein Schlüssel lässt sich sicher in drei Schritten rotieren:
+
+1. **Erstelle einen neuen Schlüssel** unter **Einstellungen → API-Schlüssel**. Der neue Schlüssel ist sofort aktiv.
+2. **Deploye den neuen Schlüssel** in deine Umgebung. Bis deine gesamte Flotte vollständig neu gestartet ist, sind sowohl der alte als auch der neue Schlüssel gleichzeitig im Einsatz – beide sind gültig.
+3. **Widerrufe den alten Schlüssel** unter **Einstellungen → API-Schlüssel**, sobald du bestätigt hast, dass alle laufenden Instanzen den neuen Schlüssel nutzen. Der Widerruf erfolgt sofort.
+
+Widerrufe den alten Schlüssel nicht vor Schritt 3. Partielle Rollouts, Canary-Deployments und schrittweise Neustarts tolerieren alle die Überlappungsphase.
+
+## Mitglieder und Rollen
+
+Projektmitglieder werden unter **Einstellungen → Mitglieder** verwaltet. Laden Sie beliebige Teammitglieder per E-Mail ein. Rollenzuweisungen steuern, was sie im Projekt sehen und tun können:
+
+- **Owner** — voller Zugriff, einschließlich Projektlöschung und Abrechnungseinstellungen.
+- **Admin** — voller Zugriff außer Abrechnung und Projektlöschung. Kann Mitglieder verwalten.
+- **Member** — kann alle Telemetriedaten einsehen, auf Genehmigungsanfragen reagieren und Governance (Richtlinien, Budgets, Agenten) verwalten. Kann keine Mitglieder verwalten.
+- **Read-only** — kann Telemetriedaten und Audit-Trail einsehen. Kann keine Anfragen genehmigen oder Governance-Einstellungen ändern.
+
+> Rollennamen und exakte Berechtigungen können sich mit der Weiterentwicklung des Dashboards ändern. Aktuelle Definitionen finden Sie auf der Seite **Einstellungen → Mitglieder** in Ihrem Projekt.
+
+Jedes Teammitglied mit mindestens der Rolle **Member** kann ausstehende Genehmigungsanfragen akzeptieren oder ablehnen — es gibt keine separate Genehmigerrolle. Wenn Sie die Genehmigungsbefugnis einschränken möchten, verwenden Sie **Read-only** für Beobachter und **Member** nur für Personen, denen Sie Genehmigungen zutrauen.
+
+## Nächste Schritte
+
+<Cards>
+  <Card title="Quickstart" href="/cloud/get-started/quickstart" description="Generieren Sie Ihren ersten API-Schlüssel und senden Sie Ihren ersten gesteuerten Span." />
+  <Card title="Process Context" href="/cloud/telemetry/process-context" description="Markieren Sie Spans mit Umgebung, Service und Release-Version auf SDK-Ebene." />
+  <Card title="Network Graph" href="/cloud/dashboard/network-graph" description="Visualisieren Sie Multi-Agent-Aufrufketten über Ihr Projekt hinweg." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Durchsuchen, filtern und exportieren Sie jeden Span für Compliance-Zwecke." />
+</Cards>

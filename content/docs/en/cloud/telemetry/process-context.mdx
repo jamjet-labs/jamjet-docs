@@ -1,0 +1,122 @@
+---
+title: Process Context
+description: Set environment and release_version once per process. Tags every span for dev/staging/prod separation.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Process Context
+
+**Process context** tags every span emitted by the current process with two pieces of metadata: the deployment environment (`development`, `staging`, `production`) and the release version (a commit SHA or semver tag). Without these tags, all spans from all environments land in the same stream in the dashboard — making it impossible to tell whether a spike in cost or errors came from production traffic or a developer testing locally.
+
+## `setProcessContext`
+
+Call `setProcessContext` once at startup, right after `init()`, before any LLM calls happen. The tags are applied globally to every span for the lifetime of the process.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, setProcessContext, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  setProcessContext({
+    environment: process.env.NODE_ENV ?? 'development',
+    releaseVersion: process.env.GIT_SHA ?? 'unknown',
+  })
+
+  const openai = wrap(new OpenAI())
+  // All spans from this process now carry environment + release_version
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  jamjet.set_process_context(
+    environment=os.environ.get('NODE_ENV', 'development'),
+    release_version=os.environ.get('GIT_SHA', 'unknown'),
+  )
+
+  client = jamjet.wrap(OpenAI())
+  # All spans from this process now carry environment + release_version
+  ```
+
+  </Tab>
+</Tabs>
+
+## Suggested values
+
+| Field | Suggested values |
+|-------|-----------------|
+| `environment` | `'production'`, `'staging'`, `'development'` |
+| `releaseVersion` | Short commit SHA (`'a1b2c3d'`), semver tag (`'1.4.2'`), or `'unknown'` |
+
+Use consistent values across your fleet. The dashboard surfaces `environment` as a sidebar facet and a filter on every view — inconsistent casing (`'Production'` vs `'production'`) creates duplicate facet entries.
+
+## Deployment patterns
+
+### Node.js server (Fly.io / Railway / Render)
+
+Inject `GIT_SHA` as a build argument or environment variable in your Dockerfile or platform config. At runtime:
+
+```typescript
+setProcessContext({
+  environment: process.env.NODE_ENV ?? 'production',
+  releaseVersion: process.env.GIT_SHA ?? 'unknown',
+})
+```
+
+### Vercel
+
+Vercel sets `VERCEL_GIT_COMMIT_SHA` automatically on every deployment. For the environment, map Vercel's `VERCEL_ENV` (`'production'`, `'preview'`, `'development'`):
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  setProcessContext({
+    environment: process.env.VERCEL_ENV ?? 'development',
+    releaseVersion: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'unknown',
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import os
+  sha = os.environ.get('VERCEL_GIT_COMMIT_SHA', 'unknown')
+  jamjet.set_process_context(
+    environment=os.environ.get('VERCEL_ENV', 'development'),
+    release_version=sha[:7] if sha != 'unknown' else sha,
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+## How it appears in the dashboard
+
+Both fields surface as first-class filters throughout the dashboard:
+
+- **Environment facet** — sidebar dropdown on every view. Select `production` to isolate live traffic.
+- **Release filter** — useful for tracking regressions after a deploy. Compare cost and error rates between two `releaseVersion` values on the Audit Trail.
+- **Span detail** — `environment` and `release_version` appear in the span metadata panel alongside `agent_name` and `user_id`.
+
+## Next steps
+
+<Cards>
+  <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="Full wire format — every attribute a span carries." />
+  <Card title="User Context" href="/cloud/telemetry/user-context" description="Per-request user attribution for SaaS apps." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Filter by environment and release in the dashboard." />
+</Cards>

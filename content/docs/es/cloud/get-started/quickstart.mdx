@@ -1,0 +1,122 @@
+---
+title: Inicio rápido
+description: Agrega gobernanza de JamJet Cloud a cualquier app de IA en 5
+  minutos. TypeScript o Python.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Inicio Rápido en la Nube
+
+Esta guía añade gobernanza de JamJet Cloud — política, presupuesto, aprobaciones, registro de auditoría — a una aplicación de IA existente. ~5 minutos. No requiere reestructuración.
+
+## 1. Regístrate
+
+Crea una cuenta gratuita en [app.jamjet.dev](https://app.jamjet.dev). El nivel gratuito es suficiente para este inicio rápido y para desarrollo.
+
+Después del registro, crea un proyecto y copia tu clave API desde **Configuración → Claves API**. Se ve como `jj_xxxxxxxxxxxx`.
+
+> La clave no se puede recuperar después de su creación. Si la pierdes, crea una nueva en la configuración del proyecto.
+
+## 2. Instalar + inicializar
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```bash
+  pnpm add @jamjet/cloud
+  ```
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```bash
+  pip install jamjet
+  ```
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+## 3. Añadir gobernanza
+
+Envuelve tu cliente existente de OpenAI / Anthropic y añade una política + presupuesto:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { wrap, policy, budget } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')      // bloquear herramientas que coincidan con wire_*
+  budget(50)                      // límite de $50 para este proyecto
+
+  const openai = wrap(new OpenAI())
+
+  // Úsalo normalmente — cada llamada está gobernada + observada.
+  await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Hello!' }],
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+
+  jamjet.policy('block', 'wire_*')   # bloquear herramientas que coincidan con wire_*
+  jamjet.budget(max_cost_usd=50)     # límite de $50 para este proyecto
+
+  client = jamjet.wrap(OpenAI())
+
+  client.chat.completions.create(
+    model='gpt-4o',
+    messages=[{'role': 'user', 'content': 'Hello!'}],
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+Eso es todo. Cada llamada desde el cliente envuelto ahora aparece en el panel de control en [app.jamjet.dev](https://app.jamjet.dev) con atribución completa, costo y decisiones de política.
+
+## Verificar
+
+Abre el dashboard. Deberías ver un span para la llamada que acabas de hacer — aparece en ~5 segundos. Haz clic para ver el payload de la solicitud, la respuesta, el costo y la atribución del agente (agente predeterminado: `default`).
+
+Si las llamadas no aparecen:
+
+- Verifica que la API key coincida con tu proyecto (`jj_...` desde **Configuración → API Keys**).
+- Confirma que `init()` / `configure()` se ejecuta antes de la primera llamada LLM.
+- El SDK es fail-open: si `api.jamjet.dev` no está disponible, tu agente sigue ejecutándose pero los spans se descartan después de reintentos.
+
+## Próximos pasos
+
+<Cards>
+  <Card title="Agregar una identidad de agente" href="/cloud/governance/agents" description="`agent('researcher')` para atribución de grafo de red multi-agente." />
+  <Card title="Requerir aprobación humana" href="/cloud/governance/approvals" description="`requireApproval('production_deploy')` para acciones sensibles." />
+  <Card title="Middleware Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="`jamjetMiddleware()` para `streamText` / `generateText`." />
+  <Card title="Cloud vs Open Source" href="/cloud/get-started/cloud-vs-open-source" description="Decide si también necesitas el runtime de código abierto." />
+</Cards>

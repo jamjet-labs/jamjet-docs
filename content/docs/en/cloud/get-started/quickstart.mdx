@@ -1,0 +1,121 @@
+---
+title: Quickstart
+description: Add JamJet Cloud governance to any AI app in 5 minutes. TypeScript or Python.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Cloud Quickstart
+
+This guide adds JamJet Cloud governance — policy, budget, approvals, audit trail — to an existing AI app. ~5 minutes. No restructuring required.
+
+## 1. Sign up
+
+Create a free account at [app.jamjet.dev](https://app.jamjet.dev). Free tier is sufficient for this quickstart and for development.
+
+After signup, create a project and copy your API key from **Settings → API Keys**. It looks like `jj_xxxxxxxxxxxx`.
+
+> The key is not retrievable after creation. If you lose it, create a new one in project settings.
+
+## 2. Install + initialize
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```bash
+  pnpm add @jamjet/cloud
+  ```
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```bash
+  pip install jamjet
+  ```
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+## 3. Add governance
+
+Wrap your existing OpenAI / Anthropic client and add a policy + budget:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { wrap, policy, budget } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')      // block tools matching wire_*
+  budget(50)                      // $50 ceiling for this project
+
+  const openai = wrap(new OpenAI())
+
+  // Use it normally — every call is governed + observed.
+  await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Hello!' }],
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+
+  jamjet.policy('block', 'wire_*')   # block tools matching wire_*
+  jamjet.budget(max_cost_usd=50)     # $50 ceiling for this project
+
+  client = jamjet.wrap(OpenAI())
+
+  client.chat.completions.create(
+    model='gpt-4o',
+    messages=[{'role': 'user', 'content': 'Hello!'}],
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+That's it. Every call from the wrapped client now appears in the dashboard at [app.jamjet.dev](https://app.jamjet.dev) with full attribution, cost, and policy decisions.
+
+## Verify
+
+Open the dashboard. You should see a span for the call you just made — it appears within ~5 seconds. Click it to see the request payload, the response, the cost, and the agent attribution (default agent: `default`).
+
+If calls are not showing up:
+
+- Check the API key matches your project (`jj_...` from **Settings → API Keys**).
+- Confirm `init()` / `configure()` runs before the first LLM call.
+- The SDK is fail-open: if `api.jamjet.dev` is unreachable, your agent keeps running but spans are dropped after retries.
+
+## Next steps
+
+<Cards>
+  <Card title="Add an agent identity" href="/cloud/governance/agents" description="`agent('researcher')` for multi-agent network graph attribution." />
+  <Card title="Require human approval" href="/cloud/governance/approvals" description="`requireApproval('production_deploy')` for sensitive actions." />
+  <Card title="Vercel AI SDK middleware" href="/integrations/vercel-ai-sdk" description="`jamjetMiddleware()` for `streamText` / `generateText`." />
+  <Card title="Cloud vs Open Source" href="/cloud/get-started/cloud-vs-open-source" description="Decide if you also need the open-source runtime." />
+</Cards>

@@ -1,0 +1,25 @@
+{
+  "title": "Cloud",
+  "pages": [
+    "index",
+    "---Get Started---",
+    "get-started/quickstart",
+    "get-started/cloud-vs-open-source",
+    "get-started/concepts",
+    "---Governance---",
+    "governance/agents",
+    "governance/policies",
+    "governance/budgets",
+    "governance/approvals",
+    "---Telemetry---",
+    "telemetry/spans-and-traces",
+    "telemetry/user-context",
+    "telemetry/process-context",
+    "---Dashboard---",
+    "dashboard/projects-and-api-keys",
+    "dashboard/network-graph",
+    "dashboard/audit-trail",
+    "---Integrations---",
+    "integrations"
+  ]
+}

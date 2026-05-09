@@ -1,0 +1,76 @@
+---
+title: Proyectos y claves API
+description: Regístrate, crea proyectos, gestiona claves API, separa entornos.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Proyectos y claves API
+
+JamJet Cloud organiza toda tu telemetría, gobernanza y datos de aprobación en proyectos. Un proyecto es un límite lógico: cada span, decisión de política, límite de presupuesto y evento de auditoría pertenece a exactamente un proyecto. Las claves API otorgan acceso a un proyecto y son la única credencial que necesita el SDK.
+
+## Registro
+
+Crea una cuenta gratuita en [app.jamjet.dev](https://app.jamjet.dev). No se requiere tarjeta de crédito. El tier gratuito proporciona acceso inmediato al panel completo — telemetría, gobernanza, registro de auditoría y el grafo de red — con una ventana de retención continua.
+
+Después del registro llegas a la pantalla de **Proyectos**, donde puedes crear tu primer proyecto.
+
+## Proyectos
+
+Un proyecto es la agrupación de nivel superior para todo en JamJet Cloud. Patrones comunes:
+
+- **Un proyecto por servicio.** Una API de inferencia, un ejecutor de trabajos en segundo plano y una herramienta de chat interna tienen cada uno su propio proyecto. Los spans permanecen separados; los costos se acumulan por separado; las políticas están delimitadas independientemente.
+- **Un proyecto por entorno.** Un único servicio obtiene un proyecto `my-app-dev`, `my-app-staging` y `my-app-prod`. Esta es la forma más simple de mantener el tráfico de desarrollo fuera de los registros de auditoría de producción.
+- **Un proyecto por equipo.** Útil en organizaciones más grandes donde la propiedad de gobernanza difiere por equipo. Cada equipo gestiona sus propias políticas, presupuestos y lista de miembros.
+
+Los proyectos no son jerárquicos — no hay subproyectos ni espacios de trabajo. Si necesitas acumulación de costos entre proyectos, puedes exportar spans de cada uno y agregarlos externamente, o usar las etiquetas `environment` y `service` por span establecidas mediante [Contexto de proceso](/cloud/telemetry/process-context).
+
+## Claves API
+
+Las claves API autentican el SDK con JamJet Cloud. Cada clave está limitada exactamente a un proyecto. Las generas en **Configuración → Claves API** dentro del proyecto. Las claves tienen este formato: `jj_xxxxxxxxxxxx`.
+
+> Las claves se muestran solo una vez en el momento de su creación. Copia y guarda la tuya inmediatamente. Si la pierdes, crea una de reemplazo y revoca la anterior.
+
+### Separación por entorno
+
+La forma más confiable de separar entornos es crear una clave dedicada por entorno, cada una apuntando a un proyecto diferente (o al mismo proyecto — el SDK envía `environment` como atributo de span de todas formas, pero proyectos separados te dan filtrado más limpio y configuraciones de retención independientes).
+
+Una configuración típica:
+
+- `JAMJET_API_KEY_DEV` → proyecto `my-app-dev`
+- `JAMJET_API_KEY_STAGING` → proyecto `my-app-staging`
+- `JAMJET_API_KEY_PROD` → proyecto `my-app-prod`
+
+Establece la clave apropiada mediante variable de entorno en cada destino de despliegue. El SDK lee `JAMJET_API_KEY` por defecto, o puedes pasarla explícitamente en el momento de `init()` / `configure()`.
+
+### Rotación de claves sin tiempo de inactividad
+
+Rotar una clave de forma segura es un proceso de tres pasos:
+
+1. **Crea una nueva clave** en **Configuración → Claves API**. La nueva clave está activa inmediatamente.
+2. **Despliega la nueva clave** en tu entorno. Hasta que tu flota se reinicie completamente, tanto la clave antigua como la nueva estarán en uso simultáneamente — ambas son válidas.
+3. **Revoca la clave antigua** en **Configuración → Claves API** una vez que hayas confirmado que todas las instancias en ejecución han adoptado la nueva clave. La revocación es instantánea.
+
+No revoques la clave antigua antes del paso 3. Los despliegues parciales, despliegues canary y reinicios graduales toleran la ventana de solapamiento.
+
+## Miembros y roles
+
+Los miembros del proyecto se gestionan en **Configuración → Miembros**. Invita a cualquier miembro del equipo por correo electrónico. Las asignaciones de roles controlan lo que pueden ver y hacer dentro del proyecto:
+
+- **Propietario** — acceso completo, incluyendo la eliminación del proyecto y la configuración de facturación.
+- **Administrador** — acceso completo excepto facturación y eliminación del proyecto. Puede gestionar miembros.
+- **Miembro** — puede ver toda la telemetría, actuar sobre solicitudes de aprobación y gestionar gobernanza (políticas, presupuestos, agentes). No puede gestionar miembros.
+- **Solo lectura** — puede ver telemetría y registro de auditoría. No puede aprobar solicitudes ni cambiar la configuración de gobernanza.
+
+> Los nombres de roles y permisos exactos pueden evolucionar a medida que el panel madure. Consulta la página **Configuración → Miembros** en tu proyecto para las definiciones actuales.
+
+Cualquier miembro del equipo con al menos el rol de **Miembro** puede aprobar o rechazar solicitudes de aprobación pendientes — no existe un rol de aprobador separado. Si necesitas restringir la autoridad de aprobación, usa **Solo lectura** para observadores y **Miembro** únicamente para quienes confíes para aprobar.
+
+## Próximos pasos
+
+<Cards>
+  <Card title="Inicio rápido" href="/cloud/get-started/quickstart" description="Genera tu primera clave API y envía tu primer span gobernado." />
+  <Card title="Contexto de proceso" href="/cloud/telemetry/process-context" description="Etiqueta spans con entorno, servicio y versión de lanzamiento a nivel del SDK." />
+  <Card title="Grafo de red" href="/cloud/dashboard/network-graph" description="Visualiza cadenas de llamadas multi-agente en tu proyecto." />
+  <Card title="Registro de auditoría" href="/cloud/dashboard/audit-trail" description="Busca, filtra y exporta cada span para cumplimiento normativo." />
+</Cards>

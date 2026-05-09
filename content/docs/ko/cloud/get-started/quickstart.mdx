@@ -1,0 +1,121 @@
+---
+title: 빠른 시작
+description: 5분 만에 모든 AI 앱에 JamJet Cloud 거버넌스를 추가하세요. TypeScript 또는 Python.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 클라우드 빠른 시작
+
+이 가이드는 기존 AI 앱에 JamJet Cloud 거버넌스(정책, 예산, 승인, 감사 추적)를 추가합니다. 약 5분 소요. 구조 변경 불필요.
+
+## 1. 가입하기
+
+[app.jamjet.dev](https://app.jamjet.dev)에서 무료 계정을 생성하세요. 무료 티어로 이 빠른 시작과 개발에 충분합니다.
+
+가입 후 프로젝트를 생성하고 **설정 → API 키**에서 API 키를 복사하세요. `jj_xxxxxxxxxxxx` 형식입니다.
+
+> 키는 생성 후 다시 조회할 수 없습니다. 분실한 경우 프로젝트 설정에서 새로 생성하세요.
+
+## 2. 설치 + 초기화
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```bash
+  pnpm add @jamjet/cloud
+  ```
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```bash
+  pip install jamjet
+  ```
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+## 3. 거버넌스 추가
+
+기존 OpenAI / Anthropic 클라이언트를 래핑하고 정책 + 예산을 추가하세요:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { wrap, policy, budget } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')      // wire_*와 일치하는 도구 차단
+  budget(50)                      // 이 프로젝트의 $50 한도
+
+  const openai = wrap(new OpenAI())
+
+  // 평소대로 사용 — 모든 호출이 거버넌스 적용 + 관찰됩니다.
+  await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Hello!' }],
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+
+  jamjet.policy('block', 'wire_*')   # wire_*와 일치하는 도구 차단
+  jamjet.budget(max_cost_usd=50)     # 이 프로젝트의 $50 한도
+
+  client = jamjet.wrap(OpenAI())
+
+  client.chat.completions.create(
+    model='gpt-4o',
+    messages=[{'role': 'user', 'content': 'Hello!'}],
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+완료입니다. 래핑된 클라이언트의 모든 호출이 이제 [app.jamjet.dev](https://app.jamjet.dev) 대시보드에 전체 귀속, 비용, 정책 결정과 함께 표시됩니다.
+
+## 확인
+
+대시보드를 엽니다. 방금 실행한 호출에 대한 스팬이 표시됩니다 — 약 5초 이내에 나타납니다. 클릭하면 요청 페이로드, 응답, 비용, 에이전트 귀속(기본 에이전트: `default`)을 확인할 수 있습니다.
+
+호출이 표시되지 않는 경우:
+
+- API 키가 프로젝트와 일치하는지 확인하세요(**설정 → API 키**에서 `jj_...`).
+- 첫 번째 LLM 호출 전에 `init()` / `configure()`가 실행되는지 확인하세요.
+- SDK는 페일 오픈 방식입니다: `api.jamjet.dev`에 연결할 수 없는 경우 에이전트는 계속 실행되지만 스팬은 재시도 후 삭제됩니다.
+
+## 다음 단계
+
+<Cards>
+  <Card title="에이전트 아이덴티티 추가" href="/cloud/governance/agents" description="멀티 에이전트 네트워크 그래프 귀속을 위한 `agent('researcher')`." />
+  <Card title="사람 승인 요구" href="/cloud/governance/approvals" description="민감한 작업을 위한 `requireApproval('production_deploy')`." />
+  <Card title="Vercel AI SDK 미들웨어" href="/integrations/vercel-ai-sdk" description="`streamText` / `generateText`를 위한 `jamjetMiddleware()`." />
+  <Card title="클라우드 vs 오픈 소스" href="/cloud/get-started/cloud-vs-open-source" description="오픈 소스 런타임도 필요한지 판단하세요." />
+</Cards>

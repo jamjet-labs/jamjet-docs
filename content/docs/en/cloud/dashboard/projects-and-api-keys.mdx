@@ -1,0 +1,76 @@
+---
+title: Projects & API Keys
+description: Sign up, create projects, manage API keys, separate environments.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Projects & API Keys
+
+JamJet Cloud organises all of your telemetry, governance, and approval data into projects. A project is a logical boundary: every span, policy decision, budget limit, and audit event belongs to exactly one project. API keys grant access to a project and are the only credential the SDK needs.
+
+## Sign up
+
+Create a free account at [app.jamjet.dev](https://app.jamjet.dev). No credit card required. The free tier provides immediate access to the full dashboard — telemetry, governance, audit trail, and the network graph — with a rolling retention window.
+
+After signup you land in the **Projects** screen, where you can create your first project.
+
+## Projects
+
+A project is the top-level grouping for everything in JamJet Cloud. Common patterns:
+
+- **One project per service.** An inference API, a background job runner, and an internal chat tool each get their own project. Spans stay separated; costs roll up separately; policies are scoped independently.
+- **One project per environment.** A single service gets a `my-app-dev`, `my-app-staging`, and `my-app-prod` project. This is the simplest way to keep development traffic out of production audit logs.
+- **One project per team.** Useful in larger organisations where governance ownership differs by team. Each team manages their own policies, budgets, and member roster.
+
+Projects are not hierarchical — there are no sub-projects or workspaces. If you need cost roll-up across projects you can export spans from each and aggregate externally, or use the per-span `environment` and `service` tags set via [Process Context](/cloud/telemetry/process-context).
+
+## API keys
+
+API keys authenticate the SDK to JamJet Cloud. Each key is scoped to exactly one project. You generate them in **Settings → API Keys** inside the project. Keys look like `jj_xxxxxxxxxxxx`.
+
+> Keys are shown only once at creation time. Copy and store yours immediately. If you lose it, create a replacement and revoke the old one.
+
+### Separation by environment
+
+The most reliable way to separate environments is to create a dedicated key per environment, each pointing at a different project (or the same project — the SDK sends `environment` as a span attribute regardless, but separate projects give you cleaner filtering and independent retention settings).
+
+A typical setup:
+
+- `JAMJET_API_KEY_DEV` → `my-app-dev` project
+- `JAMJET_API_KEY_STAGING` → `my-app-staging` project
+- `JAMJET_API_KEY_PROD` → `my-app-prod` project
+
+Set the appropriate key via environment variable in each deployment target. The SDK reads `JAMJET_API_KEY` by default, or you can pass it explicitly at `init()` / `configure()` time.
+
+### Key rotation without downtime
+
+Rotating a key safely is a three-step process:
+
+1. **Create a new key** in **Settings → API Keys**. The new key is immediately active.
+2. **Deploy the new key** to your environment. Until your fleet fully restarts, both the old and new keys are in use simultaneously — both are valid.
+3. **Revoke the old key** in **Settings → API Keys** once you have confirmed all running instances have picked up the new key. Revocation is instant.
+
+Do not revoke the old key before step 3. Partial rollouts, canary deployments, and gradual restarts all tolerate the overlap window.
+
+## Members and roles
+
+Project members are managed in **Settings → Members**. Invite any team member by email. Role assignments control what they can see and do inside the project:
+
+- **Owner** — full access, including deleting the project and billing settings.
+- **Admin** — full access except billing and project deletion. Can manage members.
+- **Member** — can view all telemetry, act on approval requests, and manage governance (policies, budgets, agents). Cannot manage members.
+- **Read-only** — can view telemetry and audit trail. Cannot approve requests or change governance settings.
+
+> Role names and exact permissions may evolve as the dashboard matures. Refer to the **Settings → Members** page in your project for the current definitions.
+
+Any team member with at least the **Member** role can approve or reject pending approval requests — there is no separate approver role. If you need to restrict approval authority, use **Read-only** for observers and **Member** only for those you trust to approve.
+
+## Next steps
+
+<Cards>
+  <Card title="Quickstart" href="/cloud/get-started/quickstart" description="Generate your first API key and send your first governed span." />
+  <Card title="Process Context" href="/cloud/telemetry/process-context" description="Tag spans with environment, service, and release version at the SDK level." />
+  <Card title="Network Graph" href="/cloud/dashboard/network-graph" description="Visualise multi-agent call chains across your project." />
+  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Search, filter, and export every span for compliance." />
+</Cards>

@@ -1,0 +1,121 @@
+---
+title: 快速开始
+description: 在 5 分钟内为任何 AI 应用添加 JamJet Cloud 治理。支持 TypeScript 或 Python。
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# 云端快速入门
+
+本指南为现有 AI 应用添加 JamJet Cloud 治理功能——策略、预算、审批、审计日志。约 5 分钟完成，无需重构代码。
+
+## 1. 注册账号
+
+在 [app.jamjet.dev](https://app.jamjet.dev) 创建免费账号。免费套餐足够完成本快速入门和日常开发使用。
+
+注册后，创建一个项目并从 **设置 → API 密钥** 复制你的 API 密钥。格式类似 `jj_xxxxxxxxxxxx`。
+
+> 密钥创建后无法再次获取。如果丢失，请在项目设置中创建新密钥。
+
+## 2. 安装并初始化
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```bash
+  pnpm add @jamjet/cloud
+  ```
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```bash
+  pip install jamjet
+  ```
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+## 3. 添加治理功能
+
+包装你现有的 OpenAI / Anthropic 客户端，并添加策略和预算：
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { wrap, policy, budget } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')      // 阻止匹配 wire_* 的工具
+  budget(50)                      // 项目预算上限 $50
+
+  const openai = wrap(new OpenAI())
+
+  // 正常使用——每次调用都会被治理和监控
+  await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Hello!' }],
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+
+  jamjet.policy('block', 'wire_*')   # 阻止匹配 wire_* 的工具
+  jamjet.budget(max_cost_usd=50)     # 项目预算上限 $50
+
+  client = jamjet.wrap(OpenAI())
+
+  client.chat.completions.create(
+    model='gpt-4o',
+    messages=[{'role': 'user', 'content': 'Hello!'}],
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+完成。现在包装后客户端的每次调用都会显示在 [app.jamjet.dev](https://app.jamjet.dev) 控制台中，包含完整的归因信息、成本和策略决策。
+
+## 验证
+
+打开控制面板。你应该能看到刚才调用的 span — 通常在 ~5 秒内出现。点击它可以查看请求负载、响应、成本以及 agent 归属（默认 agent：`default`）。
+
+如果调用未显示：
+
+- 检查 API 密钥是否与你的项目匹配（**设置 → API 密钥** 中的 `jj_...`）。
+- 确认 `init()` / `configure()` 在第一次 LLM 调用之前执行。
+- SDK 采用故障开放设计：如果 `api.jamjet.dev` 不可达，你的 agent 会继续运行，但 span 在重试后会被丢弃。
+
+## 下一步
+
+<Cards>
+  <Card title="添加 agent 身份" href="/cloud/governance/agents" description="使用 `agent('researcher')` 实现多 agent 网络图归属。" />
+  <Card title="要求人工审批" href="/cloud/governance/approvals" description="对敏感操作使用 `requireApproval('production_deploy')`。" />
+  <Card title="Vercel AI SDK 中间件" href="/integrations/vercel-ai-sdk" description="为 `streamText` / `generateText` 使用 `jamjetMiddleware()`。" />
+  <Card title="云服务 vs 开源" href="/cloud/get-started/cloud-vs-open-source" description="决定是否也需要开源运行时。" />
+</Cards>

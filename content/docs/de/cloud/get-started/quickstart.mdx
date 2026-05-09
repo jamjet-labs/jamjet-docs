@@ -1,0 +1,122 @@
+---
+title: Schnellstart
+description: Fügen Sie JamJet Cloud Governance in 5 Minuten zu jeder AI-App
+  hinzu. TypeScript oder Python.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Cloud-Schnellstart
+
+Diese Anleitung fügt JamJet Cloud Governance – Richtlinien, Budget, Genehmigungen, Audit-Trail – zu einer bestehenden KI-App hinzu. ~5 Minuten. Keine Umstrukturierung erforderlich.
+
+## 1. Registrieren
+
+Erstelle ein kostenloses Konto unter [app.jamjet.dev](https://app.jamjet.dev). Das Free-Tier ist für diesen Schnellstart und die Entwicklung ausreichend.
+
+Erstelle nach der Registrierung ein Projekt und kopiere deinen API-Schlüssel aus **Einstellungen → API-Schlüssel**. Er sieht aus wie `jj_xxxxxxxxxxxx`.
+
+> Der Schlüssel kann nach der Erstellung nicht mehr abgerufen werden. Falls du ihn verlierst, erstelle einen neuen in den Projekteinstellungen.
+
+## 2. Installieren + initialisieren
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```bash
+  pnpm add @jamjet/cloud
+  ```
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```bash
+  pip install jamjet
+  ```
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+## 3. Governance hinzufügen
+
+Umschließe deinen bestehenden OpenAI / Anthropic Client und füge Richtlinien + Budget hinzu:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { wrap, policy, budget } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')      // blockiert Tools, die zu wire_* passen
+  budget(50)                      // $50-Obergrenze für dieses Projekt
+
+  const openai = wrap(new OpenAI())
+
+  // Normal nutzen — jeder Aufruf wird überwacht + gesteuert.
+  await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Hello!' }],
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+
+  jamjet.policy('block', 'wire_*')   # blockiert Tools, die zu wire_* passen
+  jamjet.budget(max_cost_usd=50)     # $50-Obergrenze für dieses Projekt
+
+  client = jamjet.wrap(OpenAI())
+
+  client.chat.completions.create(
+    model='gpt-4o',
+    messages=[{'role': 'user', 'content': 'Hello!'}],
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+Das war's. Jeder Aufruf vom umschlossenen Client erscheint jetzt im Dashboard unter [app.jamjet.dev](https://app.jamjet.dev) mit vollständiger Zuordnung, Kosten und Richtlinienentscheidungen.
+
+## Verifizieren
+
+Öffnen Sie das Dashboard. Sie sollten einen Span für den soeben getätigten Aufruf sehen — er erscheint innerhalb von ~5 Sekunden. Klicken Sie darauf, um die Request-Payload, die Antwort, die Kosten und die Agent-Zuordnung (Standard-Agent: `default`) anzuzeigen.
+
+Wenn keine Aufrufe angezeigt werden:
+
+- Prüfen Sie, ob der API-Key zu Ihrem Projekt passt (`jj_...` unter **Einstellungen → API Keys**).
+- Stellen Sie sicher, dass `init()` / `configure()` vor dem ersten LLM-Aufruf ausgeführt wird.
+- Das SDK ist fail-open: Wenn `api.jamjet.dev` nicht erreichbar ist, läuft Ihr Agent weiter, aber Spans werden nach erneuten Versuchen verworfen.
+
+## Nächste Schritte
+
+<Cards>
+  <Card title="Agent-Identität hinzufügen" href="/cloud/governance/agents" description="`agent('researcher')` für Multi-Agent-Netzwerk-Graph-Attribution." />
+  <Card title="Menschliche Freigabe verlangen" href="/cloud/governance/approvals" description="`requireApproval('production_deploy')` für sensible Aktionen." />
+  <Card title="Vercel AI SDK Middleware" href="/integrations/vercel-ai-sdk" description="`jamjetMiddleware()` für `streamText` / `generateText`." />
+  <Card title="Cloud vs. Open Source" href="/cloud/get-started/cloud-vs-open-source" description="Entscheiden Sie, ob Sie auch die Open-Source-Runtime benötigen." />
+</Cards>

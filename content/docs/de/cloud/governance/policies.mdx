@@ -1,0 +1,185 @@
+---
+title: Policies
+description: Block dangerous tools at runtime. Glob-based rules. Pre-call filter and post-decision check.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Policies
+
+Eine **Policy** ist eine Regel, die steuert, welche Tools ein LLM aufrufen darf. JamJet setzt Policies an zwei Punkten im Request-Lebenszyklus durch: vor dem Request an das Modell (Pre-Call-Filter) und nach der Modellantwort (Post-Decision-Check). Beide Durchsetzungspunkte laufen synchron und in-process – kein Netzwerk-Roundtrip erforderlich.
+
+## Drei Aktionen
+
+Jede Policy-Regel kombiniert ein Glob-Pattern mit einer von drei Aktionen:
+
+| Aktion | Verhalten |
+|--------|----------|
+| `'block'` | Übereinstimmende Tools werden aus dem Request herausgefiltert, bevor das LLM sie sieht. Falls das Modell trotzdem ein blockiertes Tool in seiner Antwort anfordert, wird `JamjetPolicyBlocked` geworfen. |
+| `'allow'` | Erlaubt übereinstimmende Tools explizit. Nützlich, um nach einem breiten Block eine Allowlist aufzubauen. |
+| `'require_approval'` | Registriert die Absicht, das Tool über manuelle Freigabe zu steuern. Siehe [aktuelle Einschränkung](#require_approval-current-limitation) unten. |
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { policy } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')             // blockiere jedes Tool, dessen Name mit wire_ beginnt
+  policy('allow', 'wire_read')          // außer wire_read — explizit erlauben
+  policy('require_approval', 'send_*')  // Absicht, send_*-Tools zu steuern (siehe Einschränkung)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+
+  jamjet.policy('block', 'wire_*')             # blockiere jedes Tool, das mit wire_ beginnt
+  jamjet.policy('allow', 'wire_read')          # außer wire_read — explizit erlauben
+  jamjet.policy('require_approval', 'send_*')  # Absicht, send_* zu steuern (siehe Einschränkung)
+  ```
+
+  </Tab>
+</Tabs>
+
+## Glob-Pattern-Semantik
+
+JamJet nutzt fnmatch-Style-Glob-Matching:
+
+| Pattern | Passt auf | Passt nicht auf |
+|---------|---------|----------------|
+| `wire_*` | `wire_transfer`, `wire_send`, `wire_read` | `read_wire` |
+| `payments.*` | `payments.send`, `payments.read` | `payments` |
+| `*_admin` | `db_admin`, `user_admin` | `admin_db` |
+| `?_transfer` | `a_transfer` | `ab_transfer` |
+
+`*` passt auf jede Zeichenfolge, einschließlich Punkten. `?` passt auf genau ein Zeichen. Patterns werden gegen den Tool-Namen als Gesamtstring geprüft (implizit an beiden Enden verankert).
+
+## Die zuletzt passende Regel gewinnt
+
+Wenn mehrere Regeln dasselbe Tool betreffen, gewinnt die **letzte** Regel in der Registrierungsreihenfolge. So kannst du zuerst eine breite Blockierung definieren und dann Ausnahmen herausarbeiten:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, policy, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  // Regel 1: blockiere alles im payments-Namespace
+  policy('block', 'payments.*')
+
+  // Regel 2: erlaube die sichere Leseoperation (nach Regel 1 registriert — gewinnt für payments.read)
+  policy('allow', 'payments.read')
+
+  // Regel 3: erfordere Genehmigung für hohe Überweisungen (gewinnt für payments.send)
+  policy('require_approval', 'payments.send')
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  # Regel 1: blockiere alles im payments-Namespace
+  jamjet.policy('block', 'payments.*')
+
+  # Regel 2: erlaube die sichere Leseoperation (nach Regel 1 registriert — gewinnt für payments.read)
+  jamjet.policy('allow', 'payments.read')
+
+  # Regel 3: erfordere Genehmigung für hohe Überweisungen (gewinnt für payments.send)
+  jamjet.policy('require_approval', 'payments.send')
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+Für `payments.read`: Regel 1 sagt blockieren, Regel 2 sagt erlauben. Regel 2 wurde zuletzt registriert, also gewinnt `allow` — das Tool ist erlaubt.
+
+Für `payments.send`: Regel 1 sagt blockieren, Regel 3 sagt require_approval. Regel 3 wurde zuletzt registriert, also gewinnt `require_approval` (vorbehaltlich der [aktuellen Einschränkung](#require_approval-current-limitation)).
+
+Für `payments.delete`: nur Regel 1 passt — es wird blockiert.
+
+## Durchsetzung vor dem Aufruf
+
+Bevor der gewrappte Client eine Anfrage an das LLM sendet, prüft JamJet das `tools`-Array in der Anfrage. Jedes Tool, dessen Name von einer `block`-Regel erfasst wird (und nicht anschließend durch `allow` überschrieben wurde), wird aus der Liste entfernt. Das LLM sieht nie, dass das Tool existiert.
+
+Das verhindert, dass das Modell versucht ist, ein gefährliches Tool aufzurufen, selbst wenn dein Prompt dies ausschließt.
+
+## Durchsetzung nach der Entscheidung
+
+Nachdem das LLM antwortet, prüft JamJet jeden `tool_call` in der Antwort. Wenn ein tool_call mit einer `block`-Regel übereinstimmt:
+
+1. Der Span wird mit `policy_blocked: true` markiert.
+2. `JamjetPolicyBlocked` wird ausgelöst. Die `cause`-Eigenschaft des Fehlers enthält das ursprüngliche tool_call-Objekt.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetPolicyBlocked } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Transfer $10 to Alice.' }],
+      tools: [/* ... */],
+    })
+  } catch (err) {
+    if (err instanceof JamjetPolicyBlocked) {
+      console.error('Tool call blocked by policy:', err.cause)
+      // err.cause is the original tool_call from the LLM response
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetPolicyBlocked
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Transfer $10 to Alice.'}],
+          tools=[...],
+      )
+  except JamjetPolicyBlocked as err:
+      print('Tool call blocked by policy:', err.cause)
+      # err.cause is the original tool_call from the LLM response
+  ```
+
+  </Tab>
+</Tabs>
+
+## `require_approval` — aktuelle Einschränkung
+
+In 0.2.x **blockiert `require_approval` die Ausführung nicht zur Laufzeit**. Regeln, die mit dieser Aktion registriert wurden, werden im Span aufgezeichnet und erscheinen im Dashboard als `policy_approval_pending`-Span-Attribute — was eine rückwirkende Überprüfung ermöglicht — aber Tools, die von ihnen erfasst werden, werden unverändert an das Modell weitergegeben.
+
+Eine vollständige Laufzeit-Blockierung (Blockieren des Aufrufs, bis ein Mensch im Dashboard genehmigt) ist für 0.3.x geplant. Wenn Sie sofortige Durchsetzung benötigen, verwenden Sie `'block'` und implementieren Sie die Genehmigungsschranke manuell über [`requireApproval`](/cloud/governance/approvals).
+
+```typescript
+// Heute: Tool blockieren und Genehmigung manuell erfordern
+policy('block', 'send_email')
+
+// Dann, in Ihrer Agent-Schleife, bevor Sie das Tool selbst aufrufen:
+const approvalId = await requireApproval('send_email', {
+  context: { to: recipient, subject },
+})
+// Wird nur bei Genehmigung erreicht. Jetzt das Tool aufrufen.
+```

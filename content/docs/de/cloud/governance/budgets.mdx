@@ -1,0 +1,216 @@
+---
+title: Budgets
+description: Projekteigene Kostenobergrenzen. Pre-Call-Schätzung wirft vor
+  Abrechnung; Post-Call erfasst die Realität.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Budgets
+
+`budget(maxCostUsd)` legt eine Kostenobergrenze für dein Projekt fest. JamJet setzt diese in zwei Phasen durch: eine **Pre-Call-Schätzung**, die vor dem LLM-Kontakt einen Fehler wirft, wenn die prognostizierten Ausgaben die Obergrenze überschreiten würden, und eine **Post-Call-Aufzeichnung**, die den laufenden Gesamtbetrag mit den tatsächlichen Kosten aus `response.usage` aktualisiert.
+
+## Budget festlegen
+
+Übergib eine positive USD-Zahl an `budget()`. Rufe es einmal beim Start auf, nach `init()`.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { init, budget, wrap } from '@jamjet/cloud'
+  import OpenAI from 'openai'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'my-app' })
+
+  budget(50)   // $50 Obergrenze für dieses Projekt
+
+  const openai = wrap(new OpenAI())
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  import jamjet.cloud as jamjet
+  from openai import OpenAI
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='my-app')
+
+  jamjet.budget(max_cost_usd=50)   # $50 Obergrenze für dieses Projekt
+
+  client = jamjet.wrap(OpenAI())
+  ```
+
+  </Tab>
+</Tabs>
+
+Das Budget gilt für alle wrapped Calls im Prozess. Es ist prozessbezogen, nicht API-Key-bezogen — unterschiedliche Prozesse mit demselben Key haben jeweils unabhängige Obergrenzen.
+
+## Pre-Call-Schätzung
+
+Bevor eine Anfrage an das LLM gesendet wird, schätzt JamJet die Kosten des Calls aus der Prompt-Token-Anzahl mithilfe einer modellbasierten Preistabelle. Wenn die geschätzten Gesamtausgaben (kumulativ über die Prozesslebensdauer) die Obergrenze überschreiten würden, wird `JamjetBudgetExceeded` sofort geworfen — das LLM wird nie aufgerufen und es fallen keine Kosten an.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import { JamjetBudgetExceeded } from '@jamjet/cloud'
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'Long prompt...' }],
+    })
+  } catch (err) {
+    if (err instanceof JamjetBudgetExceeded) {
+      console.error(
+        `Budget überschritten. Ausgegeben: $${err.spent.toFixed(4)}, Limit: $${err.limit.toFixed(2)}`
+      )
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from jamjet.cloud.errors import JamjetBudgetExceeded
+
+  try:
+      response = client.chat.completions.create(
+          model='gpt-4o',
+          messages=[{'role': 'user', 'content': 'Long prompt...'}],
+      )
+  except JamjetBudgetExceeded as err:
+      print(f'Budget überschritten. Ausgegeben: ${err.spent:.4f}, Limit: ${err.limit:.2f}')
+  ```
+
+  </Tab>
+</Tabs>
+
+## JamjetBudgetExceeded-Felder
+
+| Feld | Typ | Beschreibung |
+|-------|------|-------------|
+| `spent` | `number` | Kumulierte USD-Ausgaben, die bisher in diesem Prozess erfasst wurden |
+| `limit` | `number` | Die über `budget()` festgelegte Obergrenze |
+
+Beide Werte sind in USD. `spent` spiegelt die tatsächlichen Kosten nach dem Aufruf aus früheren Aufrufen plus der Schätzung vor dem Aufruf für den Aufruf wider, der die Ausnahme ausgelöst hat.
+
+## Erfassung nach dem Aufruf
+
+Wenn ein Aufruf erfolgreich abgeschlossen wird, liest JamJet `response.usage.input_tokens` und `response.usage.output_tokens` aus der Antwort, berechnet die tatsächlichen Kosten anhand derselben Preistabelle und aktualisiert die laufende Summe. Die Schätzung vor dem Aufruf wird durch die tatsächlichen Kosten im Span ersetzt.
+
+Das bedeutet, dass die laufende Summe immer auf echten Abrechnungsdaten der API basiert, nicht nur auf Schätzungen.
+
+## Ändern der Obergrenze
+
+Rufen Sie `budget(N)` jederzeit erneut auf, um die aktuelle Obergrenze zu ersetzen. Die laufende Summe wird nicht zurückgesetzt — nur die Obergrenze ändert sich. Um effektiv zurückzusetzen, setzen Sie eine neue Obergrenze, die dem aktuellen Limit plus dem gewünschten zusätzlichen Ausgabenbudget entspricht.
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  // Anfängliche Obergrenze
+  budget(50)
+
+  // ... nach Freigabe durch einen menschlichen Operator ...
+
+  // Obergrenze auf $100 erhöhen
+  budget(100)
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  # Anfängliche Obergrenze
+  jamjet.budget(max_cost_usd=50)
+
+  # ... nach Freigabe durch einen menschlichen Operator ...
+
+  # Obergrenze auf $100 erhöhen
+  jamjet.budget(max_cost_usd=100)
+  ```
+
+  </Tab>
+</Tabs>
+
+## Einschränkung bei der Modellerkennung
+
+JamJet verwendet eine interne Preistabelle, die nach Modellname (z. B. `gpt-4o`, `claude-3-5-sonnet-20241022`) indiziert ist. Wenn der Modellname in einer Anfrage nicht in der Tabelle enthalten ist — beispielsweise ein neu veröffentlichtes Modell oder ein individuell angepasstes Fine-Tune — werden die geschätzten Kosten als **$0** behandelt.
+
+Eine $0-Schätzung bedeutet, dass das Budget-Gate den Aufruf effektiv zulässt, selbst wenn die tatsächliche Abrechnung erheblich ausfällt. Die Erfassung nach dem Aufruf aktualisiert die laufende Summe dennoch mit den tatsächlichen Kosten, sodass nachfolgende Aufrufe genau geprüft werden.
+
+Um zu überprüfen, ob Ihr Modell erkannt wird, prüfen Sie im Dashboard-Span einen `cost_usd`-Wert ungleich null bei einem abgeschlossenen Aufruf. Wenn `$0.0000` für ein Modell angezeigt wird, das abrechenbar sein sollte, öffnen Sie die Projekteinstellungen und stellen Sie eine Anfrage zur Aktualisierung der Modelltabelle.
+
+## Kombiniertes Beispiel
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { init, budget, wrap, JamjetBudgetExceeded } from '@jamjet/cloud'
+
+  init({ apiKey: process.env.JAMJET_API_KEY!, project: 'research-pipeline' })
+  budget(5)   // $5 harte Obergrenze — nützlich für die Entwicklung
+
+  const openai = wrap(new OpenAI())
+
+  async function runResearch(prompt: string): Promise<string | null> {
+    try {
+      const res = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+      })
+      return res.choices[0].message.content
+    } catch (err) {
+      if (err instanceof JamjetBudgetExceeded) {
+        console.warn(`Recherche gestoppt — Budget aufgebraucht ($${err.spent.toFixed(4)} / $${err.limit})`)
+        return null
+      }
+      throw err
+    }
+  }
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+  import jamjet.cloud as jamjet
+  from jamjet.cloud.errors import JamjetBudgetExceeded
+  import os
+
+  jamjet.configure(api_key=os.environ['JAMJET_API_KEY'], project='research-pipeline')
+  jamjet.budget(max_cost_usd=5)   # $5 harte Obergrenze — nützlich für die Entwicklung
+
+  client = jamjet.wrap(OpenAI())
+
+  def run_research(prompt: str) -> str | None:
+      try:
+          res = client.chat.completions.create(
+              model='gpt-4o',
+              messages=[{'role': 'user', 'content': prompt}],
+          )
+          return res.choices[0].message.content
+      except JamjetBudgetExceeded as err:
+          print(f'Recherche gestoppt — Budget aufgebraucht (${err.spent:.4f} / ${err.limit})')
+          return None
+  ```
+
+  </Tab>
+</Tabs>
+
+## Nächste Schritte
+
+<Cards>
+  <Card title="Genehmigungen" href="/cloud/governance/approvals" description="Human-in-the-Loop-Kontrollen für kritische Aktionen." />
+  <Card title="Richtlinien" href="/cloud/governance/policies" description="Gefährliche Tools blockieren, bevor sie das Modell erreichen." />
+  <Card title="Audit-Protokoll" href="/cloud/dashboard/audit-trail" description="Jedes Kostenereignis und jede Richtlinienentscheidung nachvollziehen." />
+</Cards>

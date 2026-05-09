@@ -1,0 +1,28 @@
+---
+title: Engram
+description: JamJet's temporal-knowledge-graph memory layer. Standalone product with its own microsite.
+---
+
+# Engram
+
+Engram is JamJet's memory layer for AI agents — a temporal knowledge graph that stores conversational context, facts learned over time, and the relationships between them. It's used by JamJet workflows to give agents long-term memory across sessions.
+
+> **Engram has its own dedicated docs at [java-ai-memory.dev](https://java-ai-memory.dev).** This page is a stub pointing you there. Engram is also available as:
+>
+> - **Rust crate**: `jamjet-engram` on crates.io ([0.5.0](https://crates.io/crates/jamjet-engram))
+> - **Python**: `jamjet-engram` on PyPI ([0.1.0](https://pypi.org/project/jamjet-engram/))
+> - **Java**: `engram-spring-boot-starter` on Maven Central ([0.2.0](https://central.sonatype.com/artifact/dev.jamjet/engram-spring-boot-starter))
+> - **Docker**: `ghcr.io/jamjet-labs/engram-server` for the standalone server
+> - **MCP**: `io.github.jamjet-labs/engram-server` on the official MCP registry
+
+## Why Engram?
+
+Most agent memory libraries store transcripts. Engram stores **temporal events with relationships** — you can query "what did the user tell me about their dog last month?" or "what tools has this agent used in the past 24 hours?" without scanning a flat history.
+
+## Benchmarks
+
+Engram scores **88.8% on LongMemEval-S** (proxy run, 500 questions) — competitive with proprietary memory products. See [java-ai-memory.dev/benchmarks](https://java-ai-memory.dev/benchmarks) for details.
+
+## Get started
+
+The full quickstart, API reference, and integration guides live at [java-ai-memory.dev](https://java-ai-memory.dev). Come back here when you want to combine Engram with the JamJet runtime or JamJet Cloud governance.

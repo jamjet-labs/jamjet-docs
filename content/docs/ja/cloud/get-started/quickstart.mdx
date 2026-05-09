@@ -1,0 +1,121 @@
+---
+title: クイックスタート
+description: 5分でJamJet Cloudガバナンスを任意のAIアプリに追加。TypeScriptまたはPython対応。
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# クラウドクイックスタート
+
+このガイドでは、既存のAIアプリにJamJet Cloudのガバナンス機能（ポリシー、予算、承認、監査証跡）を追加します。所要時間は約5分。構造変更は不要です。
+
+## 1. サインアップ
+
+[app.jamjet.dev](https://app.jamjet.dev)で無料アカウントを作成してください。無料プランで、このクイックスタートおよび開発に十分対応できます。
+
+サインアップ後、プロジェクトを作成し、**Settings → API Keys**からAPIキーをコピーしてください。キーは`jj_xxxxxxxxxxxx`のような形式です。
+
+> キーは作成後に再取得できません。紛失した場合は、プロジェクト設定で新しいキーを作成してください。
+
+## 2. インストールと初期化
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```bash
+  pnpm add @jamjet/cloud
+  ```
+
+  ```typescript
+  import { init } from '@jamjet/cloud'
+
+  init({
+    apiKey: process.env.JAMJET_API_KEY!,
+    project: 'my-app',
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```bash
+  pip install jamjet
+  ```
+
+  ```python
+  import jamjet.cloud as jamjet
+  import os
+
+  jamjet.configure(
+    api_key=os.environ['JAMJET_API_KEY'],
+    project='my-app',
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+## 3. ガバナンス機能の追加
+
+既存のOpenAI / Anthropicクライアントをラップし、ポリシーと予算を追加します:
+
+<Tabs items={['TypeScript', 'Python']} groupId="lang">
+  <Tab value="TypeScript">
+
+  ```typescript
+  import OpenAI from 'openai'
+  import { wrap, policy, budget } from '@jamjet/cloud'
+
+  policy('block', 'wire_*')      // wire_*にマッチするツールをブロック
+  budget(50)                      // このプロジェクトの上限を$50に設定
+
+  const openai = wrap(new OpenAI())
+
+  // 通常通り使用 — すべての呼び出しがガバナンスと監視の対象になります
+  await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Hello!' }],
+  })
+  ```
+
+  </Tab>
+  <Tab value="Python">
+
+  ```python
+  from openai import OpenAI
+
+  jamjet.policy('block', 'wire_*')   # wire_*にマッチするツールをブロック
+  jamjet.budget(max_cost_usd=50)     # このプロジェクトの上限を$50に設定
+
+  client = jamjet.wrap(OpenAI())
+
+  client.chat.completions.create(
+    model='gpt-4o',
+    messages=[{'role': 'user', 'content': 'Hello!'}],
+  )
+  ```
+
+  </Tab>
+</Tabs>
+
+以上です。ラップされたクライアントからのすべての呼び出しが、完全な帰属情報、コスト、ポリシー判定とともに[app.jamjet.dev](https://app.jamjet.dev)のダッシュボードに表示されます。
+
+## 確認
+
+ダッシュボードを開きます。先ほど実行した呼び出しのスパンが表示されるはずです（約5秒以内に表示されます）。クリックすると、リクエストペイロード、レスポンス、コスト、エージェント属性（デフォルトエージェント：`default`）を確認できます。
+
+呼び出しが表示されない場合：
+
+- APIキーがプロジェクトと一致しているか確認してください（**設定 → APIキー** の `jj_...`）。
+- 最初のLLM呼び出しの前に `init()` / `configure()` が実行されていることを確認してください。
+- SDKはフェイルオープン設計です：`api.jamjet.dev` に到達できない場合でも、エージェントは動作を続けますが、リトライ後にスパンはドロップされます。
+
+## 次のステップ
+
+<Cards>
+  <Card title="エージェントIDの追加" href="/cloud/governance/agents" description="マルチエージェントネットワークグラフの属性付けに `agent('researcher')` を使用。" />
+  <Card title="人間の承認を必須化" href="/cloud/governance/approvals" description="機密性の高いアクションに `requireApproval('production_deploy')` を使用。" />
+  <Card title="Vercel AI SDK ミドルウェア" href="/integrations/vercel-ai-sdk" description="`streamText` / `generateText` 用の `jamjetMiddleware()`。" />
+  <Card title="Cloud vs オープンソース" href="/cloud/get-started/cloud-vs-open-source" description="オープンソースランタイムも必要かどうかを判断。" />
+</Cards>

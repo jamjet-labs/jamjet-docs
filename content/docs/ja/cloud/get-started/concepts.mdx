@@ -1,0 +1,84 @@
+---
+title: 概念
+description: JamJet Cloudの5つの基本要素 — Span、Agent、Policy、Budget、Approval。
+---
+
+# クラウドコンセプト
+
+JamJet Cloudには5つのコアプリミティブがあります。このページは1ページで全体を理解できるツアーです。各セクションから、より詳細なドキュメントへリンクしています。
+
+## スパン
+
+**スパン**は、観測された単一の作業単位です — 通常は1回のLLM呼び出しを指します。スパンには以下が含まれます：
+
+- モデル、プロンプト、レスポンス（完全なペイロード、`capture_io=True`でオプトイン）
+- それを生成したエージェント
+- ユーザーコンテキスト、環境、リリースバージョン
+- トークン数、レイテンシー、USD単位のコスト
+- 適用されたポリシー決定や承認
+
+スパンを手動で作成する必要はありません。SDKがラップされたLLM呼び出しごとに自動的に作成します。
+
+[→ スパンとトレース](/cloud/telemetry/spans-and-traces)
+
+## エージェント
+
+**エージェント**は名前付きのアイデンティティです。スパンには、それを生成したエージェントがタグ付けされます。デフォルトエージェント1つでも、`researcher`、`writer-bot`、`code-reviewer`のように複数でも設定できます。ダッシュボードでは、エージェントがネットワークグラフのノードとしてレンダリングされます。
+
+```typescript
+import { agent, withAgent } from '@jamjet/cloud'
+
+const researcher = agent('researcher', { description: 'reads + summarises' })
+
+await withAgent(researcher, async () => {
+  // ここで生成されるすべてのスパンにresearcherがタグ付けされます
+  await openai.chat.completions.create(/* ... */)
+})
+```
+
+[→ エージェント](/cloud/governance/agents)
+
+## ポリシー
+
+**ポリシー**は、LLMがどのツールを呼び出せるかを制御するルールです。ポリシーはglobパターンでマッチします。
+
+```typescript
+import { policy } from '@jamjet/cloud'
+
+policy('block', 'wire_*')                  // wire_で始まるすべてのツールをブロック
+policy('require_approval', 'send_email')   // このツールに承認ゲートを設定
+```
+
+ポリシーは**事前呼び出し**（LLMに送信する前にツールリストをフィルタリング）と**事後決定**（レスポンス内のツール呼び出しを再チェック）の両方で強制されます。承認が必要なツールとブロックされたツールは、どちらもスパンに記録されます。
+
+[→ ポリシー](/cloud/governance/policies)
+
+## 予算
+
+**予算**はコストの上限です。JamJetは各呼び出しを事前にチェックし、上限を超える場合は`JamjetBudgetExceeded`をスローします。
+
+```typescript
+import { budget } from '@jamjet/cloud'
+
+budget(50)   // このプロジェクトの上限は$50
+```
+
+事前チェックはプロンプトトークン数から推定コストを使用します。実際のコストは呼び出し後に記録されます。
+
+[→ 予算](/cloud/governance/budgets)
+
+## 承認
+
+**承認**は人間による審査ゲートです。`requireApproval('production_deploy')`は、ダッシュボードで人間が承認または拒否するまでブロックします。
+
+```typescript
+import { requireApproval } from '@jamjet/cloud'
+
+const approvalId = await requireApproval('production_deploy', {
+  context: { service: 'auth-api', version: '2.3.1' },
+  timeoutMs: 600_000,   // 10分
+})
+// 承認された場合のみ進行。拒否時はJamjetApprovalRejectedをスロー
+```
+
+[→ 承認](/cloud/governance/approvals)

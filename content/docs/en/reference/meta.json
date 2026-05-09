@@ -1,0 +1,14 @@
+{
+  "title": "Reference",
+  "pages": [
+    "index",
+    "rest-api",
+    "compare",
+    "glossary",
+    "---Migration Guides---",
+    "migrate/langgraph",
+    "migrate/crewai",
+    "migrate/google-adk",
+    "migrate/openai-direct"
+  ]
+}

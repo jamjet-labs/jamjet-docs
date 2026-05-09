@@ -1,0 +1,28 @@
+{
+  "title": "Open Source",
+  "pages": [
+    "index",
+    "quickstart",
+    "concepts",
+    "---Runtimes---",
+    "python-runtime",
+    "java-runtime",
+    "---Authoring---",
+    "yaml-workflows",
+    "cli",
+    "---Memory---",
+    "engram",
+    "---Protocols---",
+    "protocols/mcp",
+    "protocols/a2a",
+    "---Research & Eval---",
+    "research/eval",
+    "research/coordinator",
+    "research/agent-as-tool",
+    "research/research-guide",
+    "---Operations---",
+    "observability",
+    "deployment",
+    "enterprise"
+  ]
+}

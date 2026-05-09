@@ -1,0 +1,54 @@
+---
+title: Glossary
+description: JamJet terminology — Span, Agent, Approval, Engram, MCP, A2A, and more.
+---
+
+# Glossary
+
+## Agent
+
+A named identity that produces spans. In JamJet Cloud, agents map to nodes in the dashboard's network graph. Created via `agent('researcher')` (TypeScript) or `jamjet.cloud.agent('researcher')` (Python).
+
+## Approval
+
+A human-in-the-loop gate. When `requireApproval('action_name')` is called, the SDK polls JamJet Cloud's approvals API until a human approves or rejects in the dashboard.
+
+## A2A
+
+**Agent-to-Agent** protocol. JamJet has native A2A support — agents can discover and call each other across processes and networks. See [A2A protocol](/open-source/protocols/a2a).
+
+## Budget
+
+A cost ceiling enforced by JamJet Cloud. `budget(50)` sets a $50/project ceiling; calls that would exceed it throw `JamjetBudgetExceeded`.
+
+## Checkpoint
+
+A serialized snapshot of a workflow's state. JamJet's open-source runtime checkpoints after every node completes, so a process restart can resume from the last checkpoint without re-running prior work.
+
+## Engram
+
+JamJet's temporal-knowledge-graph memory layer. See [Engram](/open-source/engram).
+
+## MCP
+
+**Model Context Protocol**. An Anthropic-introduced protocol for connecting AI agents to external tools and data sources. JamJet has native MCP support. See [MCP protocol](/open-source/protocols/mcp).
+
+## Policy
+
+A rule that controls which tools an LLM can call. `policy('block', 'wire_*')` blocks every tool whose name starts with `wire_`. See [Policies](/cloud/governance/policies).
+
+## Span
+
+A unit of observed work — typically one LLM call or one tool invocation. Spans carry agent identity, user context, cost, tokens, latency. The basic unit of JamJet Cloud's telemetry.
+
+## Trace
+
+A correlated set of spans. JamJet supports W3C trace IDs so spans across services chain into a single trace.
+
+## Workflow
+
+The open-source runtime's primary unit of authoring. A `@jamjet.workflow` (Python) or `@Workflow` (Java) defines a graph of nodes with checkpointed transitions.
+
+## YAML Workflows
+
+A declarative authoring surface. Defines workflows in YAML instead of code; useful for non-developer authors and for workflows that need to be edited at runtime. See [YAML Workflows](/open-source/yaml-workflows).

@@ -1,0 +1,223 @@
+---
+title: Memory
+description: Hosted shared memory for your agent fleet — BYOK embeddings, three-level scope, GDPR delete-by-user.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Callout } from 'fumadocs-ui/components/callout'
+
+# Memory
+
+JamJet Cloud bundles a hosted memory store so your agents can write facts and recall them later — across an entire fleet, scoped to a single agent, or scoped to an end-user. Embeddings are pgvector-backed; you bring your own provider key (BYOK), the cloud encrypts it at rest.
+
+If you already use the open-source `jamjet-engram` library locally, the cloud surface is API-compatible: swap `base_url` to point at JamJet Cloud and the same `add` / `recall` / `forget` calls work against managed storage instead of your local SQLite.
+
+## When to use this
+
+- **Across an agent fleet.** A support agent and a billing agent both need to know "User Y prefers formal greetings" — write the fact once, both recall it.
+- **Per end-user context.** Tag facts with `end_user_id` so personalization survives across sessions without you running your own vector store.
+- **Right-to-erasure.** A single `forget(end_user_id="...")` call soft-deletes every fact about that user, with one audit-log entry that records the count.
+
+If you're building a single-agent app with no fleet and no per-user state, you probably don't need cloud memory yet. Local OSS [Engram](/en/docs/open-source/engram) is enough; come back when you outgrow it.
+
+## How it's scoped
+
+Every fact has three optional dimensions: **project**, **agent**, **end-user**. A recall with explicit filters returns the *inclusive cascade* — facts compatible with the filters, not strictly equal to them.
+
+Worked example: agent X recalls about user Y. The query returns:
+
+| `agent_id` | `end_user_id` | Returned for `recall(agent=X, user=Y)`? |
+|---|---|---|
+| `X` | `Y` | yes (exact) |
+| `X` | `null` | yes (X's general knowledge) |
+| `null` | `Y` | yes (everyone knows about Y) |
+| `null` | `null` | yes (fleet-wide) |
+| `Z` | `Y` | no (different agent) |
+| `Z` | `null` | no (different agent) |
+
+Omitted scopes mean "applies broadly." Explicit scopes narrow.
+
+## Setup
+
+### 1. Configure the embedding provider
+
+Cloud memory uses your own OpenAI key for embeddings — JamJet does not bill you for embedding cost. In the dashboard, go to **Settings → Memory** (or visit `/dashboard/settings/memory` directly) and:
+
+1. Paste your OpenAI API key (`sk-…`).
+2. Click **Test connection** to verify it works against `text-embedding-3-small`.
+3. Click **Save**. The key is encrypted with AES-256-GCM and stored in `projects.embedding_provider_key_encrypted` as ciphertext bytes. Plaintext never crosses the DB boundary.
+4. Toggle **Memory enabled** on (Save does this automatically on first set).
+
+<Callout type="info">
+  Only OpenAI `text-embedding-3-small` (1536-dim) is supported in this MVP. Other providers (Voyage, Cohere) will be added when there's signal. Switching providers later requires re-embedding existing facts because the vector spaces differ.
+</Callout>
+
+### 2. Test the endpoints
+
+Three core operations: `add`, `recall`, `forget`. Plus read-side helpers `facts` and `stats` used by the dashboard.
+
+<Tabs items={['curl', 'Python (httpx)', 'OSS Engram client']}>
+  <Tab value="curl">
+
+  ```bash
+  # Add a fact
+  curl -X POST https://api.jamjet.dev/v1/memory/add \
+    -H "Authorization: Bearer $JAMJET_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "content": "User likes formal greetings",
+      "agent_id": null,
+      "end_user_id": "u_alpha"
+    }'
+  # → { "id": "abc-...", "content": "...", "created_at": "..." }
+
+  # Recall
+  curl -X POST https://api.jamjet.dev/v1/memory/recall \
+    -H "Authorization: Bearer $JAMJET_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "query": "how should I greet the user?",
+      "end_user_id": "u_alpha",
+      "k": 5
+    }'
+  # → { "facts": [{ "id": "...", "content": "...", "similarity": 0.87, ... }] }
+
+  # Forget by id
+  curl -X POST https://api.jamjet.dev/v1/memory/forget \
+    -H "Authorization: Bearer $JAMJET_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{ "id": "abc-...", "reason": "user request" }'
+  # → { "count": 1 }
+  ```
+
+  </Tab>
+  <Tab value="Python (httpx)">
+
+  ```python
+  import os
+  import httpx
+
+  API = "https://api.jamjet.dev"
+  HDR = {"Authorization": f"Bearer {os.environ['JAMJET_API_KEY']}"}
+
+  # Add a fact
+  r = httpx.post(f"{API}/v1/memory/add", headers=HDR, json={
+      "content": "User likes formal greetings",
+      "end_user_id": "u_alpha",
+  })
+  fact_id = r.json()["id"]
+
+  # Recall
+  facts = httpx.post(f"{API}/v1/memory/recall", headers=HDR, json={
+      "query": "how should I greet the user?",
+      "end_user_id": "u_alpha",
+      "k": 5,
+  }).json()["facts"]
+
+  # Forget by id
+  httpx.post(f"{API}/v1/memory/forget", headers=HDR, json={
+      "id": fact_id,
+      "reason": "user request",
+  })
+  ```
+
+  </Tab>
+  <Tab value="OSS Engram client">
+
+  Already using the open-source `jamjet-engram` Python client locally? Point its `base_url` at JamJet Cloud and the same code works against managed storage:
+
+  ```python
+  from jamjet.engram import EngramClient
+
+  client = EngramClient(
+      base_url="https://api.jamjet.dev",
+      api_key=os.environ["JAMJET_API_KEY"],
+  )
+
+  await client.add(content="User likes formal greetings", end_user_id="u_alpha")
+  facts = await client.recall(query="how should I greet?", end_user_id="u_alpha", k=5)
+  await client.forget(facts[0]["id"], reason="user request")
+  ```
+
+  Method names and field shapes are identical between local and cloud. Only the `base_url` changes.
+
+  </Tab>
+</Tabs>
+
+## GDPR — delete by end-user
+
+Right-to-erasure works in one call:
+
+```bash
+curl -X POST https://api.jamjet.dev/v1/memory/forget \
+  -H "Authorization: Bearer $JAMJET_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "end_user_id": "u_alpha", "reason": "GDPR delete request 2026-05-12" }'
+# → { "count": 47 }
+```
+
+Every fact tagged with that `end_user_id` (across all agents in the project) is soft-deleted in a single transaction. The `audit_log` gets **one** row recording the bulk delete with the count — not one row per fact, so erasing a chatty user doesn't flood your audit trail.
+
+The deleted facts retain their content in the database with `superseded_at` set, but never appear in `recall` or `facts` again. Hard-delete-after-30-days is on the roadmap; for true compliance erasure today, contact support.
+
+## Tier limits
+
+Memory storage is metered separately from traces. Counts are per-month:
+
+| Tier | Memory facts |
+|---|---|
+| Free | 10,000 |
+| Starter | 100,000 |
+| Team | 1,000,000 |
+| Business | 1,000,000 |
+| Enterprise | Custom |
+
+Hitting the limit returns `402 Payment Required` with `dimension: "memory"` in the response body. Upgrade in **Settings → Billing**.
+
+The **Memory** dashboard tab shows your current count and tier-relative percentage at the top.
+
+## Browse facts in the dashboard
+
+`/dashboard/memory` shows recent facts in the active project, with:
+
+- **Search box** — empty shows newest-first; non-empty does a recall ranked by cosine similarity.
+- **Per-row forget** — confirm modal, optimistic update.
+- **Stats header** — count / quota / tier with a link to **Settings → Memory** for provider config.
+
+The page is hidden when the project hasn't configured an embedding provider yet, with a CTA pointing to Settings.
+
+## Auth model
+
+- **API key auth (`jj_…`)** — single project, scoped automatically. Use this from your agents.
+- **Dashboard auth (Supabase JWT)** — scoped to projects you own. Used by the Memory tab and Settings page in the browser.
+- **Disabled project** — when `memory_enabled = false`, all three endpoints return `403` with `error_code: "memory_disabled"`. Toggling re-enables without touching data.
+
+## Endpoint reference
+
+Full HTTP shapes are in the [REST API reference](/en/docs/reference/rest-api#memory). Quick summary:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/memory/settings` | Save provider key + enable |
+| `GET` | `/v1/memory/settings` | Read configured / enabled state |
+| `PATCH` | `/v1/memory/settings` | Toggle `enabled` without re-saving the key |
+| `POST` | `/v1/memory/settings/test` | Validate a provider key before saving |
+| `POST` | `/v1/memory/add` | Add a fact (embed + store) |
+| `POST` | `/v1/memory/recall` | Vector-similarity search with cascade-scoped filter |
+| `POST` | `/v1/memory/forget` | Soft-delete by `id` or by `end_user_id` (GDPR bulk) |
+| `GET` | `/v1/memory/facts` | List recent facts (newest-first, paginated) |
+| `GET` | `/v1/memory/stats` | Count + quota + tier |
+
+## Differences from open-source Engram
+
+| | OSS Engram (local) | JamJet Cloud Memory |
+|---|---|---|
+| Storage | SQLite | Postgres + pgvector + HNSW |
+| Embeddings | local model or API | OpenAI BYOK (server-side) |
+| Multi-tenancy | none | per-project, with optional agent + end_user scope |
+| Audit trail | file logs | structured `audit_log` rows + tamper-evident export (Phase 4.E) |
+| GDPR delete | manual | `forget(end_user_id=…)` one-call |
+| Tier limits | unlimited | 10K free → 1M Team |
+| Method names | `add`, `recall`, `forget`, `context`, `stats`, `consolidate`, `search` | `add`, `recall`, `forget` in MVP — others coming when there's signal |
+
+If you're using `consolidate` / `context` / `search` from OSS Engram today, those endpoints aren't in the cloud MVP. Open an issue with your use-case and we'll prioritize.

@@ -416,6 +416,137 @@ Query the immutable audit log.
 
 ---
 
+## Memory
+
+Hosted vector memory for your agent fleet. Three-level scope (project / agent / end-user), inclusive cascade on recall, BYOK embedding provider. See the [Memory guide](/cloud/memory) for concepts and quickstart.
+
+### `POST /v1/memory/settings`
+
+Configure the embedding provider key for the project. Encrypts the key with AES-256-GCM at rest.
+
+**Request:**
+```json
+{
+  "provider": "openai",
+  "api_key": "sk-...",
+  "enabled": true
+}
+```
+
+**Response:**
+```json
+{ "provider": "openai", "enabled": true, "configured": true }
+```
+
+The `api_key` is never returned. `provider` is locked to `"openai"` in MVP.
+
+### `GET /v1/memory/settings`
+
+Read current settings without exposing the key.
+
+**Response:** `{ "provider": "openai" | null, "enabled": bool, "configured": bool }`
+
+### `PATCH /v1/memory/settings`
+
+Toggle `enabled` without re-saving the key.
+
+**Request:** `{ "enabled": false }`
+
+### `POST /v1/memory/settings/test`
+
+Probe a provider key against `text-embedding-3-small` before saving. Does not persist.
+
+**Request:** `{ "provider": "openai", "api_key": "sk-..." }`
+**Response:** `{ "ok": true }` or `{ "ok": false, "error": "<reason>" }`
+
+### `POST /v1/memory/add`
+
+Add a fact. Embeds via the configured provider, stores the vector, optionally dedups via `ingestion_key`.
+
+**Request:**
+```json
+{
+  "content": "User likes formal greetings",
+  "agent_id": "uuid|null",
+  "end_user_id": "u_alpha|null",
+  "metadata": { "source": "session_001" },
+  "ingestion_key": "optional-dedup-key"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "abc-...",
+  "content": "User likes formal greetings",
+  "agent_id": null,
+  "end_user_id": "u_alpha",
+  "created_at": "2026-05-12T10:00:00Z"
+}
+```
+
+**Errors:** `400 embedding_key_missing|invalid`, `402 memory_quota_exceeded` (with `dimension: "memory"`), `403 memory_disabled`, `429 embedding_rate_limited`.
+
+### `POST /v1/memory/recall`
+
+Cascade-scoped vector similarity search.
+
+**Request:**
+```json
+{
+  "query": "how should I greet?",
+  "agent_id": null,
+  "end_user_id": "u_alpha",
+  "k": 10
+}
+```
+
+**Response:**
+```json
+{
+  "facts": [
+    {
+      "id": "abc-...",
+      "content": "User likes formal greetings",
+      "agent_id": null,
+      "end_user_id": "u_alpha",
+      "similarity": 0.87,
+      "created_at": "2026-05-12T10:00:00Z",
+      "metadata": {}
+    }
+  ]
+}
+```
+
+`k` clamps to `[1, 100]`, default 10. Recall does not count against the memory quota.
+
+### `POST /v1/memory/forget`
+
+Soft-delete by `id` (single fact) **or** by `end_user_id` (GDPR bulk). Exactly one must be supplied.
+
+**Request (single):** `{ "id": "abc-...", "reason": "user request" }`
+**Request (bulk):** `{ "end_user_id": "u_alpha", "reason": "GDPR delete" }`
+
+**Response:** `{ "count": <i64> }`
+
+Bulk delete writes one `memory_user_forgotten` audit row with the count, not one row per fact.
+
+### `GET /v1/memory/facts`
+
+List recent facts in the project, newest-first. No vector similarity — for the dashboard list view.
+
+**Query parameters:** `limit` (default 50, max 200), `before` (ISO timestamp for pagination).
+
+**Response:** `{ "facts": [{ id, content, agent_id, end_user_id, created_at, metadata }] }`
+
+### `GET /v1/memory/stats`
+
+Project-level stats. Used by the Memory tab header.
+
+**Response:** `{ "count": <i64>, "quota": <i64>, "tier": "free|starter|team|business|enterprise" }`
+
+---
+
 ## Tenants
 
 Tenant management requires `operator` role.

@@ -134,7 +134,7 @@ Execution: exec_01JM4X8NKWP2
 
 State:
   query:  "What is JamJet?"
-  answer: "JamJet is an agent-native runtime..."
+  answer: "JamJet is a safety layer for AI agents..."
 
 Events:
   09:31:00.001  execution_started

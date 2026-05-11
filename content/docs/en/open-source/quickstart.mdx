@@ -1,13 +1,32 @@
 ---
 title: Quickstart
-description: Run a durable JamJet workflow in 60 seconds. Python or Java.
+description: See JamJet block an unsafe tool call in 60 seconds. No API key, no cloud account.
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
 
 # Quickstart
 
-JamJet is a durable workflow runtime for AI agents. Pick your language to get started.
+In 60 seconds, see JamJet block an unsafe tool call before execution.
+
+```bash
+pip install jamjet
+jamjet demo unsafe-tool-call
+```
+
+You'll see the blocked tool, the matched policy rule, and an audit JSON file
+written under `.jamjet-demo/runs/`. No API key. No cloud account. The model is
+mocked; the enforcement path is real.
+
+Three more demos:
+
+```bash
+jamjet demo approval        # pause for human approval
+jamjet demo budget-cap      # $0.05 cost cap
+jamjet demo mcp-tool-policy # MCP-shaped policy (preview)
+```
+
+Once the demos make sense, drop a policy beside your real agent code.
 
 > Looking for **JamJet Cloud** (governance, dashboard, audit trail)? See the [Cloud Quickstart](/cloud/get-started/quickstart) instead.
 
@@ -107,8 +126,8 @@ import dev.jamjet.tool.ToolCall;
 record WebSearch(String query) implements ToolCall<String> {
     public String execute() {
         // In production, call your search API here
-        return "Results for '" + query + "': JamJet is a performance-first, "
-                + "agent-native runtime and framework for AI agents.";
+        return "Results for '" + query + "': JamJet is a safety layer "
+                + "for AI agents.";
     }
 }
 ```

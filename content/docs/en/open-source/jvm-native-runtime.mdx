@@ -1,0 +1,138 @@
+---
+title: JVM-native runtime
+description: jamjet-runtime-java — the JVM-native durable agent runtime. Checkpoint-based crash recovery, native MCP, Spring Boot starter.
+---
+
+# JVM-native runtime
+
+`jamjet-runtime-java` is the JVM-native durable agent runtime. It ships eight modules on Maven Central and runs durable agents directly on the JVM — no Rust runtime, no REST sidecar, no gRPC bridge.
+
+Use this when:
+
+- Your application is Spring Boot, Quarkus, plain Java, or Kotlin.
+- You want durable execution without a sidecar process.
+- You're targeting Java 21+ and want virtual threads, not green threads.
+
+Use the [Java SDK](./java-runtime) instead if you want to author workflows in Java that compile to the shared IR and run on the Rust runtime.
+
+## Install
+
+Requires **Java 21+**.
+
+### Spring Boot (recommended)
+
+```xml
+<dependency>
+  <groupId>dev.jamjet</groupId>
+  <artifactId>jamjet-spring-boot-starter</artifactId>
+  <version>0.3.1</version>
+</dependency>
+```
+
+Auto-registers `DurableAgentBeanPostProcessor`. Minimal `application.yml`:
+
+```yaml
+jamjet:
+  storage: in-memory
+```
+
+### Plain Java (no Spring)
+
+```xml
+<dependency>
+  <groupId>dev.jamjet</groupId>
+  <artifactId>jamjet-runtime-core</artifactId>
+  <version>0.3.1</version>
+</dependency>
+<dependency>
+  <groupId>dev.jamjet</groupId>
+  <artifactId>jamjet-runtime-instrument</artifactId>
+  <version>0.3.1</version>
+</dependency>
+```
+
+## Authoring a durable agent
+
+Annotate the class with `@DurableAgent`, the methods with `@Checkpoint`, and wrap side-effecting work in `DurabilityContext.replayOrExecute`:
+
+```java
+import dev.jamjet.runtime.instrument.DurabilityContext;
+import dev.jamjet.runtime.instrument.annotations.Checkpoint;
+import dev.jamjet.runtime.instrument.annotations.DurableAgent;
+
+@DurableAgent("research-pipeline")
+public class ResearchAgent {
+
+  @Checkpoint("search")
+  public String search(String topic) {
+    return DurabilityContext.current().replayOrExecute("search", () -> {
+      return searchClient.query(topic);
+    });
+  }
+
+  @Checkpoint("analyze")
+  public String analyze(String sources) {
+    return DurabilityContext.current().replayOrExecute("analyze", () -> {
+      return llmClient.chat(systemPrompt, sources);
+    });
+  }
+}
+```
+
+When a worker crashes between checkpoints, the next worker picks up the run and `replayOrExecute` returns the previously-recorded result for every completed checkpoint, then executes only the remaining ones.
+
+## Spring Boot integration
+
+Adding `@Service` (or any Spring stereotype) on top of `@DurableAgent` registers the agent as a normal Spring bean. The `DurableAgentBeanPostProcessor` discovers it at startup:
+
+```java
+@DurableAgent("research-pipeline")
+@Service
+public class ResearchAgent {
+  // …
+}
+```
+
+Inject it the way you'd inject any Spring service.
+
+## Modules
+
+| Module | Purpose |
+|---|---|
+| `jamjet-runtime-core` | Scheduler, work item leasing, execution state |
+| `jamjet-runtime-instrument` | `@DurableAgent`, `@Checkpoint`, `DurabilityContext` |
+| `jamjet-runtime-protocols` | MCP server + client + tool executor |
+| `jamjet-runtime-plugins` | Plugin SPI for runtime extensions |
+| `jamjet-runtime-server` | HTTP server for inspection + control |
+| `jamjet-spring-boot-starter` | Spring Boot auto-config |
+| `jamjet-cloud-sdk` | AgentBoundary v0.1 receipt types + cloud client |
+| `jamjet-cloud-spring-boot-starter` | Spring Boot wiring for the cloud SDK |
+
+## MCP protocols
+
+`jamjet-runtime-protocols` ships native MCP server and client adapters. Tools defined on the runtime are exposed as MCP tools without writing protocol glue; remote MCP servers can be added as callable tools the same way.
+
+## AgentBoundary receipts
+
+Emit Action Receipts by pairing `jamjet-cloud-sdk` with the runtime — receipts conform to the open [AgentBoundary v0.1 spec](https://agentboundary.jamjet.dev/spec/v0.1) and validate against the canonical [JSON Schema](https://agentboundary.jamjet.dev/schemas/action-receipt-v0.1.json).
+
+## Examples
+
+Four runnable examples ship in the repo:
+
+- **crash-recovery** — Kill a worker mid-run; another picks up at the next checkpoint.
+- **real-agent** — OpenAI-backed agent with checkpoint persistence.
+- **spring-boot-comparison** — Side-by-side old way (manual durability) vs new way (`@DurableAgent`).
+- **latency benchmark** — Measures the overhead of the durability layer.
+
+Browse them at [jamjet-runtime-java/examples](https://github.com/jamjet-labs/jamjet-runtime-java/tree/main/examples).
+
+## Storage backends
+
+The current 0.3.x line supports an in-memory checkpoint store, suitable for single-process deployments and development. The wire protocol for swappable backends is in place; durable backends are tracked on the [jamjet-runtime-java](https://github.com/jamjet-labs/jamjet-runtime-java) issue tracker.
+
+## Reference
+
+- GitHub: [jamjet-labs/jamjet-runtime-java](https://github.com/jamjet-labs/jamjet-runtime-java)
+- Maven Central: [dev.jamjet namespace](https://central.sonatype.com/namespace/dev.jamjet)
+- Public landing: [jamjet.dev/runtime](https://jamjet.dev/runtime)

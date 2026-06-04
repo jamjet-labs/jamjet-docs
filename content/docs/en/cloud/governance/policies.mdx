@@ -1,24 +1,24 @@
 ---
 title: Policies
-description: Block dangerous tools at runtime. Glob-based rules. Pre-call filter and post-decision check.
+description: Block dangerous tools at runtime. Glob-based rules, pre-call filter and post-decision check.
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
 import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
 
 # Policies
 
-A **policy** is a rule that controls which tools an LLM can call. JamJet enforces policies at two points in the request lifecycle: before the request reaches the model (pre-call filter) and after the model responds (post-decision check). Both enforcement points are synchronous and in-process — no network round-trip required.
+A **policy** is a rule that controls which tools an LLM can call. JamJet enforces policies at two points in the request lifecycle: before the request reaches the model (a pre-call filter) and after the model responds (a post-decision check). Both enforcement points are synchronous and in-process, with no network round-trip required.
 
-## Three actions
+## Two actions that gate tools
 
-Every policy rule pairs a glob pattern with one of three actions:
+Every policy rule pairs a glob pattern with an action. Two of those actions gate tool calls at runtime:
 
 | Action | Behavior |
 |--------|----------|
 | `'block'` | Matched tools are filtered out of the request before the LLM sees them. If the model still requests a blocked tool in its response, `JamjetPolicyBlocked` is thrown. |
 | `'allow'` | Explicitly permits matched tools. Useful for building an allowlist after a broad block. |
-| `'require_approval'` | Registers intent to gate the tool via human approval. See [current limitation](#require_approval-current-limitation) below. |
 
 <Tabs items={['TypeScript', 'Python']} groupId="lang">
   <Tab value="TypeScript">
@@ -26,9 +26,8 @@ Every policy rule pairs a glob pattern with one of three actions:
   ```typescript
   import { policy } from '@jamjet/cloud'
 
-  policy('block', 'wire_*')             // block any tool whose name starts with wire_
-  policy('allow', 'wire_read')          // except wire_read — allow it explicitly
-  policy('require_approval', 'send_*')  // intent to gate send_* tools (see limitation)
+  policy('block', 'wire_*')      // block any tool whose name starts with wire_
+  policy('allow', 'wire_read')   // except wire_read, allow it explicitly
   ```
 
   </Tab>
@@ -37,13 +36,14 @@ Every policy rule pairs a glob pattern with one of three actions:
   ```python
   import jamjet.cloud as jamjet
 
-  jamjet.policy('block', 'wire_*')             # block any tool starting with wire_
-  jamjet.policy('allow', 'wire_read')          # except wire_read — allow it explicitly
-  jamjet.policy('require_approval', 'send_*')  # intent to gate send_* (see limitation)
+  jamjet.policy('block', 'wire_*')      # block any tool starting with wire_
+  jamjet.policy('allow', 'wire_read')   # except wire_read, allow it explicitly
   ```
 
   </Tab>
 </Tabs>
+
+A third declarative action, `'require_approval'`, does not gate at runtime. See [require_approval does not gate](#require_approval-does-not-gate) below.
 
 ## Glob pattern semantics
 
@@ -74,11 +74,8 @@ When multiple rules match the same tool, the **last** rule in registration order
   // Rule 1: block everything in payments namespace
   policy('block', 'payments.*')
 
-  // Rule 2: allow the safe read operation (registered after rule 1 — wins for payments.read)
+  // Rule 2: allow the safe read operation (registered after rule 1, wins for payments.read)
   policy('allow', 'payments.read')
-
-  // Rule 3: require approval for high-value transfers (wins for payments.send)
-  policy('require_approval', 'payments.send')
 
   const openai = wrap(new OpenAI())
   ```
@@ -96,11 +93,8 @@ When multiple rules match the same tool, the **last** rule in registration order
   # Rule 1: block everything in payments namespace
   jamjet.policy('block', 'payments.*')
 
-  # Rule 2: allow the safe read operation (registered after rule 1 — wins for payments.read)
+  # Rule 2: allow the safe read operation (registered after rule 1, wins for payments.read)
   jamjet.policy('allow', 'payments.read')
-
-  # Rule 3: require approval for high-value transfers (wins for payments.send)
-  jamjet.policy('require_approval', 'payments.send')
 
   client = jamjet.wrap(OpenAI())
   ```
@@ -108,11 +102,9 @@ When multiple rules match the same tool, the **last** rule in registration order
   </Tab>
 </Tabs>
 
-For `payments.read`: rule 1 says block, rule 2 says allow. Rule 2 was registered last, so `allow` wins — the tool is permitted.
+For `payments.read`: rule 1 says block, rule 2 says allow. Rule 2 was registered last, so `allow` wins and the tool is permitted.
 
-For `payments.send`: rule 1 says block, rule 3 says require_approval. Rule 3 was registered last, so `require_approval` wins (subject to the [current limitation](#require_approval-current-limitation)).
-
-For `payments.delete`: only rule 1 matches — it is blocked.
+For `payments.delete`: only rule 1 matches, so it is blocked.
 
 ## Pre-call enforcement
 
@@ -167,43 +159,66 @@ After the LLM responds, JamJet inspects every `tool_call` in the response. If a 
   </Tab>
 </Tabs>
 
-## `require_approval` — current limitation
+## require_approval does not gate
 
-In 0.2.x, `require_approval` **does not gate execution at runtime**. Rules registered with this action are recorded in the span and surface in the dashboard as `policy_approval_pending` span attributes — enabling retrospective review — but tools matched by them pass through to the model unchanged.
+The declarative `policy('require_approval', tool)` rule does **not** block, pause, or await anything at runtime. Tools matched by a `require_approval` rule are sent to the model and returned to your code exactly as if no rule existed. The rule is also not currently recorded on the span.
 
-Full runtime gating (blocking the call until a human approves in the dashboard) is planned for 0.3.x. If you need immediate enforcement today, use `'block'` and implement the approval gate manually via [`requireApproval`](/cloud/governance/approvals).
+<Callout type="warn">
+  `require_approval` as a policy rule is a no-op at runtime. For an actual human gate that blocks a call until someone approves or rejects it in the dashboard, use the [Approvals](/cloud/governance/approvals) surface at `/dashboard/approvals` instead.
+</Callout>
+
+For a real human gate today, use the dashboard [Approvals](/cloud/governance/approvals) queue together with the policy gateway, which holds a matched call as a pending request until someone approves or rejects it. The SDK `requireApproval()` helper exists, but it depends on a server endpoint that the hosted API does not expose yet, so the end-to-end SDK flow is not wired. See [Approvals](/cloud/governance/approvals) for the mechanism that works today.
+
+## Policy simulation
+
+Before you enforce a candidate rule, you can dry-run it against recorded events to see exactly which past tool calls it would have matched. This lets you tune a glob pattern without risking a bad block in production.
+
+You can simulate inline on the [Policies](/dashboard/policies) surface while editing a rule, or use the dedicated simulator at `/dashboard/policies/simulate`. Both run against your recorded events, so the result reflects real traffic rather than guesses. The simulator is backed by `POST /v1/policy/simulate`.
+
+## Other policy kinds
+
+Beyond tool-gating rules, JamJet supports additional policy kinds:
+
+- **`tool_compaction`** trims oversized tool results before the model call. See [tool_compaction](#tool_compaction) below.
+- **`cache_inject`** is created by [Optimize](/cloud/enforce/optimize) when you accept a one-click apply, and reuses repeated prompt prefixes to cut cost.
+- **`budget`** enforces a cost ceiling. See [Budgets](/cloud/governance/budgets).
+
+## tool_compaction
+
+The **`tool_compaction`** policy kind is opt-in. Its pattern is a tool-name glob, and its config requires `max_result_tokens` greater than 0. When an enforced call runs, the SDK head-truncates oversized matching tool results in the message history before the model call, then records `tokens_saved` and a `compacted` flag on the span. Recovered value from compaction shows up on the [Savings](/cloud/enforce/savings) surface.
+
+<Callout type="info">
+  `tool_compaction` is available in `@jamjet/cloud` 0.4.0-alpha.4, published under the npm `next` tag. It is not part of the current GA line.
+</Callout>
 
 ```typescript
-// Today: block the tool and require approval manually
-policy('block', 'send_email')
+// npm install @jamjet/cloud@next
+import { policy } from '@jamjet/cloud'
 
-// Then, in your agent loop, before invoking the tool yourself:
-const approvalId = await requireApproval('send_email', {
-  context: { to: recipient, subject },
-})
-// Only reaches here if approved. Now call the tool.
+// Truncate any search_* tool result that exceeds 2000 tokens.
+policy('tool_compaction', 'search_*', { max_result_tokens: 2000 })
 ```
 
 ## Streaming enforcement
 
-Policy enforcement in streaming mode (`stream: true`) is limited on the bare SDK because tool_calls arrive in fragments across chunks. Full streaming enforcement — buffering, reassembly, and post-decision check — is provided by the `@jamjet/cloud-vercel` middleware.
+Policy enforcement in streaming mode (`stream: true`) is limited on the bare SDK because tool_calls arrive in fragments across chunks. Full streaming enforcement (buffering, reassembly, and the post-decision check) is provided by the `@jamjet/cloud-vercel` middleware.
 
 See [Vercel AI SDK integration](/integrations/vercel-ai-sdk) for how to add `jamjetMiddleware()` to `streamText`.
 
 ## Viewing policy decisions in the dashboard
 
-Every blocked or approval-pending decision is recorded in the span. Open any span in the dashboard to see:
+Every blocked decision is recorded in the span. Open any span in the dashboard to see:
 
 - Which tools were filtered at pre-call
 - Which tool_calls were blocked post-decision
 - Which rules matched (pattern and action)
 
-For retrospective audit across many spans, use the [Audit Trail](/cloud/dashboard/audit-trail).
+For retrospective audit across many spans, use the [Audit](/cloud/dashboard/audit-trail) surface.
 
 ## Next steps
 
 <Cards>
-  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop polling for production-safe gates." />
-  <Card title="Budgets" href="/cloud/governance/budgets" description="Cost ceilings enforced before billing." />
-  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="Full streaming policy enforcement via middleware." />
+  <Card title="Optimize" href="/cloud/enforce/optimize" description="Find cost savings and apply cache_inject policies in one click." />
+  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop gates that actually block a call until approved." />
+  <Card title="Savings" href="/cloud/enforce/savings" description="See recovered value from compaction and other enforcement." />
 </Cards>

@@ -4,61 +4,42 @@ description: Multi-agent visualization. See which agent did what, when, and to w
 ---
 
 import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
 
 # Network Graph
 
-The Network Graph at **app.jamjet.dev/projects/&lt;id&gt;/graph** is a live-updating canvas that shows how agents in your system relate to one another. It answers the questions that logs cannot: which agent handed off to which other agent, how many hops a request took, where in the chain a policy blocked a tool call, and which agents are the most heavily connected.
+The **Network Graph** surface at `/dashboard/graph` is a force-directed canvas that shows how the agents in your system relate to one another and how a single run unfolds. It answers the questions logs cannot: which agent handed off to which other agent, where cost concentrates, which boundaries error, and how one trace fanned out across spans. It lives under the Observe chapter.
 
-## Reading the graph
+## Two modes
 
-Every node on the canvas represents a named agent — a distinct identity you declare with [`agent()`](/cloud/governance/agents). Every edge represents an interaction: a tool call from one agent to another, a span emitted while one agent was running inside another's scope, or an explicit handoff in a multi-agent workflow.
+The graph renders in one of two modes.
 
-Node size scales with span volume. Thicker edges mean more interactions between those two agents in the selected time window. A node with no outgoing edges is a leaf agent — it consumes context but does not delegate further.
+**Aggregate mode** plots your fleet over a time range. Nodes are agents and edges are cross-agent calls. Node size and fill encode cost, a red ring marks errors, and edge thickness encodes cost flow between two agents. Pick a window with the time-range buttons: 1h, 24h, 7d, 30d, or All. The view auto-refreshes about every 10 seconds, so an open dashboard tracks live traffic without a manual reload.
 
-Clicking a node opens the **agent detail panel**: a chronological list of every span that agent emitted in the current time window, with cost, model, latency, and policy outcome for each. Clicking an edge opens the **edge detail panel**: the subset of spans that crossed that specific agent-to-agent boundary, ordered by time.
+**Trace mode** drills into a single run. The graph renders that run as a span tree: parent-to-child edges with status-colored nodes. Choose the run from the recent-trace picker. Use this when you want the exact shape of one request rather than the aggregate topology.
 
-## Time-range scoping
+## Detail panels
 
-The time-range picker in the top-right of the graph controls which spans are included. Available windows:
+Clicking an element opens a side panel.
 
-- **Last 1 hour** — default. Useful during active development or incident triage.
-- **Last 24 hours** — broad view of a single day's traffic.
-- **Last 7 days** — architecture review and longer-running incident analysis.
-- **Custom range** — pick any start and end time. The graph recomputes for that window.
+- **Node panel.** For an agent node, the panel lists traces, events, errors, and cost, plus an AIP-verified badge.
+- **Edge panel.** For a cross-agent edge, the panel shows calls, errors, blocked count, p50, p95, and cost.
+- **Span panel.** In trace mode, clicking a span opens its detail.
 
-Narrowing the time range is the most effective way to isolate an incident: set the window to the exact interval where anomalous behaviour occurred, then inspect which agents were active and which edges were hot.
+## How edges are drawn
 
-## Filters
+The graph is powered by cross-agent trace propagation. When one agent calls another, the originating trace and agent are recorded, and the graph draws the edge between them. The canvas is backed by `GET /v1/graph`.
 
-Three filter controls sit above the canvas:
+Auto-linking ships in the Python SDK today: Python-to-Python calls draw their edges with no extra wiring. The TypeScript SDK currently reads an inbound `traceparent` but does not yet inject it for outbound calls, so TypeScript-to-TypeScript auto-linking is not available yet.
 
-- **Agent filter** — show only the selected agent(s) and their direct neighbours. Useful when you have many agents and want to focus on one service boundary.
-- **User filter** — show only the call chains that served a specific end user. Requires [User Context](/cloud/telemetry/user-context) to be set by the SDK. When a user filter is active, edges and nodes not touched by any span attributed to that user are greyed out.
-- **Environment filter** — if you tag spans with `environment` via [Process Context](/cloud/telemetry/process-context), you can restrict the graph to `production`, `staging`, or any other value you use.
-
-Filters compose: you can show user `u_123` in the `production` environment over the last 24 hours simultaneously.
-
-## Coordinator scoring annotations
-
-When your call chain includes a JamJet open-source [Coordinator Node](/open-source/research/coordinator), the dashboard renders additional annotations on the edges that flow through it. These annotations show the scoring delta the coordinator computed when selecting which downstream agent to delegate to — the numeric difference between the top-ranked agent and the next alternative.
-
-A large delta indicates the coordinator had high confidence in its routing decision. A small delta means it was a close call — worth reviewing if the downstream agent underperformed. The annotations are only visible when the coordinator emits structured scoring spans; pure heuristic routing does not produce them.
-
-## Use cases
-
-**Incident postmortems.** Set the time range to the incident window and apply an environment filter for production. The graph immediately surfaces which agents were involved and which edges carried the most traffic. Click into hot edges to find the exact spans where latency spiked or a policy blocked a tool call.
-
-**Architecture review.** Switch to a 7-day window in production. The graph reveals your actual agent topology — not the one you designed, but the one that emerged. Nodes with unexpectedly high connectivity, cycles between agents, and leaf agents that should be active sub-orchestrators all become visible.
-
-**Agent-to-agent dependency tracing.** When you add a new agent to the system, watch the graph over the first 24 hours to confirm it connects to the agents you intended and does not unexpectedly reach agents it should not.
-
-**Per-user support tickets.** Apply the user filter for the reporting user's ID. The graph shows only the call chain that served that user's requests, making it straightforward to trace what happened, in what order, and where something went wrong.
+<Callout type="info">
+  TypeScript-to-TypeScript edges are not auto-linked yet. The TypeScript SDK reads an inbound `traceparent` but does not inject one for outbound calls.
+</Callout>
 
 ## Next steps
 
 <Cards>
   <Card title="Agents" href="/cloud/governance/agents" description="Create named agent identities that appear as nodes in the graph." />
-  <Card title="User Context" href="/cloud/telemetry/user-context" description="Attribute call chains to end users for per-user graph filtering." />
-  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Span search and export for the interactions the graph surfaces." />
-  <Card title="Coordinator Node" href="/open-source/research/coordinator" description="Open-source routing node whose scoring deltas appear on graph edges." />
+  <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="The spans and traces the graph is built from." />
+  <Card title="Costs" href="/cloud/observe/costs" description="Break down the cost the graph encodes into node size and edge thickness." />
 </Cards>

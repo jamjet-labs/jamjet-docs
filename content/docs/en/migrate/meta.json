@@ -1,4 +1,0 @@
-{
-  "title": "Migration",
-  "pages": ["from-langgraph", "from-crewai", "from-google-adk", "from-openai-direct"]
-}

@@ -1,0 +1,48 @@
+---
+title: Datasets
+description: Curated sets of real traces you replay against draft policies before enforcing them.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
+
+# Datasets
+
+The **Datasets** surface holds your policy test fixtures: curated sets of real traces you can replay against a draft policy before you enforce it. Instead of guessing whether a rule blocks what it should and allows what it should, you assemble a known set of past requests, run a candidate policy over them, and confirm the outcome. You reach it at `/dashboard/datasets`, under the Prove chapter.
+
+## The list
+
+The Datasets list shows every fixture you have built. Each row carries:
+
+- The dataset's **name**.
+- Its **item count** (how many traces it holds).
+- Its **created date**.
+
+Click a row to open the dataset detail page at `/dashboard/datasets/[id]`.
+
+## Building a dataset
+
+You build a dataset from real traffic. On the Runs surface, bulk-select the traces you want, then add them to a dataset. Pick the cases that matter: the requests a policy must keep blocking, and the requests it must never start blocking. A good fixture mixes both so a single replay tells you the rule is correct in both directions.
+
+## Replaying against a draft policy
+
+Once a dataset exists, you replay it against a candidate policy. The replay confirms two things at once: that the policy blocks what it should, and that it allows what it should. This pairs with the policy simulator, so you can validate a rule on a known set of cases before any of it reaches production traffic.
+
+<Callout type="info">
+Datasets are fixtures for validating policy changes. Build them from traces you already trust, then treat each replay as a regression check before you enforce.
+</Callout>
+
+## API
+
+Datasets are backed by two read endpoints:
+
+- `GET /v1/datasets` lists your datasets.
+- `GET /v1/datasets/{id}` returns a single dataset by id.
+
+## Next steps
+
+<Cards>
+  <Card title="Policies" href="/cloud/governance/policies" description="Author the rules you replay datasets against." />
+  <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="The trace data you bulk-select into a dataset." />
+  <Card title="Audit" href="/cloud/dashboard/audit-trail" description="The record of policy decisions over time." />
+</Cards>

@@ -1,0 +1,51 @@
+---
+title: Readiness
+description: Score how production-ready your agent deployment is, from 0 to 100, with a fixable checklist where each gap links to the policy that closes it.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Readiness
+
+The **Readiness** surface scores how production-ready your agent deployment is, on a scale from 0 to 100. It turns the question "are we safe to ship?" into a concrete, fixable checklist, where every gap deep-links straight to the policy that closes it. You reach it at `/dashboard/readiness`, under the Prove chapter.
+
+## How the score is computed
+
+The overall score is a weighted roll-up across five categories. Each category contributes a fixed share of the total:
+
+| Category | Weight |
+|------------|-------:|
+| Governance | 30 |
+| Security | 25 |
+| Reliability | 20 |
+| Cost | 15 |
+| Audit | 10 |
+
+Each category contributes its fixed share of the total, and the score is backed by `GET /v1/production-readiness`.
+
+## What the page shows
+
+The Readiness page is organized top to bottom from the headline number to the full detail:
+
+- **Overall score gauge.** A single 0 to 100 reading of deployment readiness.
+- **Passing and failing counts.** How many checks currently pass versus fail.
+- **Top fixes.** A short list of the highest-impact failing checks. Each entry carries a **Fix** link that deep-links into the Policies create form, prefilled to address that specific check.
+- **Check catalog.** The full set of checks grouped by category. Each check shows a policy-coverage indicator and its own **Fix** link.
+
+Start at Top fixes when you want the fastest path to a higher score. The catalog is there when you want to audit every check and confirm coverage category by category.
+
+## From gap to policy
+
+The value of Readiness is that no finding is a dead end. Every failing check, whether in Top fixes or the full catalog, links into the [Policies](/cloud/governance/policies) create form with the relevant fields prefilled. You read the gap, click **Fix**, review the prefilled policy, and save. The next time the score recomputes, the closed gap moves from failing to passing.
+
+## On the home dashboard
+
+The readiness score is not confined to its own page. The home dashboard also surfaces the current score alongside a 7-day history, so you can see at a glance whether your deployment is trending toward or away from production-ready.
+
+## Next steps
+
+<Cards>
+  <Card title="Policies" href="/cloud/governance/policies" description="Where every Fix link lands: the rules that close readiness gaps." />
+  <Card title="Audit" href="/cloud/dashboard/audit-trail" description="The audit category feeds readiness; review the underlying trail." />
+  <Card title="Optimize" href="/cloud/enforce/optimize" description="Turn readiness findings into ongoing cost and policy improvements." />
+</Cards>

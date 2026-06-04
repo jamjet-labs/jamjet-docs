@@ -1,81 +1,77 @@
 ---
-title: Audit Trail
-description: Search, filter, and export every span. Compliance-ready audit log.
+title: Audit
+description: Immutable record of governance decisions and agent actions, plus signed evidence bundles for compliance.
 ---
 
 import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
 
-# Audit Trail
+# Audit
 
-The Audit Trail is the complete, immutable record of every span JamJet Cloud has received for your project. Every LLM call, every tool invocation, every policy decision, and every approval outcome lands here. You can search, filter, and export it — making it the primary surface for compliance reviews, incident postmortems, and cost investigations.
+The **Audit** surface (at `/dashboard/audit`, under the Prove chapter) is an immutable, append-only record of every governance decision and agent action in your project. When a policy blocks a call, a budget holds it, an approval resolves, or arguments are redacted, that outcome lands here and cannot be altered after the fact. This makes Audit the surface you reach for during compliance reviews, incident postmortems, and any moment you need to prove what your agents did and what stopped them.
 
-## Span search
+Audit has two in-page tabs: Log and Export. Day-to-day span browsing and search now live on the [Runs surface](/cloud/telemetry/spans-and-traces) (`/dashboard/traces`); Audit focuses on the governance record and the evidence you generate from it.
 
-The search bar at the top of the Audit Trail accepts free-text queries that match against agent names, model identifiers, user IDs, policy names, and span metadata. Typing `gpt-4o` returns all spans that used that model. Typing an agent name returns all spans emitted by that agent. Typing a user ID — if you use [User Context](/cloud/telemetry/user-context) — returns everything attributed to that user.
+<Callout type="info">
+  The legacy `/dashboard/audit/export` route now redirects to the Export tab (`?view=export`). Update any bookmarks to `/dashboard/audit`.
+</Callout>
 
-Search results are ordered newest-first by default. You can reverse the order or sort by cost or latency using the column headers.
+## Log tab
 
-## Filters
+The **Log** tab opens on a verb-summary header that counts decisions by outcome: blocked, held, redacted, allowed, and errored. The counts give you the shape of the record at a glance before you drill in.
 
-Filters narrow the result set before or after a text search. They compose: all active filters are applied simultaneously.
+Below the header, four filters narrow the rows:
 
-**Span attributes:**
-- Agent — one or more named agents.
-- User — a specific `user_id` (requires User Context in the SDK).
-- Model — e.g., `gpt-4o`, `claude-3-7-sonnet`, `gemini-2.5-pro`.
-- Cost — a minimum and/or maximum cost in USD per span.
-- Time range — absolute timestamps or relative windows (last 1h, 24h, 7d, or custom).
+- **All** shows every recorded decision and action.
+- **Blocked** shows actions a policy stopped.
+- **Approvals** shows actions that went through a human gate.
+- **Budget** shows actions a budget ceiling held.
 
-**Approval status:**
-- `approved` — a human approved the action via `requireApproval`.
-- `rejected` — a human rejected the action.
-- `timed_out` — the approval request expired before a human acted.
-- `not_required` — the span completed without triggering an approval gate.
+Each row that involved redacted arguments carries a per-row badge so you can see at a glance which entries had sensitive arguments masked. The Log tab also offers client-side **Export JSON** and **Export NDJSON** buttons for quick, unsigned dumps of the filtered rows.
 
-**Policy decision:**
-- `allow` — the policy evaluated and permitted the tool call.
-- `block` — the policy blocked the tool call before it executed.
-- `require_approval` — the policy escalated to a human gate.
+When a row represents an actionable violation, a **fix this** affordance deep-links straight into the [Policies](/cloud/governance/policies) create form, so you can turn an observed action into an enforced rule without leaving the audit context.
 
-Combining a `block` policy filter with a specific agent filter is the fastest way to answer "which tool calls did this agent attempt that my policies stopped?"
+## Export tab
 
-## Span detail
+The **Export** tab generates cryptographically signed (Ed25519) audit evidence bundles. You can scope a bundle to a single trace or to a time window, then download it in one or more formats.
 
-Clicking any row in the Audit Trail opens the span detail panel. It shows:
+### Formats by tier
 
-- The full request payload sent to the model (masked if you have configured data redaction).
-- The full response, including tool calls and their arguments.
-- Timing breakdown: time to first token, total latency, prompt and completion token counts.
-- Cost in USD, computed from the model's published token prices at call time.
-- Policy decisions that evaluated against this span, with the matching rule and outcome.
-- Approval record if one was required — who approved or rejected, when, and any rejection reason they entered.
-- Agent, user, environment, and process context attributes.
+Export formats are tier-gated:
 
-## Export
+| Format | Available on |
+|--------|--------------|
+| JSON | Free and above |
+| CSV | Free and above |
+| PDF compliance report | Team and above |
+| OTLP/JSON | Business and above |
+| Splunk HEC JSONL | Business and above |
+| Datadog Logs JSONL | Business and above |
 
-The **Export** button above the results table produces a download in your choice of CSV or JSON. The export respects all active filters and the current search query — what you see is what you export.
+The PDF compliance report is rendered server-side with Typst and is capped at 1000 events per report. The OTLP/JSON, Splunk HEC JSONL, and Datadog Logs JSONL formats let you forward signed evidence into your existing observability and SIEM pipelines.
 
-Use cases for export:
+### Package history
 
-- **SOC 2 audit windows.** Set the time range to the audit period, optionally filter to production, and export JSON. The result is a machine-readable record of every model interaction in that window, including cost, model, agent, and policy outcome.
-- **Incident postmortems.** Export the narrow time window of an incident for offline analysis or attachment to a post-mortem document.
-- **Billing reconciliation.** Export all spans for a billing period and sum `cost_usd` to cross-check against model provider invoices.
+A **history table** lists the packages you have generated. For each package it shows the created timestamp, the scope (single trace or time window), the formats included, a SHA-256 prefix, the expiry, and a per-format download link. Expired packages are no longer downloadable; regenerate from the same scope when you need them again.
 
-Exports are synchronous for result sets under approximately 10,000 spans. Larger exports are queued and delivered via a download link sent to your account email.
+### Verify a bundle externally
 
-## Retention
+Because every bundle is Ed25519-signed, anyone can confirm it has not been tampered with, without trusting JamJet. Verify a downloaded bundle with the `jamjet-cloud audit-verify` command:
 
-Span retention varies by plan tier:
+```bash
+jamjet-cloud audit-verify ./audit-bundle.zip
+```
 
-- **Free tier** — 7 days of rolling retention. Spans older than 7 days are automatically deleted.
-- **Paid tiers** — longer retention windows, configurable in **Settings → Data & Retention**. Check the current plan comparison at [app.jamjet.dev](https://app.jamjet.dev) for exact retention limits, as these may change.
+The command checks the signature against the bundle contents and reports whether the evidence is intact.
 
-> If you need to preserve spans beyond your retention window, export them before the cutoff. JamJet does not offer retroactive exports after deletion.
+### Quota and retention
+
+Export quota and retention are tier-scoped. On the free tier you get 5 exports with 7-day retention; higher tiers get more. Generate and download the bundles you need to keep before they expire, since expired packages drop out of the history table.
 
 ## Next steps
 
 <Cards>
-  <Card title="Policies" href="/cloud/governance/policies" description="Define block / allow / require-approval rules that appear in the policy decision filter." />
-  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop gates whose outcomes are recorded in the audit trail." />
-  <Card title="Network Graph" href="/cloud/dashboard/network-graph" description="Visualise the agent topology behind the spans in the audit trail." />
+  <Card title="Policies" href="/cloud/governance/policies" description="Turn an actionable violation in the Log into an enforced block, allow, or approval rule." />
+  <Card title="Readiness" href="/cloud/prove/readiness" description="Score your project's governance posture before a compliance review." />
+  <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="Browse and search individual spans on the Runs surface." />
 </Cards>

@@ -174,9 +174,9 @@ If both `setUserContext` and `withUserContext` are active, the `withUserContext`
 
 Once spans carry `user_id`, the dashboard exposes several user-centric views:
 
-- **Audit Trail** — filter by `user_id` to see all LLM calls for a specific user. Useful for support tickets and abuse investigations.
-- **Cost view** — aggregate `cost_usd` grouped by `user_id` to produce per-user spend reports.
-- **Network Graph** — filter by user to isolate the agent chains that served a particular request.
+- **Runs** (`/dashboard/traces`): filter by `user_id` to see all LLM calls for a specific user. Useful for support tickets and abuse investigations.
+- **Costs** (Explorer): group spend by `user_id` to produce per-user cost reports.
+- **Graph**: filter by user to isolate the agent chains that served a particular request.
 - **Search** — full-text and attribute search on `user_id`, `user_email`, and any key in `user_attrs`.
 
 ## Next steps
@@ -184,6 +184,6 @@ Once spans carry `user_id`, the dashboard exposes several user-centric views:
 <Cards>
   <Card title="Process Context" href="/cloud/telemetry/process-context" description="Tag all spans with environment and release version." />
   <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="Full wire format — every attribute a span carries." />
-  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Search and filter spans by user in the dashboard." />
+  <Card title="Runs" href="/cloud/telemetry/spans-and-traces" description="Filter runs and spans by user in the dashboard." />
   <Card title="Agents" href="/cloud/governance/agents" description="Named agent identities that appear alongside user_id." />
 </Cards>

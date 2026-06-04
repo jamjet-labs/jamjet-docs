@@ -1,0 +1,44 @@
+---
+title: Savings
+description: Spend JamJet actually recovered by enforcing your policies. Metered from real behavior, not self-reported.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
+
+# Savings
+
+The **Savings** surface (dashboard route `/dashboard/savings`, under the Enforce chapter) shows the spend JamJet actually recovered by enforcing your policies. Every dollar here is measured from real enforced behavior, not a recommendation someone marked as done. That is the whole framing: metered, not self-reported. If the number went up, it is because enforcement ran and changed what your agents spent.
+
+The headline figure is total recovered over the last 30 days. Below it, a stacked-by-source area chart plots recovered spend over time, and a "by source" bar breakdown shows how much each source contributed.
+
+## Sources
+
+Recovered spend is attributed to the policy mechanism that produced it. Two sources contribute today.
+
+| Source | Driven by | How it's valued |
+|--------|-----------|-----------------|
+| Cache inject | `cache_inject` policies | Cache-read tokens times the per-million-token price difference between full input and cache-read input, using a versioned price table. |
+| Tool compaction | The `tool_compaction` policy | Each event's recorded `tokens_saved` times the input price per million tokens. |
+
+Both valuations price the saved tokens against a versioned price table, so the recovered figure tracks the real model pricing in effect rather than a flat estimate.
+
+## Where the data comes from
+
+The surface reads from `GET /v1/cost-findings/recovered`. The response carries three shapes:
+
+- A total series, which drives the 30-day headline.
+- A by-kind split, which drives the "by source" bar breakdown.
+- A per-day-per-kind series, which drives the stacked area chart.
+
+<Callout type="info">
+Savings is the metered counterpart to [Optimize](/cloud/enforce/optimize). Optimize is where you turn a finding into an enforced policy. Savings is where you see what that enforcement recovered.
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card title="Optimize" href="/cloud/enforce/optimize" description="Turn a cost finding into an enforced policy." />
+  <Card title="Costs" href="/cloud/observe/costs" description="See total spend before and after enforcement." />
+  <Card title="Policies" href="/cloud/governance/policies" description="The rules that produce recovered spend." />
+</Cards>

@@ -1,0 +1,87 @@
+---
+title: Costs
+description: The cost command center. Headline spend, heuristic recommendations, and an 8-tab breakdown from overview to delegation chains.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
+
+# Costs
+
+The **Costs** surface (dashboard route `/dashboard/costs`, under the Observe chapter) is your cost command center. It rolls every span's USD cost into headline spend, surfaces heuristic recommendations for where money is leaking, and lets you slice spend across eight breakdowns. When you need to know what you spent, who spent it, and what to cut, this is where you start.
+
+## Top controls
+
+Two controls sit above everything:
+
+- **Range selector.** Choose `24h`, `7d`, `30d`, or `This month`. Every card and tab below recomputes for the selected window.
+- **Saved Views.** Switch between prebuilt views and your own. Views persist through the API, so a saved slice is there the next time you open the surface.
+
+## Headline cards
+
+At the top you get an estimated **blocked spend** card and a **budget progress** card, followed by four stat tiles:
+
+- **Total Spend** for the range.
+- **Input Tokens.**
+- **Output Tokens.**
+- **Savings landed**, which highlights green when it is above zero.
+
+Below the tiles, a heuristic **Recommendations** list flags patterns worth investigating, such as reflection loops, oversized models, and cost outliers.
+
+## The breakdown tabs
+
+The lower half of the surface is an eight-tab breakdown. The active tab is selected by the `?breakdown=` URL param. Overview is the default and carries no param.
+
+### Overview
+
+A composite view that stitches the other tabs together: a spend-over-time trend, a model x team cost matrix heatmap, an Outcomes summary, top agents by cost, and a "Savings opportunities" list of open cost findings. Each panel deep-links to its dedicated tab or surface, so Overview is both a dashboard and a launchpad.
+
+### Outcomes
+
+Cost framed against results: cost per successful run, success rate, and the wasted spend on failed traces. A provenance badge shows how many outcomes are explicit versus proxy-derived, so you know how much of the picture is measured versus inferred.
+
+### By Dimension
+
+Cost grouped by a custom dimension key that you attach to events. Use it to roll spend up by a label that matters to your business (a tenant, a feature flag, a customer tier) rather than the built-in dimensions.
+
+### Trend
+
+Spend over time with selectable granularity (`hour`, `day`, `week`, or `month`) and an optional group-by series, so you can watch a single line or split it into bands.
+
+### Per-run Cost
+
+The per-run cost distribution plus a "cost composition by event kind" table that splits each run into LLM calls, tool calls, and governance decisions. Use it to find the runs that cost the most and what they spent it on.
+
+### Explorer
+
+Ad-hoc slicing. Pick a group-by dimension (Model, Agent, Session, Environment, or any custom key), apply optional preset chips (Model, Agent, Session), and toggle the sort between **By Cost** and **Biggest Mover**. Adding a second "vs" dimension renders a cross-dimension cost matrix heatmap. A `?preset=` URL param deep-links a starting dimension.
+
+<Callout>
+The old per-dimension breakdowns (by agent, model, and session) are now Explorer presets. Legacy `?breakdown=` URLs for those, plus the waste and budgets breakdowns, redirect to Explorer, [Optimize](/cloud/enforce/optimize), and [Budgets](/cloud/governance/budgets) respectively.
+</Callout>
+
+### Delegation
+
+Spend grouped by the chain of agents that called each other (the delegation path). This is how you see which agent collaborations cost the most, rather than which single agent does.
+
+### Reports
+
+Scheduled cost reports. Each report carries a name, a kind, a cadence, a delivery target, and an enable toggle.
+
+## Getting here from the home dashboard
+
+The home dashboard shows a **SpendGlance** summary (total spend plus a sparkline) that links straight to this surface once a project has traces. If you have not sent any traces yet, follow the [Quickstart](/cloud/get-started/quickstart) first.
+
+## Related surface: Threads
+
+When you want spend grouped by conversation rather than by dimension, open **Threads** (`/dashboard/threads`). It groups every trace that shares a `session_id` into a multi-turn conversation and shows the cumulative cost across the whole exchange.
+
+## Next steps
+
+<Cards>
+  <Card title="Optimize" href="/cloud/enforce/optimize" description="Act on the cost findings surfaced here: shrink models, cut waste, and apply enforcement." />
+  <Card title="Savings" href="/cloud/enforce/savings" description="Track the savings landed against the opportunities you flagged." />
+  <Card title="Budgets" href="/cloud/governance/budgets" description="Set spend limits and watch budget progress against your headline cards." />
+  <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="Drill from a cost into the individual spans that produced it." />
+</Cards>

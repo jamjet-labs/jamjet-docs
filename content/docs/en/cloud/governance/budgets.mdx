@@ -206,6 +206,12 @@ To verify that your model is recognized, check the dashboard span for a non-zero
   </Tab>
 </Tabs>
 
+## Budgets in the dashboard
+
+The SDK `budget()` call sets a ceiling for one process. JamJet Cloud also has a dedicated **Budgets** surface at `/dashboard/budgets`, under the Enforce chapter, for server-side ceilings that apply project-wide and do not depend on a single process.
+
+Each budget is scoped project-wide or by agent, model, environment, or a custom dimension. A budget row shows its scope, a status-colored progress bar (ok, at risk, or over), spend against the limit, a projected end-of-month figure, and the highest alert threshold crossed. The create form takes a name, a dollar limit, a scope, an optional scope value, and alert thresholds (50, 80, and 100 percent by default).
+
 ## Next steps
 
 <Cards>

@@ -37,7 +37,7 @@ Is your agent calling LLMs with reasoning strategies
 |----------|----------|-------|---------|
 | **Agent + Workflow SDK** | Multi-agent systems with reasoning | Pydantic `BaseModel` (typed, validated) | [claims-processing](https://github.com/jamjet-labs/jamjet/tree/main/examples/claims-processing), [wealth-management](https://github.com/jamjet-labs/jamjet/tree/main/examples/wealth-management-agents) |
 | **YAML workflows** | Tool pipelines, config-driven flows | Schema in YAML (typed) | [rag-assistant](https://github.com/jamjet-labs/jamjet/tree/main/examples/rag-assistant) |
-| **Python decorator API** | Custom logic, Python library access | Dict-based `State` | [Python SDK docs](/docs/python-sdk) |
+| **Python decorator API** | Custom logic, Python library access | Dict-based `State` | [Python SDK docs](/open-source/python-runtime) |
 
 ### Agent + Workflow SDK
 
@@ -238,7 +238,7 @@ An **agent** is a workflow that can:
 - Delegate tasks to other agents (via A2A protocol)
 - Maintain long-running state across multiple user interactions
 
-Every agent has an **Agent Card** — a machine-readable description of its capabilities, endpoints, and input/output schema. This is the foundation for the [A2A protocol](/a2a).
+Every agent has an **Agent Card** — a machine-readable description of its capabilities, endpoints, and input/output schema. This is the foundation for the [A2A protocol](/open-source/protocols/a2a).
 
 ## The Scheduler
 
@@ -267,6 +267,6 @@ The programming model is identical — the same YAML or Python code runs unchang
 
 ## Next steps
 
-- [Quickstart](/docs/quickstart) — build your first durable agent
-- [Python SDK](/docs/python-sdk) — decorators, routing, parallel steps
-- [Try crash recovery](/docs/quickstart#try-crash-recovery-in-90-seconds) — see durability in action
+- [Quickstart](/open-source/quickstart) — build your first durable agent
+- [Python SDK](/open-source/python-runtime) — decorators, routing, parallel steps
+- [Try crash recovery](/open-source/quickstart) — see durability in action

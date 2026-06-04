@@ -178,6 +178,10 @@ Redaction is applied in-process before the span is sent over the network. No raw
   </Tab>
 </Tabs>
 
+## Tool-result compaction
+
+When a `tool_compaction` policy matches a tool, the SDK trims that tool's oversized result in the message history before the model call. The affected `llm_call` span then records how much was saved: a `tokens_saved` count and a `compacted` flag set to `true`. Recovered value from compaction is rolled up on the [Savings](/cloud/enforce/savings) surface. Tool-result compaction is available in `@jamjet/cloud` 0.4.0-alpha.4 on the npm `next` tag. See [Policies](/cloud/governance/policies) for how to configure the policy.
+
 ## Next steps
 
 <Cards>

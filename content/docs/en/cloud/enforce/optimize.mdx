@@ -1,0 +1,92 @@
+---
+title: Optimize
+description: Cost and waste findings you can turn into enforced policies in one click. Apply is a live policy, not a ticket.
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
+
+# Optimize
+
+The **Optimize** surface (dashboard route `/dashboard/optimize`, under the Enforce chapter) lists cost and waste findings detected across your spans and lets you turn each one into an enforced policy with a single click. The framing matters: apply is a live policy, not a ticket. When you act on a finding, JamJet creates a real control that takes effect on your next call, rather than filing a note for someone to handle later. The header shows recoverable dollars per month and a count of findings in the current status.
+
+## Finding kinds
+
+Every finding carries a kind and an effort badge so you can read its payoff against its cost at a glance. Each one explains the control it would create when applied.
+
+| Kind | Effort | What it flags |
+|---|---|---|
+| `cache_leak` | low | Repeated prompt prefixes that should be served from cache instead of re-billed. |
+| `model_overspec` | medium | Calls running on a more expensive model than the workload requires. |
+| `context_bloat` | high | Oversized context that inflates token cost without changing output. |
+| `unpriced_spend` | low | Spend with no price attached, so it never shows up in your cost totals. |
+| `cost_anomaly` | investigate | A cost spike that does not match the normal pattern and needs review. |
+
+Findings are sorted biggest-savings-first, ranked by an ROI score (the recoverable amount times an effort multiplier) so the lowest-effort, highest-return work rises to the top. A status filter toggles between **Open**, **Applied**, and **Dismissed**. Each finding card is expandable and opens a detail drawer with **Enforce** and **Dismiss** actions.
+
+## Applying a finding
+
+Applying a finding calls `POST /v1/cost-findings/{id}/apply`. What that creates depends on the kind.
+
+### Cache leaks
+
+A `cache_leak` apply creates a live `cache_inject` policy keyed on the prompt prefix hash. This is output-safe because prompt caching is content-addressed: it changes price, not output. The apply modal offers two ways to run it:
+
+- **Monitor.** Record the realized savings while leaving output identical. Use this to confirm the savings are real before you commit.
+- **Enforce.** Turn the cache policy on so the cached prefix is served instead of re-billed.
+
+<Tabs items={['Apply (Monitor)', 'Apply (Enforce)']}>
+  <Tab value="Apply (Monitor)">
+
+  ```bash
+  curl -X POST https://api.jamjet.dev/v1/cost-findings/$FINDING_ID/apply \
+    -H "Authorization: Bearer $JAMJET_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{ "mode": "monitor" }'
+  # records realized savings, output identical
+  ```
+
+  </Tab>
+  <Tab value="Apply (Enforce)">
+
+  ```bash
+  curl -X POST https://api.jamjet.dev/v1/cost-findings/$FINDING_ID/apply \
+    -H "Authorization: Bearer $JAMJET_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{ "mode": "enforce" }'
+  # cache_inject policy goes live, keyed on the prompt prefix hash
+  ```
+
+  </Tab>
+</Tabs>
+
+### Quality-risk kinds
+
+Quality-risk kinds (`model_overspec` and `context_bloat`) change what the model produces, so they are applied in shadow mode. The apply call returns `enforcement_gated`, and the UI shows "applied in shadow, enforcement gated until validated." The finding runs alongside your live traffic and records what it would have saved, without altering output.
+
+<Callout type="warn">
+  Output-changing enforcement for `model_overspec` and `context_bloat` requires a passing shadow A/B comparison. That validation step is a current limitation: until the shadow comparison passes, these findings stay in shadow and do not change live output.
+</Callout>
+
+## Dismissing a finding
+
+If a finding does not apply to your workload, dismiss it. Dismissing calls `POST /v1/cost-findings/{id}/dismiss`, which moves it to the **Dismissed** status filter and removes it from the open list.
+
+```bash
+curl -X POST https://api.jamjet.dev/v1/cost-findings/$FINDING_ID/dismiss \
+  -H "Authorization: Bearer $JAMJET_API_KEY" \
+  -H "Content-Type: application/json"
+```
+
+## Where the savings land
+
+Recovered spend from applied findings shows up on the [Savings](/cloud/enforce/savings) surface. Once a `cache_leak` finding is enforced (or running in Monitor mode), the dollars it recovers are tracked there so you can see the cumulative effect of acting on Optimize over time.
+
+## Next steps
+
+<Cards>
+  <Card title="Savings" href="/cloud/enforce/savings" description="See the recovered spend from findings you have applied." />
+  <Card title="Costs" href="/cloud/observe/costs" description="The cost data findings are detected against." />
+  <Card title="Policies" href="/cloud/governance/policies" description="How the live controls findings create are enforced at runtime." />
+</Cards>

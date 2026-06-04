@@ -45,3 +45,9 @@
 /:lang/docs/migrate/crewai          /:lang/docs/reference/migrate/crewai            301
 /:lang/docs/migrate/google-adk      /:lang/docs/reference/migrate/google-adk        301
 /:lang/docs/migrate/openai-direct   /:lang/docs/reference/migrate/openai-direct     301
+
+# Retired "from-" prefixed migration slugs (old website/external inbound links)
+/:lang/docs/migrate/from-langgraph     /:lang/docs/reference/migrate/langgraph      301
+/:lang/docs/migrate/from-crewai        /:lang/docs/reference/migrate/crewai         301
+/:lang/docs/migrate/from-google-adk    /:lang/docs/reference/migrate/google-adk     301
+/:lang/docs/migrate/from-openai-direct /:lang/docs/reference/migrate/openai-direct  301

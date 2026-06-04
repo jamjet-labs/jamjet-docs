@@ -1,15 +1,20 @@
 ---
 title: Concepts
-description: The five primitives of JamJet Cloud — Span, Agent, Policy, Budget, Approval.
+description: The core primitives of JamJet Cloud and the Observe, Enforce, Prove through-line that connects them.
 ---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
 
 # Cloud Concepts
 
-JamJet Cloud has five core primitives. This page is a one-page tour. Each section links to deeper documentation.
+JamJet Cloud follows one through-line: you **observe** what your agents do, **enforce** policy on it, and **prove** it. You observe with spans, traces, and costs. You enforce with policies, budgets, and cost controls. You prove with an audit trail and a readiness view. This page is a one-page tour of the primitives that make that loop work. Each section links to deeper documentation.
 
-## Span
+## Observe
 
-A **span** is a single unit of observed work — typically one LLM call. Spans carry:
+### Span
+
+A **span** is a single unit of observed work, typically one LLM call. Spans carry:
 
 - The model, the prompt, the response (full payloads, opt-in via `capture_io=True`)
 - The agent that produced it
@@ -21,9 +26,9 @@ You don't create spans manually. The SDK creates one per wrapped LLM call.
 
 [→ Spans & Traces](/cloud/telemetry/spans-and-traces)
 
-## Agent
+### Agent
 
-An **agent** is a named identity. Spans are tagged with the agent that produced them. You can have a single default agent or many — `researcher`, `writer-bot`, `code-reviewer`. The dashboard renders agents as nodes in a network graph.
+An **agent** is a named identity. Spans are tagged with the agent that produced them. You can have a single default agent or many: `researcher`, `writer-bot`, `code-reviewer`. The dashboard renders agents as nodes in a network graph.
 
 ```typescript
 import { agent, withAgent } from '@jamjet/cloud'
@@ -38,7 +43,15 @@ await withAgent(researcher, async () => {
 
 [→ Agents](/cloud/governance/agents)
 
-## Policy
+### Cost finding
+
+A **cost finding** is a detected waste pattern, surfaced from your real spans on the Optimize surface. Examples include a cacheable prompt prefix you re-send on every call, an oversized model doing work a cheaper one could do, or context bloat inflating your token count. Each finding is grounded in observed behavior, not a heuristic guess about a config you might be running.
+
+[→ Optimize](/cloud/enforce/optimize)
+
+## Enforce
+
+### Policy
 
 A **policy** is a rule that controls which tools an LLM can call. Policies match by glob.
 
@@ -46,14 +59,26 @@ A **policy** is a rule that controls which tools an LLM can call. Policies match
 import { policy } from '@jamjet/cloud'
 
 policy('block', 'wire_*')                  // block any tool starting with wire_
-policy('require_approval', 'send_email')   // gate this tool with an approval
+policy('require_approval', 'send_email')   // record intent to gate this tool
 ```
 
 Policies enforce both **pre-call** (filter the tool list before sending to the LLM) and **post-decision** (re-check tool calls in the response). Both required-approval and blocked tools are recorded in the span.
 
 [→ Policies](/cloud/governance/policies)
 
-## Budget
+### Apply / enforce
+
+To **apply** a cost finding is to turn it into a live policy in one click, instead of filing a ticket and waiting. A cacheable-prefix finding becomes a `cache_inject` policy; a context-bloat finding becomes a compaction policy. The enforcement then runs against every matching call going forward, and you watch its effect on the Savings surface.
+
+[→ Optimize](/cloud/enforce/optimize)
+
+### Tool-result compaction
+
+**Tool-result compaction** is a policy that trims oversized tool results before the model call, cutting the tokens the model has to read. It targets the case where a tool returns far more text than the model needs, so you pay for context the answer never uses. The tokens saved are recorded on the span.
+
+[→ Savings](/cloud/enforce/savings)
+
+### Budget
 
 A **budget** is a cost ceiling. JamJet pre-checks every call against it and throws `JamjetBudgetExceeded` if the call would push you over.
 
@@ -67,7 +92,15 @@ The pre-check uses an estimated cost from the prompt token count; actual cost is
 
 [→ Budgets](/cloud/governance/budgets)
 
-## Approval
+### Recovered spend (Savings)
+
+**Recovered spend** is the dollars enforcement actually saved, measured from real behavior rather than projected from a model. When an applied policy compacts a tool result or injects a cache hit, the tokens it removed translate into a USD figure on the Savings surface. This is the bottom line of the Enforce stage: proof that a finding you applied is paying off.
+
+[→ Savings](/cloud/enforce/savings)
+
+## Prove
+
+### Approval
 
 An **approval** is a human-in-the-loop gate. `requireApproval('production_deploy')` blocks until a human approves or rejects in the dashboard.
 
@@ -81,4 +114,17 @@ const approvalId = await requireApproval('production_deploy', {
 // proceeds only if approved; throws JamjetApprovalRejected on reject
 ```
 
+<Callout type="warn">
+  The declarative `policy('require_approval', ...)` rule records intent and surfaces in the dashboard, but it does not gate execution at runtime. The working human gate is the [Approvals](/cloud/governance/approvals) surface plus the `requireApproval` call shown above, which blocks until someone responds.
+</Callout>
+
 [→ Approvals](/cloud/governance/approvals)
+
+## Next steps
+
+<Cards>
+  <Card title="Quickstart" href="/cloud/get-started/quickstart" description="Wire the SDK and emit your first spans." />
+  <Card title="Costs" href="/cloud/observe/costs" description="See spend broken down by model, agent, and time." />
+  <Card title="Optimize" href="/cloud/enforce/optimize" description="Turn cost findings into live policies in one click." />
+  <Card title="Readiness" href="/cloud/prove/readiness" description="Check how prepared your fleet is for production." />
+</Cards>

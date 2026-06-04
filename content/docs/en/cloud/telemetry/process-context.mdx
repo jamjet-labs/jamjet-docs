@@ -110,7 +110,7 @@ Vercel sets `VERCEL_GIT_COMMIT_SHA` automatically on every deployment. For the e
 Both fields surface as first-class filters throughout the dashboard:
 
 - **Environment facet** — sidebar dropdown on every view. Select `production` to isolate live traffic.
-- **Release filter** — useful for tracking regressions after a deploy. Compare cost and error rates between two `releaseVersion` values on the Audit Trail.
+- **Release filter**: useful for tracking regressions after a deploy. Compare cost and error rates between two `releaseVersion` values on the Runs and Costs surfaces.
 - **Span detail** — `environment` and `release_version` appear in the span metadata panel alongside `agent_name` and `user_id`.
 
 ## Next steps
@@ -118,5 +118,5 @@ Both fields surface as first-class filters throughout the dashboard:
 <Cards>
   <Card title="Spans & Traces" href="/cloud/telemetry/spans-and-traces" description="Full wire format — every attribute a span carries." />
   <Card title="User Context" href="/cloud/telemetry/user-context" description="Per-request user attribution for SaaS apps." />
-  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Filter by environment and release in the dashboard." />
+  <Card title="Runs" href="/cloud/telemetry/spans-and-traces" description="Filter by environment and release in the dashboard." />
 </Cards>

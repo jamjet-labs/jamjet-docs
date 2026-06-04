@@ -13,11 +13,13 @@ JamJet is two products that work together. This page helps you pick the one(s) y
 
 JamJet Cloud is a **hosted governance platform** for AI agents. You install a small SDK (`@jamjet/cloud` or `jamjet`), wrap your existing OpenAI / Anthropic client, and you get:
 
-- **Policies** — block dangerous tools at runtime
-- **Budgets** — per-project cost ceilings, enforced before the call
-- **Approvals** — human-in-the-loop gates for sensitive actions
-- **Telemetry** — every LLM call captured as a span; dashboards, search, audit
-- **Multi-agent attribution** — network graph view of which agent did what
+- **Policies**: block dangerous tools at runtime
+- **Budgets**: per-project cost ceilings, enforced before the call
+- **Approvals**: human-in-the-loop gates for sensitive actions
+- **Telemetry**: every LLM call captured as a span, with dashboards, search, and audit
+- **Multi-agent attribution**: a network graph of which agent did what
+- **Cost optimization**: surface waste findings and turn them into enforced policy in one click
+- **Savings**: see the spend that enforcement actually recovered, metered not self-reported
 
 You don't need to restructure your app. The SDK is a wrapper, not a framework.
 
@@ -47,7 +49,7 @@ Cloud and the open-source runtime are independent — you can use either without
 
 ## Pricing
 
-- **JamJet Cloud:** Free tier with generous limits. Production usage starts at $0.50 per million spans. See [app.jamjet.dev/pricing](https://app.jamjet.dev/pricing).
+- **JamJet Cloud:** Free tier with generous limits. Production usage starts at $0.50 per million spans. See [app.jamjet.dev](https://app.jamjet.dev) for current pricing.
 - **Open-source runtime:** Apache 2.0. Run anywhere.
 - **Engram:** Apache 2.0 (open-source) + a hosted version on Cloud (in beta).
 

@@ -14,9 +14,9 @@ This guide adds JamJet Cloud governance — policy, budget, approvals, audit tra
 
 Create a free account at [app.jamjet.dev](https://app.jamjet.dev). Free tier is sufficient for this quickstart and for development.
 
-After signup, create a project and copy your API key from **Settings → API Keys**. It looks like `jj_xxxxxxxxxxxx`.
+After signup, create a project on the **Settings** page. Your API key is shown once when the project is created, so copy it then. It looks like `jj_xxxxxxxxxxxx`.
 
-> The key is not retrievable after creation. If you lose it, create a new one in project settings.
+> The key is shown only once and is not retrievable afterward. Store it somewhere safe.
 
 ## 2. Install + initialize
 
@@ -103,11 +103,11 @@ That's it. Every call from the wrapped client now appears in the dashboard at [a
 
 ## Verify
 
-Open the dashboard. You should see a span for the call you just made — it appears within ~5 seconds. Click it to see the request payload, the response, the cost, and the agent attribution (default agent: `default`).
+Open the dashboard and go to **Runs**. You should see a span for the call you just made; it appears within about 5 seconds. Click it to see the request payload, the response, the cost, and the agent attribution (default agent: `default`). Once your project has traces, the home dashboard also shows a spend summary.
 
 If calls are not showing up:
 
-- Check the API key matches your project (`jj_...` from **Settings → API Keys**).
+- Check the API key matches your project (`jj_...`, shown once when you created the project in **Settings**).
 - Confirm `init()` / `configure()` runs before the first LLM call.
 - The SDK is fail-open: if `api.jamjet.dev` is unreachable, your agent keeps running but spans are dropped after retries.
 

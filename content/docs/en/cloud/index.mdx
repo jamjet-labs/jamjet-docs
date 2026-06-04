@@ -1,33 +1,68 @@
 ---
 title: JamJet Cloud
-description: Production-safe AI agents. Drop-in governance, telemetry, and approval flows for any AI app.
+description: Production-safe AI agents. Drop-in governance, telemetry, and metered cost recovery for any AI app.
 ---
 
 import { Cards, Card } from 'fumadocs-ui/components/card'
 
 # JamJet Cloud
 
-JamJet Cloud is the hosted governance layer for AI agents. Drop in two lines of SDK and you get policy enforcement, budget tracking, approval flows, and an audit trail — for any AI app, on any framework.
+**JamJet Cloud** is the hosted governance layer for AI agents. Drop in two lines of SDK and you get policy enforcement, budget tracking, approval flows, telemetry, and an audit trail, for any AI app on any framework. The dashboard organizes everything into three chapters: Observe what your agents do, Enforce what they can spend and call, and Prove that they ran safely.
+
+## Get started
 
 <Cards>
-  <Card title="Quickstart" href="/cloud/get-started/quickstart" description="Sign up, install @jamjet/cloud, add policy + budget. ~5 minutes." />
+  <Card title="Quickstart" href="/cloud/get-started/quickstart" description="Sign up, install @jamjet/cloud, add policy and budget. About 5 minutes." />
+  <Card title="Concepts" href="/cloud/get-started/concepts" description="Span, Agent, Policy, Budget, Approval. The five primitives." />
   <Card title="Cloud vs Open Source" href="/cloud/get-started/cloud-vs-open-source" description="Decide which JamJet you need. They work together." />
-  <Card title="Concepts" href="/cloud/get-started/concepts" description="Span, Agent, Policy, Budget, Approval — the five primitives." />
 </Cards>
 
-## Capabilities
+## Observe
+
+The **Observe** chapter is where you watch what your fleet actually does. Every wrapped LLM call becomes a span with tokens, latency, and cost in USD, attributed to the agent and user that produced it. Costs and the network graph are good places to start: you can see where spend concentrates before you decide what to enforce.
 
 <Cards>
-  <Card title="Governance" href="/cloud/governance/policies" description="Block dangerous tools. Require human approval for sensitive actions." />
+  <Card title="Runs and traces" href="/cloud/telemetry/spans-and-traces" description="Every LLM call captured as a span. Model, payloads, tokens, latency, cost." />
+  <Card title="Network graph" href="/cloud/dashboard/network-graph" description="Multi-agent topology rendered from spans. See how work flows across agents." />
+  <Card title="Agents" href="/cloud/governance/agents" description="Named identities tagged on spans. Slice telemetry and cost per agent." />
+  <Card title="Costs" href="/cloud/observe/costs" description="Spend broken down by model, agent, and project. A natural entry point." />
+</Cards>
+
+## Enforce
+
+The **Enforce** chapter is where governance turns into action. Policies control which tools an LLM can call, budgets cap spend before billing, and approvals gate sensitive actions on a human. The cost-recovery loop lives here: Optimize turns a waste finding into an enforced policy in one click, and Savings reports the spend that enforcement actually recovered, metered from real call data rather than self-reported.
+
+<Cards>
+  <Card title="Policies" href="/cloud/governance/policies" description="Block dangerous tools at runtime. Glob rules, pre-call filter and post-decision check." />
+  <Card title="Optimize" href="/cloud/enforce/optimize" description="Waste findings you can turn into an enforced policy in one click. A good entry point." />
   <Card title="Budgets" href="/cloud/governance/budgets" description="Per-project cost ceilings. Pre-call estimate, post-call truth." />
-  <Card title="Telemetry" href="/cloud/telemetry/spans-and-traces" description="Every LLM call captured as a span. User attribution, environment tags." />
-  <Card title="Memory" href="/cloud/memory" description="Hosted shared memory across your agent fleet. BYOK embeddings, GDPR delete-by-user." />
-  <Card title="Dashboard" href="/cloud/dashboard/network-graph" description="Multi-agent network graph. Audit search. Approve/reject UI." />
+  <Card title="Approvals" href="/cloud/governance/approvals" description="Human-in-the-loop gates. Block the call until someone approves or rejects." />
+  <Card title="Savings" href="/cloud/enforce/savings" description="The spend enforcement actually recovered. Metered, not self-reported." />
+</Cards>
+
+## Prove
+
+The **Prove** chapter is your evidence layer. It answers the auditor's question: was this agent safe to ship, and can you show what it did. Readiness scores your project against production checks, the audit trail searches every governance decision, and datasets capture inputs and outputs for evaluation.
+
+<Cards>
+  <Card title="Readiness" href="/cloud/prove/readiness" description="Score your project against production-safety checks before you ship." />
+  <Card title="Audit" href="/cloud/dashboard/audit-trail" description="Search every blocked, approved, and pending decision across spans." />
+  <Card title="Datasets" href="/cloud/prove/datasets" description="Capture inputs and outputs for evaluation and regression checks." />
+  <Card title="Memory" href="/cloud/memory" description="Hosted shared memory across your fleet. BYOK embeddings, GDPR delete-by-user." />
 </Cards>
 
 ## Integrations
 
 <Cards>
-  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="`wrapLanguageModel` middleware for `streamText` / `generateText`." />
+  <Card title="Vercel AI SDK" href="/integrations/vercel-ai-sdk" description="wrapLanguageModel middleware for streamText and generateText." />
   <Card title="All integrations" href="/integrations" description="LangChain4j, Spring Boot, more." />
+</Cards>
+
+## Next steps
+
+<Cards>
+  <Card title="Quickstart" href="/cloud/get-started/quickstart" description="Install the SDK and send your first governed call." />
+  <Card title="Costs" href="/cloud/observe/costs" description="See where your spend concentrates, then act on it." />
+  <Card title="Optimize" href="/cloud/enforce/optimize" description="Turn a waste finding into an enforced policy in one click." />
+  <Card title="Concepts" href="/cloud/get-started/concepts" description="The five primitives that everything else builds on." />
 </Cards>

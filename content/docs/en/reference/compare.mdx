@@ -11,7 +11,7 @@ export const P = () => <span class="ic ic-p">~</span>;
 export const E = () => <span class="ic ic-e">⚙</span>;
 export const W = () => <span class="ic ic-w">…</span>;
 
-> Last updated: 2026-04-15 · JamJet v0.5.0 · [Corrections welcome](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
+> Last updated: 2026-06-04 · [Corrections welcome](https://github.com/jamjet-labs/jamjet-benchmarks/issues)
 
 <div style={{fontSize: "0.82rem", color: "#8b8578", marginBottom: "1.5rem", display: "flex", gap: "1.25rem", flexWrap: "wrap"}}>
   <span><span class="ic ic-y">✓</span> Built-in</span>
@@ -29,7 +29,7 @@ export const W = () => <span class="ic ic-w">…</span>;
 - **CrewAI / AutoGen** — useful abstractions for some multi-agent patterns, but different emphasis on reliability.
 - **Google ADK** — tight Gemini integration, co-developed A2A, fast-moving with strong Google Cloud support. Best for teams building on Google's AI stack.
 
-> If you like LangGraph's Python workflow model but want durability, replay, typed validation, and runtime-enforced limits built in, JamJet is the closest conceptual move. See the [LangGraph migration guide](/migrate/from-langgraph).
+> If you like LangGraph's Python workflow model but want durability, replay, typed validation, and runtime-enforced limits built in, JamJet is the closest conceptual move. See the [LangGraph migration guide](/reference/migrate/langgraph).
 
 ## Core execution
 
@@ -108,16 +108,16 @@ export const W = () => <span class="ic ic-w">…</span>;
 | Feature | JamJet | LangGraph | CrewAI | AutoGen | Google ADK |
 |---|---|---|---|---|---|
 | Runtime language | **Rust** | Python | Python | Python | Python |
-| Polyglot SDK | Python (TS <W/>) | Python, JS | Python | Python, .NET | Python |
+| Polyglot SDK | Python, TS, Java | Python, JS | Python | Python, .NET | Python |
 | Kubernetes-ready | <Y/> Stateless binary | <E/> | <E/> | <E/> | <E/> |
-| Managed cloud offering | <W/> | <Y/> LangGraph Cloud | <N/> | <N/> | <Y/> Vertex AI |
+| Managed cloud offering | <Y/> JamJet Cloud | <Y/> LangGraph Cloud | <N/> | <N/> | <Y/> Vertex AI |
 | Streaming | <Y/> | <Y/> | <P/> | <Y/> | <Y/> |
 | Open source | <Y/> Apache-2.0 | <Y/> MIT | <Y/> MIT | <Y/> CC-BY-4 | <Y/> Apache-2.0 |
 
 ---
 
 > **note:** 
-See [Benchmarks](/benchmarks) for measured latency comparisons with methodology and raw results. Migration guides: [from LangGraph](/migrate/from-langgraph), [from CrewAI](/migrate/from-crewai), [from OpenAI SDK](/migrate/from-openai-direct).
+See [Benchmarks](https://jamjet.dev/benchmarks) for measured latency comparisons with methodology and raw results. Migration guides: [from LangGraph](/reference/migrate/langgraph), [from CrewAI](/reference/migrate/crewai), [from OpenAI SDK](/reference/migrate/openai-direct).
 
 export const faqSchema = {
   "@context": "https://schema.org",

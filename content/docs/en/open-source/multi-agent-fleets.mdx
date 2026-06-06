@@ -1,0 +1,189 @@
+---
+title: Multi-Agent Fleets & Scheduling
+description: Declare several agents and workflows in one YAML file, give each its own tools and cron schedule, and run them on the local runtime.
+---
+
+# Multi-Agent Fleets & Scheduling
+
+A **fleet** is one YAML file that declares several runnable units, each with its
+own tools and an optional cron schedule. A unit is either an **agent** (a strategy
+plus a goal) or an explicit **workflow** graph. `jamjet deploy` registers every
+unit and installs its schedules; `jamjet run` runs one on demand. Everything runs
+on the local runtime, no cloud required, and fully offline with Ollama.
+
+This builds on [Workflow Authoring (YAML)](/open-source/yaml-workflows) and the
+[CLI](/open-source/cli). If you only need a single agent or a single workflow,
+those formats still work unchanged. A fleet is the additive `agents:` / `workflows:`
+form for declaring many at once.
+
+## The fleet file
+
+```yaml
+version: 1
+
+defaults:                       # merged into every unit
+  model: claude-sonnet-4-6
+  limits: { max_iterations: 4, max_cost_usd: 0.50, timeout_seconds: 120 }
+
+tools:                          # shared catalog, referenced via uses: [tool:<name>]
+  web_search:
+    description: "Search the web for recent information"
+    input_schema:
+      type: object
+      properties: { query: { type: string } }
+      required: [query]
+
+agents:                         # strategy-based units, keyed by id
+  morning_briefing:
+    strategy: plan-and-execute
+    goal: "Summarize the most important overnight events into a short brief."
+    uses:
+      - tool:web_search
+    schedule:
+      cron: "0 8 * * *"         # daily 08:00 UTC
+
+  reconciler:
+    strategy: react
+    goal: "Reconcile yesterday's ledger and list any inconsistencies found."
+    uses:
+      - agent:morning_briefing  # call a sibling unit
+    schedule:
+      cron: "30 14 * * 1-5"     # weekdays 14:30 UTC
+
+workflows:                      # explicit node graphs, keyed by id
+  healthcheck:
+    start: ping
+    nodes:
+      ping: { type: model, model: claude-haiku-4-5-20251001, prompt: "Reply: ok", next: end }
+    schedule:
+      cron: "*/15 * * * *"      # every 15 minutes
+```
+
+Every per-agent field except `goal` is optional; `defaults` fills in `model` and
+`limits`. Unit ids must be unique across `agents:` and `workflows:` so references
+and schedules are unambiguous.
+
+> **note:**
+> Each unit compiles to its own workflow, so a fleet of N units produces N
+> registered workflows. The runtime treats them independently.
+
+## Declaring what an agent can use
+
+Agents reference tools, MCP servers, and sibling units through a typed `uses:`
+list, plus an inline `tools:` block for one-off definitions:
+
+```yaml
+agents:
+  analyst:
+    strategy: react
+    goal: "Investigate the alert and summarize root cause."
+    uses:
+      - tool:web_search        # a tool from the top-level catalog
+      - mcp:github             # all tools from a shared MCP server
+      - agent:morning_briefing # a sibling unit
+    tools:                     # inline, ad-hoc, this agent only
+      - name: page_oncall
+        description: "Page the on-call engineer"
+        input_schema:
+          type: object
+          properties: { reason: { type: string } }
+          required: [reason]
+```
+
+Shared MCP servers live under a top-level `mcp:` block:
+
+```yaml
+mcp:
+  servers:
+    github:
+      url: "https://mcp.github.example/sse"
+      transport: streamable-http
+```
+
+Unknown references, duplicate unit ids, and cyclic sibling references are caught
+at compile time with a clear error.
+
+## Scheduling
+
+A unit with a `schedule:` becomes a cron job. The expression is standard 5-field
+cron (`minute hour day-of-month month day-of-week`):
+
+```yaml
+schedule:
+  cron: "0 8 * * *"   # daily 08:00
+  timezone: UTC       # UTC only in this release
+  input: { focus: "infra" }  # optional default input for scheduled runs
+  enabled: true       # optional, default true
+```
+
+In `jamjet dev`, the runtime starts an in-process cron scheduler that fires due
+jobs by starting an execution. Inspect installed jobs through the runtime API:
+
+```bash
+curl -s http://localhost:7700/cron | jq
+```
+
+> **note:**
+> The embedded scheduler is for local development. In production you run the
+> runtime workers and a scheduler process against a shared database; the embedded
+> loop is gated behind dev mode (or `JAMJET_EMBED_CRON`).
+
+## Deploy and run
+
+```bash
+jamjet dev                                 # start the local runtime (embeds cron in dev)
+jamjet deploy fleet.yaml                   # register every unit + install schedules
+jamjet run fleet.yaml morning_briefing     # run one unit on demand
+```
+
+`jamjet deploy` registers each unit, then installs a cron job for each unit that
+has a `schedule:`, printing the next run time per job. `jamjet run <file> <unit>`
+registers every unit and starts the one you name; for a single-unit file the name
+is optional, and with multiple units omitting it lists the available units.
+
+## The three triggers
+
+A unit can run three ways, all shown in the example fleet:
+
+- **Cron** — a `schedule:` fires it on a recurring clock.
+- **Manual** — `jamjet run <file> <unit>` (or a `POST /executions` call) runs it
+  on demand. Every unit supports this; no schedule needed.
+- **Sibling** — one agent lists another via `uses: [agent:<id>]` or
+  `workflow:<id>`.
+
+## Run offline
+
+Point the model registry at a local Ollama model and the whole fleet runs with no
+API key and no internet:
+
+```bash
+ollama serve
+ollama pull llama3.1
+```
+
+Set `model:` (in `defaults` and any model node) to the local model name. State,
+worker, and scheduler are all local SQLite + in-process, so the fleet is
+air-gapped.
+
+## What runs today vs what is deferred
+
+This guide is honest about the current runtime so you know what to expect:
+
+> **note:**
+> **Runs today:** authoring fleets, `jamjet deploy`, `jamjet run <unit>`, cron
+> scheduling and firing, and each agent's LLM reasoning. Cron is UTC only.
+>
+> **Deferred:** `tool:` and `mcp:` references are validated and surfaced to the
+> agent by name in its prompt, but the runtime does not execute those tools yet.
+> Sibling references (`agent:`/`workflow:`) are validated but not invoked
+> synchronously yet. Cron jobs are global (the embedded scheduler is dev-only,
+> single-tenant), and a dedicated production cron process is a follow-up.
+
+## Example project
+
+A complete, runnable ops/monitoring fleet (the one above) lives in the examples
+directory:
+
+[examples/fleet](https://github.com/jamjet-labs/jamjet/tree/main/examples/fleet)
+— `fleet.yaml` plus a step-by-step README covering deploy, schedule inspection,
+on-demand runs, and the offline Ollama path.

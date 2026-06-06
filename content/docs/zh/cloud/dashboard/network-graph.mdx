@@ -43,22 +43,3 @@ import { Cards, Card } from 'fumadocs-ui/components/card'
 当你的调用链包含 JamJet 开源 [Coordinator Node](/open-source/research/coordinator) 时，控制面板会在流经它的边上渲染额外的标注。这些标注显示了 coordinator 在选择将任务委托给哪个下游 agent 时计算的评分差值 — 即排名最高的 agent 与次优选项之间的数值差异。
 
 较大的差值表示 coordinator 对其路由决策有很高的信心。较小的差值意味着这是一个接近的选择 — 如果下游 agent 表现不佳，值得审查。这些标注仅在 coordinator 发出结构化评分 span 时可见；纯启发式路由不会产生它们。
-
-## 使用场景
-
-**故障复盘。** 将时间范围设置为故障窗口并为生产环境应用环境筛选器。图形会立即显示涉及了哪些 agent 以及哪些边承载了最多流量。点击热点边查找延迟激增或策略阻止工具调用的确切 span。
-
-**架构审查。** 在生产环境中切换到 7 天窗口。图形会揭示你实际的 agent 拓扑 — 不是你设计的那个，而是实际演化出来的。具有意外高连接度的节点、agent 之间的循环以及应该是活跃子编排器的叶子 agent 都会变得可见。
-
-**Agent 间依赖追踪。** 当你向系统添加新 agent 时，观察前 24 小时内的图形，以确认它连接到你预期的 agent，并且没有意外连接到不应该连接的 agent。
-
-**按用户工单支持。** 为报告用户的 ID 应用用户筛选器。图形仅显示为该用户请求服务的调用链，使追踪发生了什么、以什么顺序以及哪里出错变得简单明了。
-
-## 下一步
-
-<Cards>
-  <Card title="智能体" href="/cloud/governance/agents" description="创建具名智能体身份，在图中以节点形式呈现。" />
-  <Card title="用户上下文" href="/cloud/telemetry/user-context" description="将调用链归属到最终用户，实现按用户筛选图数据。" />
-  <Card title="审计追踪" href="/cloud/dashboard/audit-trail" description="对图中呈现的交互进行 Span 搜索和导出。" />
-  <Card title="协调节点" href="/open-source/research/coordinator" description="开源路由节点，其评分增量显示在图的边上。" />
-</Cards>

@@ -44,22 +44,3 @@ Filter lassen sich kombinieren: Es ist möglich, gleichzeitig Nutzer `u_123` in 
 Wenn die Call-Chain einen JamJet Open-Source [Coordinator Node](/open-source/research/coordinator) enthält, rendert das Dashboard zusätzliche Annotationen auf den Kanten, die durch ihn verlaufen. Diese Annotationen zeigen das Scoring-Delta, das der Coordinator beim Auswählen des nachgelagerten Agenten berechnet hat — die numerische Differenz zwischen dem bestplatzierten Agenten und der nächsten Alternative.
 
 Ein großes Delta signalisiert, dass der Coordinator hohe Zuversicht in seiner Routing-Entscheidung hatte. Ein kleines Delta bedeutet, dass die Wahl knapp war — lohnenswert zu prüfen, falls der nachgelagerte Agent unterdurchschnittlich performt hat. Die Annotationen sind nur sichtbar, wenn der Coordinator strukturierte Scoring-Spans ausgibt; rein heuristisches Routing erzeugt sie nicht.
-
-## Anwendungsfälle
-
-**Incident-Postmortems.** Zeitbereich auf das Incident-Fenster setzen und einen Environment-Filter für Production anwenden. Der Graph zeigt sofort, welche Agenten beteiligt waren und welche Kanten den meisten Traffic trugen. In heiße Kanten klicken, um die exakten Spans zu finden, bei denen Latenz anstieg oder eine Policy einen Tool-Call blockiert hat.
-
-**Architektur-Review.** Auf ein 7-Tage-Fenster in Production umschalten. Der Graph offenbart die tatsächliche Agenten-Topologie — nicht die geplante, sondern die entstandene. Knoten mit unerwartet hoher Konnektivität, Zyklen zwischen Agenten und Leaf-Agents, die eigentlich aktive Sub-Orchestratoren sein sollten, werden sichtbar.
-
-**Agent-zu-Agent-Dependency-Tracing.** Beim Hinzufügen eines neuen Agenten den Graph über die ersten 24 Stunden beobachten, um zu bestätigen, dass er sich mit den vorgesehenen Agenten verbindet und nicht unerwartet Agenten erreicht, die er nicht erreichen sollte.
-
-**Per-User-Support-Tickets.** Nutzer-Filter für die ID des meldenden Nutzers anwenden. Der Graph zeigt nur die Call-Chain, die die Requests dieses Nutzers bedient hat, und macht es unkompliziert nachzuvollziehen, was passiert ist, in welcher Reihenfolge und wo etwas schiefgelaufen ist.
-
-## Nächste Schritte
-
-<Cards>
-  <Card title="Agents" href="/cloud/governance/agents" description="Erstellen Sie benannte Agent-Identitäten, die als Knoten im Graphen erscheinen." />
-  <Card title="User Context" href="/cloud/telemetry/user-context" description="Ordnen Sie Call-Chains Endbenutzern zu, um den Graphen pro Benutzer zu filtern." />
-  <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Span-Suche und -Export für die Interaktionen, die der Graph sichtbar macht." />
-  <Card title="Coordinator Node" href="/open-source/research/coordinator" description="Open-Source-Routing-Knoten, dessen Scoring-Deltas auf Graph-Kanten erscheinen." />
-</Cards>

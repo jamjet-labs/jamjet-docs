@@ -29,8 +29,17 @@ export default async function Page(props: {
 
   const data = page.data as unknown as MdxPageData;
 
+  const editOnGithub = page.path
+    ? {
+        owner: 'jamjet-labs' as const,
+        repo: 'jamjet-docs' as const,
+        sha: 'main' as const,
+        path: `content/docs/en/${page.path}`,
+      }
+    : undefined;
+
   return (
-    <DocsPage toc={data.toc} full={data.full}>
+    <DocsPage toc={data.toc} full={data.full} editOnGithub={editOnGithub}>
       <DocsTitle>{data.title}</DocsTitle>
       <DocsDescription>{data.description}</DocsDescription>
       <DocsBody>

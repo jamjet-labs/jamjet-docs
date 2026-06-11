@@ -59,10 +59,10 @@ A **policy** is a rule that controls which tools an LLM can call. Policies match
 import { policy } from '@jamjet/cloud'
 
 policy('block', 'wire_*')                  // block any tool starting with wire_
-policy('require_approval', 'send_email')   // record intent to gate this tool
+policy('require_approval', 'send_email')   // evaluated, but does not gate yet
 ```
 
-Policies enforce both **pre-call** (filter the tool list before sending to the LLM) and **post-decision** (re-check tool calls in the response). Both required-approval and blocked tools are recorded in the span.
+Policies enforce both **pre-call** (filter the tool list before sending to the LLM) and **post-decision** (re-check tool calls in the response). Blocked tools are recorded in the span; `require_approval` matches are not.
 
 [→ Policies](/cloud/governance/policies)
 

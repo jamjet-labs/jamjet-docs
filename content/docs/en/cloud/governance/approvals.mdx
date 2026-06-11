@@ -1,6 +1,6 @@
 ---
 title: Approvals
-description: Human-in-the-loop queue. Dashboard decisions, policy-gateway flow, SLA badges and bulk decide.
+description: Human-in-the-loop queue. SDK create-and-poll flow, dashboard decisions, policy-gateway flow, SLA badges and bulk decide.
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
@@ -26,35 +26,29 @@ You can bulk-select multiple pending requests and decide them together, with an 
 
 Decisions are written through `POST /v1/approvals/{id}` for a single request and `POST /v1/approvals/bulk-decide` for a selection.
 
-## The policy-gateway flow
-
-The other working path to a pending approval comes from the policy proxy. When the proxy evaluates a call and emits a `WAITING_FOR_APPROVAL` decision, that call surfaces as a pending request in the Approvals queue. You then decide it in the dashboard exactly as you would any other pending item. The first decision wins: once a request is approved or rejected, later attempts to decide the same request have no effect.
-
-This is the recommended way to gate a real call on a human today. Define the gating in your policy proxy, and resolve the resulting requests from `/dashboard/approvals`.
-
-<Callout type="warn">
-  The declarative `policy('require_approval', ...)` rule does **not** automatically create approvals. Registering that rule records intent on the span but does not place a request in the queue. See [Policies](/cloud/governance/policies) for what the rule does and does not do.
-</Callout>
-
 ## The SDK helper
 
-The SDK ships a `requireApproval(action, options)` helper that long-polls until a request is approved, rejected, or times out. It throws on rejection and on timeout, so you can wrap the call in a try/catch and only proceed past it when a human approved.
+The SDK ships a `requireApproval(action, options)` helper that creates a pending approval in the dashboard, then long-polls until a reviewer approves or rejects it (or the timeout elapses). On approval the call returns. On rejection it throws `JamjetApprovalRejected` carrying the reviewer's reason. On timeout it throws as well. Wrap it in a try/catch and only proceed past it when a human approved.
 
 <Tabs items={['TypeScript', 'Python']} groupId="lang">
   <Tab value="TypeScript">
 
   ```typescript
-  import { requireApproval } from '@jamjet/cloud'
+  import { requireApproval, JamjetApprovalRejected } from '@jamjet/cloud'
 
   try {
-    const approvalId = await requireApproval('production_deploy', {
+    await requireApproval('production_deploy', {
       context: { service: 'auth-api', version: '2.3.1' },
+      timeoutMs: 30 * 60 * 1000, // 30 minutes
     })
     // Reaches here only if a human approved.
     await deployService()
   } catch (err) {
-    // Thrown on rejection or timeout.
-    console.warn('Not approved:', err)
+    if (err instanceof JamjetApprovalRejected) {
+      console.warn('Rejected:', err.reason)
+    } else {
+      throw err
+    }
   }
   ```
 
@@ -65,7 +59,7 @@ The SDK ships a `requireApproval(action, options)` helper that long-polls until 
   import jamjet.cloud as jamjet
 
   try:
-      approval_id = await jamjet.require_approval('production_deploy',
+      await jamjet.require_approval('production_deploy',
         context={'service': 'auth-api', 'version': '2.3.1'},
       )
       # Reaches here only if a human approved.
@@ -83,15 +77,23 @@ The SDK ships a `requireApproval(action, options)` helper that long-polls until 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `timeoutMs` | about 1 hour | How long to long-poll before giving up. When it elapses, the helper throws. |
+| `pollIntervalMs` | 5 seconds | How often to check approval status while waiting. |
 | `signal` | none | A standard `AbortSignal`. When it fires, the in-flight request is cancelled. |
 
-<Callout type="warn">
-  The SDK helper depends on a server endpoint to **create** an approval request, and the hosted API does not expose that endpoint yet. So the end-to-end flow (call `requireApproval()` and watch a request appear in the dashboard) is not wired today. Until that endpoint ships, use the dashboard Approvals surface and the policy-gateway flow above for working approvals. Do not rely on `requireApproval()` as a working end-to-end path.
+<Callout type="info">
+  The declarative `policy('require_approval', ...)` rule is evaluated but has no observable effect today: it neither gates the call nor appears on the span. Use `requireApproval()` from code, or the policy-gateway flow below, for a working gate.
 </Callout>
+
+## The policy-gateway flow
+
+The other working path to a pending approval comes from the policy proxy. When the proxy evaluates a call and emits a `WAITING_FOR_APPROVAL` decision, that call surfaces as a pending request in the Approvals queue. You then decide it in the dashboard exactly as you would any other pending item. The first decision wins: once a request is approved or rejected, later attempts to decide the same request have no effect.
+
+Define the gating in your policy proxy and resolve the resulting requests from `/dashboard/approvals`.
 
 ## Next steps
 
 <Cards>
   <Card title="Policies" href="/cloud/governance/policies" description="What the require_approval rule does, and how the policy proxy emits a waiting decision." />
+  <Card title="Runtime Approvals" href="/open-source/approvals" description="Park-and-resume in the open-source runtime: require_approval_for patterns, REST contract, MCP tool." />
   <Card title="Audit Trail" href="/cloud/dashboard/audit-trail" description="Retrospective record of approval decisions across your project." />
 </Cards>

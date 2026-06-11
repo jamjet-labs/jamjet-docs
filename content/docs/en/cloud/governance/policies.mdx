@@ -168,7 +168,7 @@ There are two separate approval mechanisms, and they work differently depending 
 **Open-source runtime.** A `require_approval_for` glob pattern in a node, workflow, or tenant policy parks the matching tool node before execution. The node does not run and the execution stays in the `running` state, held by a `ToolApprovalRequired` event. That event survives crashes and restarts, so there is no timeout and no lost hold. A reviewer decides via `POST /executions/:id/approve`. See [Runtime Approvals](/open-source/approvals) for the full REST contract and an end-to-end example.
 
 <Callout type="info">
-  `blocked_tools` patterns take precedence over `require_approval_for`. A tool matched by both is refused outright, not parked.
+  Within the same policy scope, `blocked_tools` wins over `require_approval_for`: a tool matched by both is refused outright, not parked. Across scopes, the most specific scope's rules are evaluated first (node over workflow over tenant), so a node-level `require_approval_for` fires before a workflow-level `blocked_tools`.
 </Callout>
 
 ## Policy simulation

@@ -81,7 +81,7 @@ The SDK ships a `requireApproval(action, options)` helper that creates a pending
 | `signal` | none | A standard `AbortSignal`. When it fires, the in-flight request is cancelled. |
 
 <Callout type="info">
-  The declarative `policy('require_approval', ...)` rule does **not** automatically create approvals. It records intent on the span but does not place a request in the queue. Use `requireApproval()` from code, or the policy-gateway flow below, for actual gating.
+  The declarative `policy('require_approval', ...)` rule is evaluated but has no observable effect today: it neither gates the call nor appears on the span. Use `requireApproval()` from code, or the policy-gateway flow below, for a working gate.
 </Callout>
 
 ## The policy-gateway flow

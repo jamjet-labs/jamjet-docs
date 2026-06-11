@@ -52,7 +52,7 @@ policy:
 When the scheduler reaches `submit_payment`, it emits `ToolApprovalRequired`, parks the node, and leaves the execution in `running` state. The node does not execute. Nothing times out.
 
 <Callout type="info">
-  `blocked_tools` takes precedence over `require_approval_for`. A tool matched by both is refused outright and the node fails immediately, rather than being parked.
+  Within the same policy scope, `blocked_tools` wins over `require_approval_for`: a tool matched by both is refused outright rather than parked. Across scopes, the most specific scope's rules are evaluated first (node over workflow over tenant), so a node-level `require_approval_for` fires before a workflow-level `blocked_tools`.
 </Callout>
 
 You can also scope the policy to a single node rather than the whole workflow:
@@ -84,7 +84,7 @@ Returns the pending and decided approvals for an execution.
     {
       "node_id": "submit_payment",
       "tool_name": "payments.submit",
-      "approver": null,
+      "approver": "human",
       "context": {},
       "sequence": 4
     }
@@ -117,7 +117,7 @@ Content-Type: application/json
 |------|-----------|
 | `200` | Decision recorded and node scheduled to resume. |
 | `400` | Multiple approvals pending and `node_id` was omitted. |
-| `409` | Nothing is pending, or `node_id` does not match a pending node, or the execution is already in a terminal state (`completed`, `failed`, `cancelled`). |
+| `409` | Nothing is pending, or `node_id` does not match a pending node, or the execution is already in a terminal state (`completed`, `failed`, `cancelled`, or `limit_exceeded`). |
 
 **Rejection behavior.** When you reject, the node fails and the workflow fails with a reason that includes the decider's `user_id` and `comment`. Rejection is terminal for that execution.
 
@@ -155,7 +155,7 @@ curl -s -X POST http://localhost:8080/workflows \
 # Start an execution
 curl -s -X POST http://localhost:8080/executions \
   -H "Content-Type: application/json" \
-  -d '{"workflow_id": "payment-processor", "state": {"payment_id": "pay_001"}}'
+  -d '{"workflow_id": "payment-processor", "input": {"payment_id": "pay_001"}}'
 ```
 
 **2. Check that the node is parked.**
@@ -200,6 +200,6 @@ curl -s http://localhost:8080/executions/exec_01JM4X8NKWP2 | jq .status
 
 To reject instead, replace `"approved"` with `"rejected"`. The execution status will be `"failed"` with the decider and comment in the failure reason.
 
-## Runnable example
+## Runnable examples
 
-A complete runnable approval workflow lives in [`examples/hitl-approval`](https://github.com/jamjet-labs/jamjet/tree/main/examples/hitl-approval) in the main repository.
+[`examples/02-human-approval`](https://github.com/jamjet-labs/jamjet/tree/main/examples/02-human-approval) contains the policy snippet used on this page. [`examples/hitl-approval`](https://github.com/jamjet-labs/jamjet/tree/main/examples/hitl-approval) demonstrates an alternative human-in-the-loop pattern built on the `human_approval` node kind with a timeout, which is a different mechanism from `require_approval_for` policy gating.

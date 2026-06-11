@@ -159,15 +159,17 @@ After the LLM responds, JamJet inspects every `tool_call` in the response. If a 
   </Tab>
 </Tabs>
 
-## require_approval does not gate
+## require_approval: what works and what does not
 
-The declarative `policy('require_approval', tool)` rule does **not** block, pause, or await anything at runtime. Tools matched by a `require_approval` rule are sent to the model and returned to your code exactly as if no rule existed. The rule is also not currently recorded on the span.
+There are two separate approval mechanisms, and they work differently depending on whether you are using the Cloud SDK or the open-source runtime.
 
-<Callout type="warn">
-  `require_approval` as a policy rule is a no-op at runtime. For an actual human gate that blocks a call until someone approves or rejects it in the dashboard, use the [Approvals](/cloud/governance/approvals) surface at `/dashboard/approvals` instead.
+**Cloud SDK (TypeScript).** The declarative `policy('require_approval', tool)` rule does **not** gate calls. Tools matched by that rule are forwarded to the model exactly as if no rule existed. For a working human gate from code, call `requireApproval(action, { context, timeoutMs })` directly. It creates a pending approval in the dashboard Pending tab, then polls until a reviewer approves or rejects. On approval it returns; on rejection it throws `JamjetApprovalRejected` carrying the reviewer's reason. See [Approvals](/cloud/governance/approvals) for the full SDK flow.
+
+**Open-source runtime.** A `require_approval_for` glob pattern in a node, workflow, or tenant policy parks the matching tool node before execution. The node does not run and the execution stays in the `running` state, held by a `ToolApprovalRequired` event. That event survives crashes and restarts, so there is no timeout and no lost hold. A reviewer decides via `POST /executions/:id/approve`. See [Runtime Approvals](/open-source/approvals) for the full REST contract and an end-to-end example.
+
+<Callout type="info">
+  `blocked_tools` patterns take precedence over `require_approval_for`. A tool matched by both is refused outright, not parked.
 </Callout>
-
-For a real human gate today, use the dashboard [Approvals](/cloud/governance/approvals) queue together with the policy gateway, which holds a matched call as a pending request until someone approves or rejects it. The SDK `requireApproval()` helper exists, but it depends on a server endpoint that the hosted API does not expose yet, so the end-to-end SDK flow is not wired. See [Approvals](/cloud/governance/approvals) for the mechanism that works today.
 
 ## Policy simulation
 

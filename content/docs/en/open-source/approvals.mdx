@@ -1,0 +1,205 @@
+---
+title: Approvals (Runtime)
+description: Park a node before execution until a human decides. require_approval_for patterns, REST contract, MCP tool, and an end-to-end example.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+
+# Approvals (Runtime)
+
+The open-source JamJet runtime supports a **park-and-resume** approval model: a node matching a `require_approval_for` glob pattern stops before execution, parks the execution, and waits indefinitely until a reviewer approves or rejects it via the REST API or the `jamjet_approve` MCP tool.
+
+Parked approvals are durable. The hold is recorded as a `ToolApprovalRequired` event in the event log, so a crash or restart does not lose the pending decision.
+
+## Gating nodes with a policy
+
+Declare `require_approval_for` in a `policy` block inside your workflow YAML. The field takes a list of glob patterns matched against the tool name of each tool node before it executes.
+
+```yaml
+workflow:
+  id: payment-processor
+  version: 0.1.0
+  start_node: fetch_details
+
+  nodes:
+    - id: fetch_details
+      kind: tool
+      config:
+        fn: fetch_payment_details
+        input_from_state: { payment_id: payment_id }
+        output_to_state: { details: payment_details }
+      edges:
+        - to: submit_payment
+
+    - id: submit_payment
+      kind: tool
+      config:
+        fn: payments.submit
+        input_from_state: { details: payment_details }
+        output_to_state: { result: result }
+      edges:
+        - to: end
+
+    - id: end
+      kind: end
+
+policy:
+  require_approval_for:
+    - "payments.*"
+```
+
+When the scheduler reaches `submit_payment`, it emits `ToolApprovalRequired`, parks the node, and leaves the execution in `running` state. The node does not execute. Nothing times out.
+
+<Callout type="info">
+  `blocked_tools` takes precedence over `require_approval_for`. A tool matched by both is refused outright and the node fails immediately, rather than being parked.
+</Callout>
+
+You can also scope the policy to a single node rather than the whole workflow:
+
+```yaml
+    - id: submit_payment
+      kind: tool
+      policy:
+        require_approval_for:
+          - "payments.*"
+      config:
+        fn: payments.submit
+        ...
+```
+
+Node-level policy takes precedence over workflow-level policy for that node.
+
+## Inspecting pending approvals
+
+```bash
+GET /executions/:id/approvals
+```
+
+Returns the pending and decided approvals for an execution.
+
+```json
+{
+  "pending": [
+    {
+      "node_id": "submit_payment",
+      "tool_name": "payments.submit",
+      "approver": null,
+      "context": {},
+      "sequence": 4
+    }
+  ],
+  "decided": []
+}
+```
+
+Each pending entry carries `node_id`, `tool_name`, and the `sequence` number of the `ToolApprovalRequired` event that created the hold.
+
+## Deciding an approval
+
+```bash
+POST /executions/:id/approve
+Content-Type: application/json
+
+{
+  "decision": "approved",
+  "node_id": "submit_payment",
+  "user_id": "alice",
+  "comment": "Verified payment amount, looks correct."
+}
+```
+
+`decision` must be `"approved"` or `"rejected"`. `node_id` is optional when exactly one approval is pending; the runtime infers it. `comment` is optional. An optional `state_patch` object is merged into execution state before the node resumes.
+
+**Response codes:**
+
+| Code | Condition |
+|------|-----------|
+| `200` | Decision recorded and node scheduled to resume. |
+| `400` | Multiple approvals pending and `node_id` was omitted. |
+| `409` | Nothing is pending, or `node_id` does not match a pending node, or the execution is already in a terminal state (`completed`, `failed`, `cancelled`). |
+
+**Rejection behavior.** When you reject, the node fails and the workflow fails with a reason that includes the decider's `user_id` and `comment`. Rejection is terminal for that execution.
+
+**Approval behavior.** When you approve, the `ApprovalReceived` event is appended and the scheduler picks up the node on its next tick. The node then runs through the normal scheduling path as if the hold never existed.
+
+## MCP tool: jamjet_approve
+
+The runtime exposes a `jamjet_approve` MCP tool through its built-in MCP bridge. It follows the same rules as the REST endpoint: you pass `execution_id`, `decision`, and optionally `node_id`, `user_id`, and `comment`. This lets an agent or an MCP client decide approvals without direct HTTP access.
+
+```json
+{
+  "name": "jamjet_approve",
+  "arguments": {
+    "execution_id": "exec_01JM4X8NKWP2",
+    "decision": "approved",
+    "node_id": "submit_payment",
+    "user_id": "alice",
+    "comment": "Verified amount."
+  }
+}
+```
+
+## End-to-end example
+
+The following sequence uses `curl`. Replace `exec_01...` with the execution ID printed by `jamjet run`.
+
+**1. Register and start the workflow.**
+
+```bash
+# Register the workflow definition
+curl -s -X POST http://localhost:8080/workflows \
+  -H "Content-Type: application/json" \
+  -d @workflow.json
+
+# Start an execution
+curl -s -X POST http://localhost:8080/executions \
+  -H "Content-Type: application/json" \
+  -d '{"workflow_id": "payment-processor", "state": {"payment_id": "pay_001"}}'
+```
+
+**2. Check that the node is parked.**
+
+The execution stays `running` while a node is waiting for approval.
+
+```bash
+curl -s http://localhost:8080/executions/exec_01JM4X8NKWP2/approvals
+```
+
+```json
+{
+  "pending": [
+    {
+      "node_id": "submit_payment",
+      "tool_name": "payments.submit",
+      "sequence": 4
+    }
+  ],
+  "decided": []
+}
+```
+
+**3. Approve and resume.**
+
+```bash
+curl -s -X POST http://localhost:8080/executions/exec_01JM4X8NKWP2/approve \
+  -H "Content-Type: application/json" \
+  -d '{
+    "decision": "approved",
+    "user_id": "alice",
+    "comment": "Amount verified."
+  }'
+```
+
+**4. Confirm the execution completed.**
+
+```bash
+curl -s http://localhost:8080/executions/exec_01JM4X8NKWP2 | jq .status
+# "completed"
+```
+
+To reject instead, replace `"approved"` with `"rejected"`. The execution status will be `"failed"` with the decider and comment in the failure reason.
+
+## Runnable example
+
+A complete runnable approval workflow lives in [`examples/hitl-approval`](https://github.com/jamjet-labs/jamjet/tree/main/examples/hitl-approval) in the main repository.

@@ -114,8 +114,8 @@ const approvalId = await requireApproval('production_deploy', {
 // proceeds only if approved; throws JamjetApprovalRejected on reject
 ```
 
-<Callout type="warn">
-  The declarative `policy('require_approval', ...)` rule records intent and surfaces in the dashboard, but it does not gate execution at runtime. The working human gate is the [Approvals](/cloud/governance/approvals) surface plus the `requireApproval` call shown above, which blocks until someone responds.
+<Callout type="info">
+  The declarative `policy('require_approval', ...)` rule records intent on the span but does not gate execution. For a working human gate from code, use `requireApproval()` as shown above: it creates a pending approval in the dashboard and blocks until someone responds.
 </Callout>
 
 [→ Approvals](/cloud/governance/approvals)

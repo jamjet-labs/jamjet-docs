@@ -59,10 +59,10 @@ A **policy** is a rule that controls which tools an LLM can call. Policies match
 import { policy } from '@jamjet/cloud'
 
 policy('block', 'wire_*')                  // block any tool starting with wire_
-policy('require_approval', 'send_email')   // record intent to gate this tool
+policy('require_approval', 'send_email')   // evaluated, but does not gate yet
 ```
 
-Policies enforce both **pre-call** (filter the tool list before sending to the LLM) and **post-decision** (re-check tool calls in the response). Both required-approval and blocked tools are recorded in the span.
+Policies enforce both **pre-call** (filter the tool list before sending to the LLM) and **post-decision** (re-check tool calls in the response). Blocked tools are recorded in the span; `require_approval` matches are not.
 
 [→ Policies](/cloud/governance/policies)
 
@@ -114,8 +114,8 @@ const approvalId = await requireApproval('production_deploy', {
 // proceeds only if approved; throws JamjetApprovalRejected on reject
 ```
 
-<Callout type="warn">
-  The declarative `policy('require_approval', ...)` rule records intent and surfaces in the dashboard, but it does not gate execution at runtime. The working human gate is the [Approvals](/cloud/governance/approvals) surface plus the `requireApproval` call shown above, which blocks until someone responds.
+<Callout type="info">
+  The declarative `policy('require_approval', ...)` rule is evaluated but has no observable effect today: it neither gates the call nor appears on the span. For a working human gate from code, use `requireApproval()` as shown above: it creates a pending approval in the dashboard and blocks until someone responds.
 </Callout>
 
 [→ Approvals](/cloud/governance/approvals)

@@ -16,33 +16,24 @@ Parked approvals are durable. The hold is recorded as a `ToolApprovalRequired` e
 
 Declare `require_approval_for` in a `policy` block inside your workflow YAML. The field takes a list of glob patterns matched against the tool name of each tool node before it executes.
 
+Policy blocks compile to runtime IR from SDK 0.10.1.
+
 ```yaml
 workflow:
   id: payment-processor
   version: 0.1.0
-  start_node: fetch_details
+  start: fetch_details
 
-  nodes:
-    - id: fetch_details
-      kind: tool
-      config:
-        fn: fetch_payment_details
-        input_from_state: { payment_id: payment_id }
-        output_to_state: { details: payment_details }
-      edges:
-        - to: submit_payment
+nodes:
+  fetch_details:
+    type: tool
+    tool_ref: fetch_payment_details
+    next: submit_payment
 
-    - id: submit_payment
-      kind: tool
-      config:
-        fn: payments.submit
-        input_from_state: { details: payment_details }
-        output_to_state: { result: result }
-      edges:
-        - to: end
-
-    - id: end
-      kind: end
+  submit_payment:
+    type: tool
+    tool_ref: payments.submit
+    next: end
 
 policy:
   require_approval_for:
@@ -58,14 +49,14 @@ When the scheduler reaches `submit_payment`, it emits `ToolApprovalRequired`, pa
 You can also scope the policy to a single node rather than the whole workflow:
 
 ```yaml
-    - id: submit_payment
-      kind: tool
-      policy:
-        require_approval_for:
-          - "payments.*"
-      config:
-        fn: payments.submit
-        ...
+nodes:
+  submit_payment:
+    type: tool
+    tool_ref: payments.submit
+    policy:
+      require_approval_for:
+        - "payments.*"
+    next: end
 ```
 
 Node-level policy takes precedence over workflow-level policy for that node.
@@ -142,18 +133,22 @@ The runtime exposes a `jamjet_approve` MCP tool through its built-in MCP bridge.
 
 ## End-to-end example
 
-The following sequence uses `curl`. Replace `exec_01...` with the execution ID printed by `jamjet run`.
+The following sequence uses the `jamjet` CLI. Replace `exec_01...` with the execution ID printed by `jamjet run`.
 
-**1. Register and start the workflow.**
+**1. Start the workflow.**
 
 ```bash
-# Register the workflow definition
-curl -s -X POST http://localhost:8080/workflows \
+jamjet run workflow.yaml --input '{"payment_id": "pay_001"}'
+```
+
+Or register and start via the REST API:
+
+```bash
+curl -s -X POST http://localhost:7700/workflows \
   -H "Content-Type: application/json" \
   -d @workflow.json
 
-# Start an execution
-curl -s -X POST http://localhost:8080/executions \
+curl -s -X POST http://localhost:7700/executions \
   -H "Content-Type: application/json" \
   -d '{"workflow_id": "payment-processor", "input": {"payment_id": "pay_001"}}'
 ```
@@ -163,7 +158,13 @@ curl -s -X POST http://localhost:8080/executions \
 The execution stays `running` while a node is waiting for approval.
 
 ```bash
-curl -s http://localhost:8080/executions/exec_01JM4X8NKWP2/approvals
+jamjet approvals exec_01JM4X8NKWP2
+```
+
+Or via REST:
+
+```bash
+curl -s http://localhost:7700/executions/exec_01JM4X8NKWP2/approvals
 ```
 
 ```json
@@ -182,7 +183,13 @@ curl -s http://localhost:8080/executions/exec_01JM4X8NKWP2/approvals
 **3. Approve and resume.**
 
 ```bash
-curl -s -X POST http://localhost:8080/executions/exec_01JM4X8NKWP2/approve \
+jamjet approve exec_01JM4X8NKWP2 --decision approved --comment "Amount verified."
+```
+
+Or via REST:
+
+```bash
+curl -s -X POST http://localhost:7700/executions/exec_01JM4X8NKWP2/approve \
   -H "Content-Type: application/json" \
   -d '{
     "decision": "approved",
@@ -194,11 +201,11 @@ curl -s -X POST http://localhost:8080/executions/exec_01JM4X8NKWP2/approve \
 **4. Confirm the execution completed.**
 
 ```bash
-curl -s http://localhost:8080/executions/exec_01JM4X8NKWP2 | jq .status
+curl -s http://localhost:7700/executions/exec_01JM4X8NKWP2 | jq .status
 # "completed"
 ```
 
-To reject instead, replace `"approved"` with `"rejected"`. The execution status will be `"failed"` with the decider and comment in the failure reason.
+To reject instead, pass `--decision rejected` to the CLI (or `"rejected"` in the curl body). The execution status will be `"failed"` with the decider and comment in the failure reason.
 
 ## Runnable examples
 

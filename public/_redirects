@@ -10,8 +10,12 @@
 /integrations/*   /en/docs/integrations/:splat 302
 /reference        /en/docs/reference        302
 /reference/*      /en/docs/reference/:splat 302
-/docs             /en/docs                  302
+/docs             /en/docs/cloud            302
 /docs/*           /en/docs/:splat           302
+
+# Bare per-locale docs root has no landing page of its own; send it to the
+# Cloud section (Cloud-first IA) so /:lang/docs never resolves to a 404.
+/:lang/docs       /:lang/docs/cloud         302
 
 # Cloud quickstart — highest-traffic legacy URL
 /:lang/docs/quickstart              /:lang/docs/cloud/get-started/quickstart        301

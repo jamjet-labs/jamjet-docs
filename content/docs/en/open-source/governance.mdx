@@ -164,6 +164,10 @@ result = await agent.run("...")
 validate_receipt(result.receipt)
 ```
 
+`validate_receipt` lives in the `agentboundary` package, a separate library that
+JamJet installs as a dependency, so it is already available after
+`pip install jamjet`. JamJet mints the receipt; `agentboundary` validates it.
+
 To ship receipts somewhere (for example a JSONL writer), pass a
 `receipt_emitter` callable to the agent; the receipt is also always attached to
 the result.

@@ -17,6 +17,13 @@ The short version: **a single run is strongly consistent, views across runs are
 eventually consistent, and stored artifacts are immutable.** There is no managed
 multi-tenant execution service and no cross-region replication.
 
+These durability guarantees describe the persistent SQLite backend, which is the
+default: the engine keeps state in `STORAGE_BACKEND=sqlite` with a
+`DATABASE_URL=sqlite://...` file (in local dev, `.jamjet/runtime.db`). The
+in-memory backend (`STORAGE_BACKEND=memory`) holds state in a single process and
+does not persist, so it gives you none of the crash-recovery guarantees below.
+Use the SQLite backend for anything that has to survive a restart.
+
 ## The durable engine
 
 A durable run is a sequence of turns committed to an event log. That log is the
@@ -29,9 +36,14 @@ source of truth, and everything else is derived from it.
   same log reconstructs the same state. This is what makes crash recovery and
   time-travel debugging correct. After a restart the engine replays the log to
   exactly the committed state and resumes from the first incomplete node.
-- **Idempotency.** Each node runs exactly once. Tool effects are recorded
-  idempotently in the same transaction as the turn, so a retried or re-claimed
-  work item does not double-apply an effect.
+- **Idempotency.** The engine records each node's result exactly once. The turn
+  record, events, and receipts reported back by the worker commit in one
+  transaction, so a retried or re-claimed work item does not double-apply to
+  engine state. This covers engine-managed effects only. A `@tool` handler runs
+  in a separate worker process, and the engine does not transactionally commit
+  what that handler does outside the engine. So if a handler performs an external
+  side effect (an API call, a database write), make the handler itself
+  idempotent, because a re-claimed work item can run it again.
 - **Park-on-429.** When a provider returns a rate-limit (HTTP 429), the engine
   parks the work item with a `retry_after` and re-picks it up when the window
   passes, rather than failing the run. A `NodeParked` event records it. No work
@@ -67,7 +79,8 @@ execution, and a restart replays the log to exactly the committed state.
 Read-side projections are asynchronous: they lag the authoritative event log
 rather than updating in lockstep with it. Any view you assemble across more than
 one execution is therefore eventually consistent. It converges on the latest
-write within a bounded lag; it is not instantaneously consistent with it.
+write eventually, on a later projector pass; it is not instantaneously consistent
+with it.
 
 A write to one run is immediately consistent for that run, but a cross-run
 projection (an approvals view, an aggregate across executions) reflects it on

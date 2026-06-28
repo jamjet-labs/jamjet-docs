@@ -230,8 +230,14 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Start the local dev stack with one command, pointing the worker at your tool
-module so it can resolve the `@tool` functions:
+The durable stack runs a model sidecar, so install the `sidecar` extra first:
+
+```bash
+pip install 'jamjet[sidecar]'
+```
+
+Then start the local dev stack with one command, pointing the worker at your
+tool module so it can resolve the `@tool` functions:
 
 ```bash
 jamjet dev --modules agent
@@ -239,8 +245,7 @@ jamjet dev --modules agent
 
 <Callout type="info">
   `jamjet dev` brings up the model sidecar (health-gated), the durable engine on
-  `http://127.0.0.1:7700`, and the `python_tool` worker. The durable path needs
-  the sidecar extra: `pip install 'jamjet[sidecar]'`. Press Ctrl+C to stop the
+  `http://127.0.0.1:7700`, and the `python_tool` worker. Press Ctrl+C to stop the
   whole stack.
 </Callout>
 
@@ -251,11 +256,14 @@ export ANTHROPIC_API_KEY=sk-ant-...
 python run.py
 ```
 
-Every turn is recorded to SQLite, so you can inspect and replay the run:
+Every turn is recorded to SQLite, so you can inspect and replay the run. When the
+worker picks up the run, the `jamjet dev` logs print its execution id on a
+`Claimed ... exec=exec_...` line. Copy that id (it looks like `exec_...`) and pass
+it to `jamjet inspect` and `jamjet events`:
 
 ```bash
-jamjet inspect <execution-id>
-jamjet events  <execution-id>
+jamjet inspect exec_...
+jamjet events  exec_...
 ```
 
 The run is governed the same way as in-process, and the durable engine adds the

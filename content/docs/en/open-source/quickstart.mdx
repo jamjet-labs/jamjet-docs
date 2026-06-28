@@ -1,9 +1,11 @@
 ---
 title: Quickstart
-description: See JamJet block an unsafe tool call in 60 seconds. No API key, no cloud account.
+description: See JamJet block an unsafe tool call in 60 seconds, then scaffold and run your first governed agent.
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Cards, Card } from 'fumadocs-ui/components/card'
 
 # Quickstart
 
@@ -21,12 +23,12 @@ mocked; the enforcement path is real.
 Three more demos:
 
 ```bash
-jamjet demo approval        # pause for human approval
-jamjet demo budget-cap      # $0.05 cost cap
-jamjet demo mcp-tool-policy # MCP-shaped policy (preview)
+jamjet demo approval         # pause for human approval
+jamjet demo budget-cap       # $0.05 cost cap
+jamjet demo mcp-tool-policy  # MCP-shaped policy
 ```
 
-Once the demos make sense, drop a policy beside your real agent code.
+Once the demos make sense, scaffold a real agent.
 
 > Looking for **JamJet Cloud** (governance, dashboard, audit trail)? See the [Cloud Quickstart](/cloud/get-started/quickstart) instead.
 
@@ -36,8 +38,10 @@ Once the demos make sense, drop a policy beside your real agent code.
   <Tab value="Python">
 
 ```bash
-pip install jamjet
+pip install 'jamjet[model]'
 ```
+
+The `[model]` extra pulls in the model seam so `agent.run()` can call a provider.
 
   </Tab>
   <Tab value="Java">
@@ -62,12 +66,6 @@ The Java SDK is published on Maven Central as `dev.jamjet:jamjet-sdk`.
 implementation("dev.jamjet:jamjet-sdk:0.5.0")
 ```
 
-**Gradle (Groovy DSL):**
-
-```groovy
-implementation 'dev.jamjet:jamjet-sdk:0.5.0'
-```
-
 Make sure your project targets Java 21 or later. In Maven:
 
 ```xml
@@ -80,43 +78,59 @@ Make sure your project targets Java 21 or later. In Maven:
   </Tab>
 </Tabs>
 
-## 2. Write a workflow
+## 2. Scaffold an agent
 
 <Tabs items={['Python', 'Java']} groupId="lang">
   <Tab value="Python">
 
-```python
-# agent.py
-from jamjet import task, tool
-
-@tool
-async def web_search(query: str) -> str:
-    """Search the web for current information."""
-    # plug in your actual search implementation
-    return f"Results for: {query}"
-
-@task(model="claude-sonnet-4-6", tools=[web_search])
-async def research(question: str) -> str:
-    """You are a research assistant. Search first, then summarize clearly."""
-
-import asyncio
-result = asyncio.run(research("What is JamJet?"))
-print(result)
+```bash
+jamjet create my-agent
+cd my-agent
 ```
 
-The `@tool` decorator exposes any Python function to the agent. The `@task` docstring becomes the agent's instructions. Works with OpenAI, Anthropic, Ollama, Groq — any model.
+This writes a minimal project: `agent.py`, `pyproject.toml`, and a README. The
+generated `agent.py` is a governed `Agent`:
 
-> **tip:**
-> **Using Ollama locally? No API key needed:**
-> ```bash
-> OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 python agent.py
-> ```
-> Change `model=` to any Ollama model (e.g. `"llama3.2"`).
+```python
+# agent.py
+import asyncio
+
+from jamjet import Agent, tool
+
+
+@tool
+async def add(a: float, b: float) -> str:
+    """Add two numbers and return the sum."""
+    return f"{a + b:g}"
+
+
+agent = Agent(
+    "my-agent",
+    model="anthropic/claude-sonnet-4-6",
+    tools=[add],
+    instructions="You are a helpful assistant. Use the add tool when asked to sum numbers.",
+    strategy="react",
+)
+
+
+async def main() -> None:
+    result = await agent.run("What is 7 plus 35?")
+    print(result.output)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+The `@tool` decorator exposes a typed Python function to the agent, and the
+`Agent` ties a model, tools, instructions, and a reasoning strategy together.
+Governance (PII redaction, signed audit, and receipts) is on by default. See
+[Build an agent](/open-source/build) and [Governance](/open-source/governance).
 
   </Tab>
   <Tab value="Java">
 
-Define a tool — the bridge between your agent and the outside world:
+Define a tool, the bridge between your agent and the outside world:
 
 ```java
 import dev.jamjet.tool.Tool;
@@ -150,13 +164,17 @@ var agent = Agent.builder("researcher")
   </Tab>
 </Tabs>
 
-## 3. Run it
+## 3. Run it in-process
 
 <Tabs items={['Python', 'Java']} groupId="lang">
   <Tab value="Python">
 
+`agent.run()` runs the loop in your own process, with no server to start. It
+needs only a model provider key:
+
 ```bash
-ANTHROPIC_API_KEY=sk-ant-... python agent.py
+export ANTHROPIC_API_KEY=sk-ant-...
+python agent.py
 ```
 
   </Tab>
@@ -176,22 +194,81 @@ public static void main(String[] args) {
     var result = agent.run("What is JamJet?");
 
     System.out.println(result.output());
-    System.out.printf("Duration: %.2f ms%n", result.durationUs() / 1000.0);
     System.out.printf("Tool calls: %d%n", result.toolCalls().size());
 }
 ```
 
 ```bash
-export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
 mvn compile exec:java -Dexec.mainClass=com.example.MyAgent
 ```
 
   </Tab>
 </Tabs>
 
+## 4. Run it on the durable engine
+
+The same agent runs on the event-sourced JamJet engine. A durable run dispatches
+your `@tool` functions on a separate worker process, and the worker resolves them
+by importing the module they live in. So the tools must be importable: call
+`run_durable()` from a small runner that imports the agent, rather than running
+`agent.py` directly (where the tools would belong to `__main__`).
+
+```python
+# run.py
+import asyncio
+
+from agent import agent  # imports agent.py, where the @tool functions live
+
+
+async def main() -> None:
+    result = await agent.run_durable("What is 7 plus 35?")
+    print(result.output)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+Start the local dev stack with one command, pointing the worker at your tool
+module so it can resolve the `@tool` functions:
+
+```bash
+jamjet dev --modules agent
+```
+
+<Callout type="info">
+  `jamjet dev` brings up the model sidecar (health-gated), the durable engine on
+  `http://127.0.0.1:7700`, and the `python_tool` worker. The durable path needs
+  the sidecar extra: `pip install 'jamjet[sidecar]'`. Press Ctrl+C to stop the
+  whole stack.
+</Callout>
+
+Then run the runner in a second terminal:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+python run.py
+```
+
+Every turn is recorded to SQLite, so you can inspect and replay the run:
+
+```bash
+jamjet inspect <execution-id>
+jamjet events  <execution-id>
+```
+
+The run is governed the same way as in-process, and the durable engine adds the
+event log, deterministic replay, idempotency, and content-addressed artifacts.
+See [Reliability](/open-source/reliability). The
+[`react-agent-durable`](https://github.com/jamjet-labs/jamjet/tree/main/examples/react-agent-durable)
+example shows the full setup.
+
 ## Next steps
 
-- [Concepts](/open-source/concepts) — Agent, Workflow, Span, Checkpoint
-- [Python Runtime deep dive](/open-source/python-runtime)
-- [Java Runtime deep dive](/open-source/java-runtime)
-- [Add governance with JamJet Cloud](/cloud/get-started/quickstart)
+<Cards>
+  <Card title="Build an agent" href="/open-source/build" description="The Agent and Team APIs in depth." />
+  <Card title="Governance" href="/open-source/governance" description="Policy, approval, budget, PII, audit, receipts." />
+  <Card title="Any model" href="/open-source/any-model" description="Point an agent at any provider." />
+  <Card title="Reliability" href="/open-source/reliability" description="What the durable engine guarantees." />
+</Cards>

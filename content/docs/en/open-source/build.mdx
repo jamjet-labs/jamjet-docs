@@ -1,0 +1,214 @@
+---
+title: Build an agent
+description: The friendly Agent API. A model, @tool functions, instructions, and a strategy. Run in-process or on the durable engine, then compose agents into a Team.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Build an agent
+
+The `Agent` class is the shortest path to a working JamJet agent: give it a
+model, some `@tool` functions, instructions, and a strategy, then call `run()`.
+Governance (PII redaction, signed audit, receipts) is on by default, so a plain
+`Agent()` is already governed. See [Governance](/open-source/governance) for the
+knobs.
+
+```python
+from jamjet import Agent, tool
+
+
+@tool
+async def get_weather(city: str) -> str:
+    """Return a short current-weather report for a city."""
+    return f"clear skies over {city}, 20C"
+
+
+agent = Agent(
+    "weather-bot",
+    model="anthropic/claude-sonnet-4-6",
+    tools=[get_weather],
+    instructions="You are a concise assistant. Use the tools when they help.",
+    strategy="react",
+)
+
+result = agent.run_sync("What's the weather in Paris?")
+print(result.output)
+```
+
+`run_sync()` is the synchronous wrapper for scripts and notebooks; it returns the
+result directly. In async code, use `await agent.run(prompt)` instead.
+
+## Tools
+
+Decorate any async function with `@tool`. The parameters and return type must be
+typed; JamJet builds the tool's input schema from the signature. If the return
+type is a Pydantic `BaseModel`, its JSON schema is used.
+
+```python
+from jamjet import tool
+from pydantic import BaseModel
+
+
+class SearchResult(BaseModel):
+    summary: str
+    sources: list[str]
+
+
+@tool
+async def web_search(query: str) -> SearchResult:
+    """Search the web for information about a topic."""
+    ...
+```
+
+You can override the tool name or attach permission labels:
+
+```python
+@tool(name="lookup", permissions=["read_only"])
+async def do_lookup(record_id: str) -> str:
+    ...
+```
+
+A `@tool`-decorated function stays directly callable (handy in tests). Passing a
+plain, undecorated function to `Agent(tools=[...])` raises a `TypeError`, so a
+tool always has a schema.
+
+## The model, instructions, and strategy
+
+`Agent` takes the agent's name as the only positional argument; everything else
+is keyword-only.
+
+```python
+agent = Agent(
+    "researcher",
+    model="anthropic/claude-sonnet-4-6",
+    tools=[web_search],
+    instructions="Find accurate information on the given topic.",
+    strategy="plan-and-execute",
+    max_iterations=10,
+)
+```
+
+| Argument | What it does |
+|----------|--------------|
+| `model` | A provider-routed model reference, e.g. `"anthropic/claude-sonnet-4-6"`. See [Any model](/open-source/any-model). |
+| `tools` | A list of `@tool`-decorated functions. |
+| `instructions` | The system prompt for the agent. |
+| `strategy` | The reasoning loop. Defaults to `plan-and-execute`. |
+| `max_iterations` | Caps the reasoning loop. Defaults to `10`. |
+
+The shipped strategies are `plan-and-execute` (the default: plan first, then
+execute each step), `react` (a tight `model -> tool -> model` loop), `critic`
+(draft, evaluate, refine), `consensus`, and `debate`. Pick the one that fits the
+task; the rest of your code is unchanged.
+
+## `run()` vs `run_durable()`
+
+Both methods take a prompt and return the same `AgentResult`. They differ in
+where the agent loop runs.
+
+```python
+# In-process: a pure Python loop. Fast, no services to start.
+result = await agent.run("Summarize the latest on agent runtimes")
+
+# Durable: the same agent on the event-sourced JamJet engine.
+result = await agent.run_durable("Summarize the latest on agent runtimes")
+```
+
+- **`run(prompt)`** runs the agent loop in your own process via `LocalRuntime`.
+  It needs only a model provider key (and the `jamjet[model]` extra). Use it for
+  development, scripts, and tests.
+- **`run_durable(prompt, *, max_turns=8, runtime_url="http://127.0.0.1:7700")`**
+  compiles the agent to an agent-loop IR (`model -> tools -> model`) and drives a
+  durable execution on the engine, so the run gets the event log, deterministic
+  replay, idempotency, and content-addressed artifacts. See
+  [Reliability](/open-source/reliability).
+
+<Callout type="info">
+  `run_durable()` needs three things running: the engine (`jamjet dev` starts it
+  locally), a `jamjet worker` to execute your `@tool` functions, and the model
+  sidecar so the engine's model calls go through the governed seam. `jamjet dev`
+  brings up all three with one command. `max_turns` bounds the loop, and the
+  model is invoked up to that many times, so size it to the conversation depth
+  you expect.
+</Callout>
+
+## The result
+
+Both `run()` and `run_durable()` return an `AgentResult`:
+
+```python
+result = await agent.run("What's the weather in Paris?")
+
+result.output       # the final answer (str); str(result) is the same
+result.tool_calls   # the tool calls the agent made, in order
+result.ir           # the compiled spec / IR that ran
+result.duration_us  # wall-clock duration in microseconds
+result.receipt      # the AgentBoundary receipt for the turn (on by default)
+result.audit        # the signed, hash-chained audit record (on by default)
+```
+
+`result.receipt` and `result.audit` come from governance-on-by-default. They are
+covered in [Governance](/open-source/governance).
+
+## Compose agents into a Team
+
+A `Team` composes several agents without writing orchestration. Each sub-agent
+runs as its own independent execution via the same `Agent.run()` /
+`Agent.run_durable()` path, and the team combines the results. A failing
+sub-agent is isolated: its error lands in `TeamResult.per_agent` and the team
+does not crash.
+
+There are four patterns:
+
+```python
+from jamjet import Sequential, Parallel, Team, Loop
+
+# Sequential: a pipeline where each agent's output feeds the next.
+pipeline = Sequential([researcher, writer])
+result = await pipeline.run("agent runtimes")
+print(result.output)            # the writer's output
+
+# Parallel: fan the same input to every agent, then merge.
+panel = Parallel([summarizer, fact_checker], merge="collect")
+result = await panel.run("Review this draft")
+
+# Team: a coordinator routes the input to one specialist.
+desk = Team([researcher, writer], coordinator=router)
+result = await desk.run("Find the latest on agent runtimes")
+
+# Loop: re-run one agent until a predicate holds (or max_iters).
+refine = Loop(writer, until=lambda r: "DONE" in r.output, max_iters=5)
+result = await refine.run("Draft an intro")
+```
+
+A `Parallel` team merges with a `MergeStrategy`: `Collect` (label and join every
+successful output), `First` (the first successful output in declared order), or
+`Custom(fn)` for your own aggregation. Pass a strategy object, a callable, or the
+strings `"collect"` / `"first"`.
+
+A `Team` coordinator is either a router `Agent` whose output names the specialist,
+or a plain Python callable `(input, agents) -> Agent | name | index`.
+
+Every pattern returns a `TeamResult`:
+
+```python
+result.output       # the combined output
+result.per_agent    # {name: AgentResult | Exception}, in run order
+result.pattern      # "sequential" | "parallel" | "coordinator" | "loop"
+result.durable      # True when run via run_durable()
+result.ok           # True when no sub-agent failed
+result.errors       # {name: Exception} for the failed sub-agents
+```
+
+Teams run in-process with `await team.run(input)` or durably with
+`await team.run_durable(input)`, exactly like a single agent.
+
+## Next steps
+
+<Cards>
+  <Card title="Governance" href="/open-source/governance" description="Policy, approval, budget, PII, audit, receipts. On by default." />
+  <Card title="Any model" href="/open-source/any-model" description="The provider-routed model reference and the governed seam." />
+  <Card title="Reliability" href="/open-source/reliability" description="What the durable engine guarantees." />
+  <Card title="Deployment" href="/open-source/deployment" description="Ship the agent with agent.deploy()." />
+</Cards>

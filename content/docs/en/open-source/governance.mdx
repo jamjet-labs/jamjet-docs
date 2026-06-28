@@ -141,7 +141,7 @@ attached to `result.audit` and can be re-verified:
 from jamjet.agents.audit import verify_chain, resolve_signer
 
 result = await agent.run("...")
-verify_chain(result.audit, resolve_signer())   # raises ChainError on any tamper
+verify_chain(result.audit, resolve_signer())   # raises ChainError on tamper, or if unsigned
 ```
 
 The signing key is read from `JAMJET_AUDIT_SIGNING_KEY` at emission time. Without

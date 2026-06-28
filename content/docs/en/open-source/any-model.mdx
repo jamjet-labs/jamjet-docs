@@ -16,7 +16,7 @@ from jamjet import Agent
 
 Agent("bot", model="anthropic/claude-sonnet-4-6", tools=[...])
 Agent("bot", model="openai/gpt-4o", tools=[...])
-Agent("bot", model="google/gemini-2.0-flash", tools=[...])
+Agent("bot", model="gemini/gemini-2.0-flash", tools=[...])
 Agent("bot", model="ollama/llama3.2", tools=[...])
 ```
 
@@ -31,13 +31,13 @@ the rest is passed through to the provider.
 ```python
 "anthropic/claude-sonnet-4-6"   # provider: anthropic
 "openai/gpt-4o"                 # provider: openai
-"google/gemini-2.0-flash"       # provider: google
+"gemini/gemini-2.0-flash"       # provider: gemini
 "ollama/llama3.2"               # provider: ollama
 ```
 
-JamJet recognizes the provider prefixes `anthropic`, `openai`, `google`, and
-`ollama`. The aliases `gemini`, `vertex_ai`, and `vertexai` all map to `google`.
-Any other prefix is treated as an OpenAI-compatible endpoint.
+JamJet routes the prefixes `anthropic`, `openai`, `gemini`, and `ollama` through
+the seam. Use `gemini/` for Google Gemini models. Any other prefix is treated as
+an OpenAI-compatible endpoint.
 
 <Callout type="warn">
   A bare string with no `provider/` prefix defaults to the `openai` provider. So
@@ -56,16 +56,11 @@ pip install 'jamjet[model]'
 
 export ANTHROPIC_API_KEY=sk-ant-...   # anthropic/*
 export OPENAI_API_KEY=sk-...          # openai/*
-export GEMINI_API_KEY=...             # google/* (gemini)
+export GEMINI_API_KEY=...             # gemini/*
 ```
 
-Local models through Ollama need no key. Point an OpenAI-compatible base URL at
-your Ollama server:
-
-```bash
-export OPENAI_API_KEY=ollama
-export OPENAI_BASE_URL=http://localhost:11434/v1
-```
+Local models through Ollama need no API key. The `ollama/` prefix targets a local
+Ollama server at `http://localhost:11434`.
 
 ## The governed seam
 
@@ -76,8 +71,8 @@ the budget check fails closed when spend is exhausted, and metering records toke
 and cost usage. The provider is only reached after the `before` chain passes.
 
 Because this seam is the single path for every call, swapping providers never
-bypasses governance. An agent capped at `budget=0.50` with `policy="strict"`
-keeps both whether it runs on Claude, GPT, or a local model. See
+bypasses governance. An agent capped at `budget=0.50` keeps that ceiling whether
+it runs on Claude, GPT, or a local model. See
 [Governance](/open-source/governance) for the knobs that configure the chain.
 
 ## Durable model calls go through the sidecar

@@ -1,0 +1,138 @@
+---
+title: Reliability
+description: What the durable engine guarantees. Event log, deterministic replay, idempotency, park-on-429, continue-as-new, immutable artifacts, and the exact consistency contract.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Reliability
+
+When you call `agent.run_durable()` or deploy an agent, the run executes on the
+durable, event-sourced JamJet engine instead of a plain in-process loop. This
+page describes what that engine actually guarantees, and what it does not, so you
+can build against the real contract.
+
+The short version: **a single run is strongly consistent, views across runs are
+eventually consistent, and stored artifacts are immutable.** There is no managed
+multi-tenant execution service and no cross-region replication.
+
+These durability guarantees describe the persistent SQLite backend, which is the
+default: the engine keeps state in `STORAGE_BACKEND=sqlite` with a
+`DATABASE_URL=sqlite://...` file (in local dev, `.jamjet/runtime.db`). The
+in-memory backend (`STORAGE_BACKEND=memory`) holds state in a single process and
+does not persist, so it gives you none of the crash-recovery guarantees below.
+Use the SQLite backend for anything that has to survive a restart.
+
+## The durable engine
+
+A durable run is a sequence of turns committed to an event log. That log is the
+source of truth, and everything else is derived from it.
+
+- **Event log.** Before and after each node, the engine appends events to a
+  per-execution log. The state of a run is the log; the run is fully described by
+  the events it has committed.
+- **Deterministic replay.** State is a fold over the event log: replaying the
+  same log reconstructs the same state. This is what makes crash recovery and
+  time-travel debugging correct. After a restart the engine replays the log to
+  exactly the committed state and resumes from the first incomplete node.
+- **Idempotency.** The engine records each node's result exactly once. The turn
+  record, events, and receipts reported back by the worker commit in one
+  transaction, so a retried or re-claimed work item does not double-apply to
+  engine state. This covers engine-managed effects only. A `@tool` handler runs
+  in a separate worker process, and the engine does not transactionally commit
+  what that handler does outside the engine. So if a handler performs an external
+  side effect (an API call, a database write), make the handler itself
+  idempotent, because a re-claimed work item can run it again.
+- **Park-on-429.** When a provider returns a rate-limit (HTTP 429), the engine
+  parks the work item with a `retry_after` and re-picks it up when the window
+  passes, rather than failing the run. A `NodeParked` event records it. No work
+  is lost to a transient rate limit.
+- **Continue-as-new.** A long-running or looping agent can roll its run over into
+  a fresh state segment when it reaches its budget ceiling, so the event log
+  stays bounded instead of growing without limit.
+- **Content-addressed artifacts.** Large values are stored in a content-addressed
+  store keyed by the SHA-256 of the bytes. Identical bytes always produce the
+  same reference, and a stored artifact is never overwritten.
+
+## The consistency contract
+
+### Within a run: strongly consistent
+
+A single execution's event log is the source of truth, and state transitions for
+one run are linear and durable because the engine commits each turn in one
+transaction.
+
+- The settle, the event, and the state snapshot commit **atomically**. A crash
+  between steps cannot half-apply a turn: either the whole turn commits or none
+  of it does.
+- Writers are **serialized**. The engine takes the write lock up front, so a
+  concurrent writer gets an immediate, handled busy signal instead of a silent
+  lost update.
+- Replay is **deterministic**, as above.
+
+Once a turn commits, it is durable and visible to every later read of that
+execution, and a restart replays the log to exactly the committed state.
+
+### Across runs: eventually consistent
+
+Read-side projections are asynchronous: they lag the authoritative event log
+rather than updating in lockstep with it. Any view you assemble across more than
+one execution is therefore eventually consistent. It converges on the latest
+write eventually, on a later projector pass; it is not instantaneously consistent
+with it.
+
+A write to one run is immediately consistent for that run, but a cross-run
+projection (an approvals view, an aggregate across executions) reflects it on
+the next projector pass. Build cross-run UIs and queries to tolerate that lag.
+
+### Artifacts: content-addressed and immutable
+
+Large values are stored under the SHA-256 hash of their bytes. The same content
+always hashes to the same reference, and a second write of the same bytes does
+not overwrite what is stored. An artifact reference is a stable, verifiable
+handle that never changes underneath you.
+
+## Storage backends
+
+The engine has exactly two storage backends, selected by the `STORAGE_BACKEND`
+environment variable:
+
+- **`memory`** is an in-memory backend. Ephemeral and per-process; state does not
+  survive a restart. Useful for tests and throwaway runs.
+- **`sqlite`** (the default) is the durable, single-writer store used for
+  self-host and hosted deployments. The database URL defaults to
+  `sqlite://.jamjet/runtime.db` and can be overridden with `DATABASE_URL`.
+
+There is no Postgres backend in the engine. Cron scheduling requires the SQLite
+backend.
+
+## What is not guaranteed
+
+State this plainly so nobody designs against a guarantee that does not exist.
+
+- **No managed multi-tenant execution cell.** `runtime="cloud"` deploys the same
+  IR to *your* hosted engine (a URL you configure) and layers on JamJet Cloud
+  governance. JamJet Cloud is a governance and observability plane, not a
+  workflow execution engine. There is no managed cell that runs your workflows
+  for you. See [Deployment](/open-source/deployment).
+- **No cross-region or replicated consistency.** The engine is a single
+  SQLite-or-memory store per process. There is no multi-region replication, no
+  sharding, and no cross-region coordination. Run-level guarantees hold within
+  one engine instance, not across a fleet of instances.
+- **Cross-run views are not instantaneous.** The projector is asynchronous. Do
+  not assume an aggregate or cross-execution query reflects a write the moment it
+  commits.
+
+<Callout type="info">
+  These guarantees are observed engine invariants, grounded in the engine source.
+  They describe how durable runs behave today, not aspirations.
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card title="Deployment" href="/open-source/deployment" description="The three runtimes and the honest cloud model." />
+  <Card title="Build an agent" href="/open-source/build" description="run() vs run_durable()." />
+  <Card title="Concepts" href="/open-source/concepts" description="Workflows, nodes, state, and executions." />
+</Cards>

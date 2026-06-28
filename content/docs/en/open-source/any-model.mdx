@@ -1,0 +1,113 @@
+---
+title: Any model
+description: Point an agent at any provider with a single model reference. Every call routes through one governed seam, so swapping models never bypasses governance.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Any model
+
+An agent's model is a single string. Change the string, change the provider, and
+the rest of your code is unchanged.
+
+```python
+from jamjet import Agent
+
+Agent("bot", model="anthropic/claude-sonnet-4-6", tools=[...])
+Agent("bot", model="openai/gpt-4o", tools=[...])
+Agent("bot", model="gemini/gemini-2.0-flash", tools=[...])
+Agent("bot", model="ollama/llama3.2", tools=[...])
+```
+
+Every one of those calls goes through the same governed seam, so the model is
+swappable without touching governance, tools, or the agent loop.
+
+## The model reference format
+
+A model reference is `"provider/model"`. The provider prefix selects the route;
+the rest is passed through to the provider.
+
+```python
+"anthropic/claude-sonnet-4-6"   # provider: anthropic
+"openai/gpt-4o"                 # provider: openai
+"gemini/gemini-2.0-flash"       # provider: gemini
+"ollama/llama3.2"               # provider: ollama
+```
+
+JamJet routes the prefixes `anthropic`, `openai`, `gemini`, and `ollama` through
+the seam. Use `gemini/` for Google Gemini models. Any other prefix is treated as
+an OpenAI-compatible endpoint.
+
+<Callout type="warn">
+  A bare string with no `provider/` prefix defaults to the `openai` provider. So
+  `model="claude-sonnet-4-6"` routes to OpenAI, not Anthropic. Always prefix the
+  provider: `model="anthropic/claude-sonnet-4-6"`.
+</Callout>
+
+## Provider keys
+
+The model seam is backed by [LiteLLM](https://docs.litellm.ai), which reads each
+provider's key from the environment. Install the model extra and set the key for
+whichever providers you use:
+
+```bash
+pip install 'jamjet[model]'
+
+export ANTHROPIC_API_KEY=sk-ant-...   # anthropic/*
+export OPENAI_API_KEY=sk-...          # openai/*
+export GEMINI_API_KEY=...             # gemini/*
+```
+
+Local models through Ollama need no API key. The `ollama/` prefix targets a local
+Ollama server at `http://localhost:11434`.
+
+## The governed seam
+
+Application code never calls a provider directly. Every model call enters the
+`Model` seam, which runs a middleware chain around the provider call: the model
+allowlist denies disallowed models, PII redaction rewrites outbound prompts,
+the budget check fails closed when spend is exhausted, and metering records token
+and cost usage. The provider is only reached after the `before` chain passes.
+
+Because this seam is the single path for every call, swapping providers never
+bypasses governance. An agent capped at `budget=0.50` keeps that ceiling whether
+it runs on Claude, GPT, or a local model. See
+[Governance](/open-source/governance) for the knobs that configure the chain.
+
+## Durable model calls go through the sidecar
+
+On the in-process path (`agent.run()`), the seam runs in your own process. On the
+durable path (`agent.run_durable()` and deployed agents), the model calls are
+made by the Rust engine, so to keep the same governed seam the engine routes
+them to a **model sidecar**: a local Python process that wraps `jamjet.model.Model`.
+
+```bash
+pip install 'jamjet[sidecar]'
+uvicorn jamjet.model.sidecar_server:app --host 127.0.0.1 --port 4280
+```
+
+Then point the engine at it:
+
+```bash
+export JAMJET_MODEL_SEAM_URL=http://127.0.0.1:4280
+```
+
+The engine probes the sidecar's `/health` at startup and refuses to start if it
+is unreachable, so durable model calls never silently bypass the governed seam.
+If `JAMJET_MODEL_SEAM_URL` is unset, the engine falls back to native Rust
+adapters, which is the default for development.
+
+<Callout type="info">
+  `jamjet dev` starts the sidecar, the engine, and the worker together and wires
+  `JAMJET_MODEL_SEAM_URL` for you, so the governed seam is on by default in local
+  development. See the [Quickstart](/open-source/quickstart).
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card title="Governance" href="/open-source/governance" description="The allowlist, PII, and budget middleware on the seam." />
+  <Card title="Build an agent" href="/open-source/build" description="The Agent API that takes the model reference." />
+  <Card title="Deployment" href="/open-source/deployment" description="Run the sidecar alongside the engine in production." />
+</Cards>

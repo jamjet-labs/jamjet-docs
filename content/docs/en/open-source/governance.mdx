@@ -1,0 +1,196 @@
+---
+title: Governance (on by default)
+description: Every Agent is governed out of the box. PII redaction, signed audit, and receipts are on by default. Add policy, approval, and budget caps with one keyword each.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+# Governance (on by default)
+
+A plain `Agent()` is already governed. PII redaction, a signed audit record, and
+an AgentBoundary receipt are produced for every run without you opting in. The
+remaining knobs (policy, approval, and budget) are one keyword each.
+
+```python
+from jamjet import Agent
+
+agent = Agent(
+    "payments-bot",
+    model="anthropic/claude-sonnet-4-6",
+    tools=[fetch_invoice, submit_payment],
+    instructions="Process the invoice, then submit the payment.",
+    policy="strict",                       # model allowlist
+    approval_required=["submit_*"],        # gate matching tools for a human
+    budget=0.50,                           # per-run spend cap (USD)
+    pii=True,                              # redact PII at the model seam (default)
+    audit=True,                            # signed, hash-chained audit (default)
+    receipts=True,                         # AgentBoundary receipts (default)
+)
+```
+
+`pii`, `audit`, and `receipts` default to `True`; the example sets them only to
+show every knob in one place.
+
+## The knobs
+
+| Knob | Default | What it does |
+|------|---------|--------------|
+| `policy` | `None` | Restricts which models the agent may call (and, on the durable path, which tools). |
+| `approval_required` | `False` | Pauses a tool call until a human approves it. |
+| `budget` | `None` | Caps the per-run token and/or dollar spend, fail-closed. |
+| `pii` | `True` | Redacts PII from outbound prompts at the model seam. |
+| `audit` | `True` | Emits a signed, hash-chained audit record per action. |
+| `receipts` | `True` | Mints an AgentBoundary Action Receipt per turn. |
+
+## Where governance enforces
+
+Every model call goes through the JamJet model seam, and governance is a
+middleware chain on that seam: the model allowlist runs first, then PII
+redaction, then the budget check, then passive metering. The chain runs on both
+paths:
+
+- **`agent.run()`** (in-process) threads the agent's governance into the
+  `LocalRuntime` seam, so the allowlist, PII redaction, and budget enforce in
+  process.
+- **`agent.run_durable()`** and **`agent.deploy()`** compile the governance into
+  the IR, and the durable engine routes its model calls through the same governed
+  seam (the model sidecar). The governance travels with the deploy and is never
+  stripped.
+
+## policy: model allowlist
+
+`policy` restricts which models the agent may call. It accepts a built-in name or
+an inline dict:
+
+```python
+Agent(..., policy="strict")   # Anthropic-provider models only
+Agent(..., policy="open")     # explicit allow-all
+Agent(..., policy={"model_allowlist": ["anthropic/claude-sonnet-4-6"]})
+```
+
+Allowlist entries can be a provider string (`"anthropic"`) or a full model
+reference (`"anthropic/claude-sonnet-4-6"`). A model that is not allowed is
+denied before the call reaches the provider. An unknown named policy raises a
+`ValueError` rather than silently allowing everything. With `policy=None` (the
+default) the model layer is uncapped, but audit, PII, and receipts are still on.
+
+An inline policy dict can also carry `require_approval_for` and `blocked_tools`
+lists, which the durable engine enforces. See [Approvals](/open-source/approvals)
+for those rules and their precedence.
+
+## approval_required: pause for a human
+
+`approval_required` gates tool calls behind a human decision:
+
+```python
+Agent(..., approval_required=True)              # every tool call
+Agent(..., approval_required=["submit_*", "delete_*"])  # matching tools
+```
+
+Approval is enforced on the durable path. When `run_durable()` or a deployed
+agent reaches a gated tool, the engine parks the execution and waits for an
+approve or reject decision over the REST API or the `jamjet_approve` MCP tool.
+The hold is durable across restarts.
+
+<Callout type="warn">
+  `agent.run()` (the in-process path) cannot enforce approval gates and warns if
+  `approval_required` is set. Use `agent.run_durable()` or `agent.deploy()` for
+  approval enforcement. The durable engine gates the tool fail-closed.
+</Callout>
+
+The full park-and-resume model, the REST contract, and the `jamjet_approve` MCP
+tool are documented in [Approvals](/open-source/approvals).
+
+## budget: fail-closed spend cap
+
+`budget` caps the per-run spend. The check is fail-closed: when accumulated spend
+reaches the cap, the next model call is denied with a `BudgetExceededError`
+before it reaches the provider.
+
+```python
+from jamjet.agents.governance import Budget
+
+Agent(..., budget=0.50)                              # $0.50 per run
+Agent(..., budget=Budget(tokens=100_000))            # token cap
+Agent(..., budget=Budget(tokens=100_000, cost_usd=0.50))  # both
+```
+
+A bare number is read as a dollar cap. `Budget` lets you cap tokens, dollars, or
+both.
+
+## pii: redact at the seam
+
+With `pii=True` (the default) the model seam redacts PII from outbound prompt
+messages before any provider sees them, replacing matches with typed
+placeholders like `[REDACTED:EMAIL]`. The detector covers four conservative,
+high-signal types: email addresses, US social-security numbers, credit-card
+numbers, and North-American phone numbers. The posture is fail-closed: any
+reachable string is redacted, or the call is denied, so nothing unredacted
+reaches the provider. The same redaction applies to memory writes. Set `pii=False` to
+send unredacted prompts.
+
+## audit: signed, hash-chained record
+
+With `audit=True` (the default) each run produces a tamper-evident audit record:
+one entry per tool call plus one for the model turn, sealed into a hash chain
+(`prev_hash -> entry_hash`) and signed with a keyed HMAC-SHA256. The record is
+attached to `result.audit` and can be re-verified:
+
+```python
+from jamjet.agents.audit import verify_chain, resolve_signer
+
+result = await agent.run("...")
+verify_chain(result.audit, resolve_signer())   # raises ChainError on tamper, or if unsigned
+```
+
+The signing key is read from `JAMJET_AUDIT_SIGNING_KEY` at emission time. Without
+a key the entries are still hash-chained but left **unsigned** with a loud
+warning, and `verify_chain` reports them as unsigned. The audit log never
+pretends to be signed when it is not. Provision `JAMJET_AUDIT_SIGNING_KEY` with a
+real secret in production.
+
+## receipts: AgentBoundary Action Receipts
+
+With `receipts=True` (the default) each turn mints a portable AgentBoundary
+Action Receipt, attached to `result.receipt`. The receipt is a validatable proof
+of the action: its `arguments_hash` binds it to this agent, model, and prompt,
+and it passes AgentBoundary's `validate_receipt` and `check_conformance`.
+
+```python
+from agentboundary import validate_receipt
+
+result = await agent.run("...")
+validate_receipt(result.receipt)
+```
+
+`validate_receipt` lives in the `agentboundary` package, a separate library that
+JamJet installs as a dependency, so it is already available after
+`pip install jamjet`. JamJet mints the receipt; `agentboundary` validates it.
+
+To ship receipts somewhere (for example a JSONL writer), pass a
+`receipt_emitter` callable to the agent; the receipt is also always attached to
+the result.
+
+## Governance in a Team
+
+A `Team` adds no enforcement of its own: each sub-agent compiles and enforces its
+own governance. A team can carry a `governance=` default, but it applies only to
+a sub-agent that set no governance knob of its own. An explicitly governed
+sub-agent always keeps its own config, so a team never weakens a sub-agent's
+governance.
+
+```python
+from jamjet import Sequential
+
+# Both specialists set no budget, so they inherit the team's cap.
+pipeline = Sequential([researcher, writer], governance={"budget": 0.50})
+```
+
+## Next steps
+
+<Cards>
+  <Card title="Approvals" href="/open-source/approvals" description="The park-and-resume approval model, REST contract, and MCP tool." />
+  <Card title="Any model" href="/open-source/any-model" description="The governed model seam every call routes through." />
+  <Card title="Build an agent" href="/open-source/build" description="The Agent and Team APIs these knobs attach to." />
+</Cards>

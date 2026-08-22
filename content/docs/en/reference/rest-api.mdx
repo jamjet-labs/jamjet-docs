@@ -1,9 +1,9 @@
 ---
 title: REST API Reference
-description: Complete HTTP API reference for the JamJet runtime — workflows, executions, agents, audit, and tenants.
+description: Complete HTTP API reference for the JamJet runtime — workflows, executions, agents, work items, audit, and tenants.
 ---
 
-
+import { Callout } from 'fumadocs-ui/components/callout'
 
 # REST API Reference
 
@@ -416,6 +416,170 @@ Query the immutable audit log.
 
 ---
 
+## Work items (worker protocol)
+
+The routes an **external tool worker** uses. Nodes of queue type `python_tool` and
+`java_tool` run outside the engine process, so they claim work over HTTP rather
+than through the in-process worker. The bundled Python and Java workers speak
+this protocol; you only need it to write your own.
+
+A worker loops: claim an item, renew its lease while it works, then settle it
+exactly once with `complete` or `fail`.
+
+<Callout type="warn">
+Two fields from the claim response **must be echoed** when you settle:
+
+- **`lease_fence`** — proves you still hold the lease. Omit it and the item is
+  settled but no event is emitted, so the scheduler keeps the node `scheduled`
+  and the execution never reaches a terminal state.
+- **`idempotency_key`** — the engine records your result against it, so a re-run
+  of that node replays the recorded output instead of firing your tool a second
+  time. Omit it and nothing is recorded; every replay re-fires.
+
+Neither is required, so a worker that drops them fails silently rather than
+loudly. Both omissions are deprecated behaviour kept only for older clients.
+</Callout>
+
+### `POST /work-items/claim`
+
+Claim the next available item for the given queue types. Returns at most one item.
+
+**Request:**
+```json
+{
+  "worker_id": "python-worker-0",
+  "queue_types": ["python_tool"]
+}
+```
+
+**Response (an item was claimed):**
+```json
+{
+  "claimed": true,
+  "work_item": {
+    "id": "6b1f...",
+    "execution_id": "exec_a1b2c3d4",
+    "node_id": "__tools_0__",
+    "queue_type": "python_tool",
+    "payload": { "module": "...", "function": "...", "input": {} },
+    "attempt": 0,
+    "lease_fence": 4294967297,
+    "idempotency_key": "9f2c...64 hex chars"
+  }
+}
+```
+
+**Response (queue empty):**
+```json
+{ "claimed": false }
+```
+
+`claimed: false` also covers an item the engine declined to hand out — a policy
+denial, or a payload whose coordinates disagree with its execution. The item is
+settled server-side; the worker simply polls again.
+
+`idempotency_key` is absent on engines older than the field.
+
+---
+
+### `POST /work-items/:id/heartbeat`
+
+Renew the lease while the tool is still running. Send it well inside the lease
+duration; a lapsed lease is reclaimed and handed to another worker.
+
+**Request:**
+```json
+{
+  "worker_id": "python-worker-0",
+  "lease_fence": 4294967297
+}
+```
+
+**Response:**
+```json
+{ "renewed": true, "work_item_id": "6b1f..." }
+```
+
+A renewal presenting a stale fence fails closed — the lease was reclaimed. Stop
+work and abandon the item rather than settling it.
+
+---
+
+### `POST /work-items/:id/complete`
+
+Settle the item successfully. Only `output` and `state_patch` are required, but
+see the callout above about `lease_fence` and `idempotency_key`.
+
+**Request:**
+```json
+{
+  "execution_id": "exec_a1b2c3d4",
+  "node_id": "__tools_0__",
+  "output": { "messages": [] },
+  "state_patch": { "messages": [] },
+  "duration_ms": 812,
+  "lease_fence": 4294967297,
+  "idempotency_key": "9f2c...64 hex chars",
+  "gen_ai_model": "claude-sonnet-4-6",
+  "finish_reason": "tool_calls"
+}
+```
+
+**Response:**
+```json
+{ "completed": true, "work_item_id": "6b1f..." }
+```
+
+**`409 Conflict`** — the fence is stale or invalid: the lease was reclaimed and
+another worker owns this item. Nothing is written.
+
+```json
+{ "completed": false, "reason": "stale or invalid lease fence" }
+```
+
+Treat a 409 as a **no-op, not an error**. Do not follow it with `fail` — that
+would kill work the new claimant is running.
+
+**`400 Bad Request`** — the `idempotency_key` is not one this engine mints
+(64 lowercase hex characters). Echo the claim's value verbatim rather than
+constructing your own.
+
+---
+
+### `POST /work-items/:id/fail`
+
+Report that the tool failed. The engine decides whether to retry or dead-letter
+based on the node's retry policy and the attempt count.
+
+**Request:**
+```json
+{
+  "error": "upstream timed out after 30s",
+  "lease_fence": 4294967297
+}
+```
+
+**Response:**
+```json
+{
+  "failed": true,
+  "work_item_id": "6b1f...",
+  "retryable": true,
+  "attempt": 1
+}
+```
+
+`retryable: false` means attempts are exhausted and the item was dead-lettered.
+
+**`409 Conflict`** — as with `complete`: the lease was reclaimed, nothing is
+written, and it is a no-op rather than an error.
+
+Sending no `lease_fence` returns `200` with a `warning` field. The item is
+settled, but **no `NodeFailed` is emitted and the node is not rescheduled**, so
+the execution is stranded. It exists only for clients that predate the fence.
+
+---
+
 ## Memory
 
 Hosted vector memory for your agent fleet. Three-level scope (project / agent / end-user), inclusive cascade on recall, BYOK embedding provider. See the [Memory guide](/cloud/memory) for concepts and quickstart.
@@ -607,6 +771,9 @@ All fields optional.
 ### `GET /workers`
 
 List active runtime workers.
+
+For the routes a worker itself calls — claim, heartbeat, complete, fail — see
+[Work items (worker protocol)](#work-items-worker-protocol).
 
 ---
 

@@ -1,378 +1,318 @@
 ---
 title: Java SDK
-description: Write JamJet workflows and agents in Java using builders, records, and the @Tool annotation.
+description: Build durable, governed agents on the JVM with dev.jamjet:jamjet-agent — tools, policy, budgets, and the durable run loop.
 ---
 
-
+import { Callout } from 'fumadocs-ui/components/callout'
 
 # Java SDK
 
-The JamJet Java SDK lets you write workflows, agents, and tools in Java. It compiles to the same canonical IR and runs on the same Rust runtime as the Python SDK.
+Author agents in Java, run them on the JamJet engine. Tools are plain annotated
+methods, and every run is durable: the engine owns the loop, so a crash resumes
+from the event log instead of starting over.
 
 ## Installation
 
-Requires **Java 21+** (virtual threads).
+Requires **Java 21+**.
 
 ```xml
 <dependency>
     <groupId>dev.jamjet</groupId>
-    <artifactId>jamjet-sdk</artifactId>
-    <version>0.5.0</version>
+    <artifactId>jamjet-agent</artifactId>
+    <version>0.4.0</version>
 </dependency>
 ```
 
-## Quick start
+Gradle:
 
-```java
-import dev.jamjet.agent.Agent;
-import dev.jamjet.ir.IrValidator;
-
-var agent = Agent.builder("hello-agent")
-    .model("claude-haiku-4-5-20251001")
-    .instructions("Answer questions clearly and concisely.")
-    .strategy("react")
-    .maxIterations(1)
-    .build();
-
-var ir = agent.compile();
-IrValidator.validateOrThrow(ir);
-
-var result = agent.run("What is JamJet?");
-System.out.println(result.output());
+```kotlin
+implementation("dev.jamjet:jamjet-agent:0.4.0")
 ```
+
+<Callout type="info">
+Earlier docs referenced `dev.jamjet:jamjet-sdk`. That module is frozen and no
+longer built from this repository. `jamjet-agent` is the maintained artifact.
+</Callout>
 
 ---
 
-## Workflows
+## Quick start
 
-Build directed acyclic workflows with typed state. State is a Java record — immutable, validated, serializable.
-
-```java
-import dev.jamjet.workflow.Workflow;
-
-record ResearchState(String query, String results, String answer) {}
-
-var wf = Workflow.builder("research-flow")
-    .version("0.1.0")
-    .state(ResearchState.class)
-    .step("search", state ->
-        new ResearchState(state.query(), "[search results]", state.answer()))
-    .step("synthesize", state ->
-        new ResearchState(state.query(), state.results(), "Final answer: ..."))
-    .build();
-
-var result = wf.run(new ResearchState("Latest AI frameworks?", "", ""));
-System.out.println(result.state().answer());
-System.out.printf("Ran %d steps in %.1fms%n",
-    result.stepsExecuted(), result.totalDurationUs() / 1000.0);
-```
-
-### Conditional routing
+A tool is any object with `@Tool` methods. Hand instances to the builder and run.
 
 ```java
-import dev.jamjet.workflow.Step;
+import dev.jamjet.agent.Agent;
+import dev.jamjet.agent.Tool;
 
-var route = Step.builder("route")
-    .handler(state -> state)
-    .when("approved", state -> state.approved())
-    .when("rejected", state -> !state.approved())
-    .defaultNext("escalate")
-    .timeout("30s")
-    .retryPolicy("exponential")
-    .build();
+public class SearchTools {
+    @Tool(name = "web_search", description = "Search the web for a query.")
+    public String webSearch(String query) {
+        return "results for " + query;
+    }
+}
 ```
-
-### Compiling to IR
-
-Every workflow compiles to canonical IR for submission to the runtime:
 
 ```java
-var ir = wf.compile();
-System.out.println(ir.toJson());
+import dev.jamjet.agent.Agent;
+import dev.jamjet.agent.AgentResult;
 
-// Validate before submission
-var errors = IrValidator.validate(ir);
-errors.forEach(System.err::println);
+var agent = Agent.builder("research_agent")
+        .model("anthropic/claude-sonnet-4-6")
+        .instructions("You are a helpful research assistant.")
+        .tools(new SearchTools())
+        .build();
+
+AgentResult result = agent.runDurable("What is JamJet?");
+System.out.println(result.output());
 ```
+
+`runDurable` creates the workflow, starts an execution, polls it to a terminal
+state, and extracts the answer. It needs a running engine — `jamjet dev` starts
+one on `http://127.0.0.1:7700`, the default.
+
+<Callout type="warn">
+There is no in-process `run()` in Java. `runDurable` is the only run, and that is
+deliberate: the durable path is the one with retries, approvals, budgets and an
+audit trail. Java authors agents; the engine executes them.
+</Callout>
 
 ---
 
 ## Agents
 
-Agents combine a model, tools, and a reasoning strategy. Three built-in strategies:
-
-| Strategy | Behavior |
-|----------|----------|
-| `react` | Thought → tool use → observation loop |
-| `plan-and-execute` | Plan → execute steps → synthesize |
-| `critic` | Draft → criticize → revise loop |
+`Agent.builder(name)` returns a fluent builder. Only `name` and `model` are
+required.
 
 ```java
 import dev.jamjet.agent.Agent;
+import dev.jamjet.agent.Budget;
+import java.util.List;
 
-var agent = Agent.builder("research-agent")
-    .model("claude-sonnet-4-6")
-    .tools(WebSearch.class, FetchPage.class)
-    .instructions("You are a thorough researcher.")
-    .strategy("plan-and-execute")
-    .maxIterations(8)
-    .maxCostUsd(0.50)
-    .timeoutSeconds(300)
-    .build();
-
-var result = agent.run("Compare JamJet and LangGraph");
-System.out.println(result.output());
-System.out.printf("Duration: %.1fms%n", result.durationUs() / 1000.0);
+var agent = Agent.builder("support_agent")
+        .model("anthropic/claude-sonnet-4-6")
+        .instructions("Answer support questions. Escalate refunds.")
+        .tools(new SearchTools(), new RefundTools())
+        .strategy("react")
+        .budget(new Budget(100_000, 2.50))
+        .approvalRequired(List.of("issue_refund", "send_*"))
+        .pii(true)
+        .timeoutSeconds(120)
+        .build();
 ```
 
-### Annotation-based agents
+| Builder method | Effect |
+|---|---|
+| `model(String)` | Provider-routed model ref, e.g. `anthropic/claude-sonnet-4-6` |
+| `instructions(String)` | System prompt |
+| `tools(Object...)` / `tools(List<?>)` | Tool-holder **instances** to scan for `@Tool` |
+| `registry(ToolRegistry)` | Supply a registry directly instead of holders |
+| `strategy(String)` | Loop strategy, e.g. `react` |
+| `policy(PolicySetIr)` | Attach a full policy set |
+| `approvalRequired(boolean)` | Require human approval for **every** tool call |
+| `approvalRequired(List<String>)` | Require approval for tools matching these globs |
+| `budget(Budget)` | Token and/or cost ceiling for the run |
+| `pii(boolean)` | Enable PII redaction |
+| `timeoutSeconds(int)` | Run timeout |
 
-For simple agents, use the `@Task` annotation on an interface:
+Accessors mirror the builder — `agent.name()`, `agent.model()`, `agent.registry()`,
+`agent.budget()`, `agent.approvalGlobs()`, and so on.
+
+### Budgets
 
 ```java
-import dev.jamjet.agent.JamjetAgent;
-import dev.jamjet.agent.Task;
+import dev.jamjet.agent.Budget;
 
-@Task(
-    model = "gpt-4o",
-    tools = { WebSearch.class },
-    strategy = "react",
-    maxIterations = 5,
-    instructions = "You are helpful.",
-    maxCostUsd = 1.0
-)
-interface ResearchTask {
-    String research(String topic);
-}
-
-// Run directly
-String result = JamjetAgent.run(ResearchTask.class, "What is JamJet?");
-
-// Or get a reusable proxy
-ResearchTask task = JamjetAgent.proxy(ResearchTask.class);
-String answer = task.research("What is JamJet?");
+new Budget(100_000, 2.50);   // both ceilings
+Budget.ofTokens(100_000);    // tokens only
+Budget.ofCostUsd(2.50);      // cost only
 ```
+
+A run that would exceed a ceiling is stopped by the engine before the call is
+made, not after.
 
 ---
 
 ## Tools
 
-Tools are Java records annotated with `@Tool` that implement `ToolCall<T>`. The SDK auto-generates JSON Schema from record component types.
+`@Tool` goes on a **method**. The registry derives an OpenAI-format schema from
+the method signature, so parameters are typed rather than stringly-typed.
 
 ```java
-import dev.jamjet.tool.Tool;
-import dev.jamjet.tool.ToolCall;
+import dev.jamjet.agent.Tool;
 
-@Tool(description = "Search the web for information")
-record WebSearch(String query) implements ToolCall<String> {
-    @Override
-    public String execute() {
-        // Replace with real implementation
-        return "Results for: " + query;
+public class MathTools {
+    @Tool(name = "add_numbers", description = "Add two integers.")
+    public String addNumbers(int a, int b) {
+        return String.valueOf(a + b);
     }
-}
 
-@Tool(description = "Fetch page content from a URL")
-record FetchPage(String url) implements ToolCall<String> {
-    @Override
-    public String execute() {
-        return "Page content for " + url;
+    // No annotation: never exposed, never callable.
+    public String internalHelper() {
+        return "not a tool";
     }
 }
 ```
+
+Omit `name` and the tool takes the **method name verbatim** — `addNumbers` would
+be offered to the model as `addNumbers`. Set it explicitly when you want the
+snake_case convention the Python SDK produces.
+
+<Callout type="warn">
+Only declared `@Tool` methods are ever invoked reflectively. A model cannot reach
+an unannotated method, and the durable worker refuses any dispatch coordinate
+other than the fixed one the compiler emits.
+</Callout>
 
 ### Tool registry
 
+Build a registry directly when you want to inspect or share it:
+
 ```java
-import dev.jamjet.tool.ToolRegistry;
+import dev.jamjet.agent.tools.ToolRegistry;
 
-// Register globally
-ToolRegistry.global()
-    .register(WebSearch.class)
-    .register(FetchPage.class);
+var registry = ToolRegistry.of(new SearchTools(), new MathTools());
 
-// Query
-ToolRegistry.global().names();          // ["web_search", "fetch_page"]
-ToolRegistry.global().toOpenAiFormat(); // OpenAI function-calling schema
+registry.tools();               // List<RegisteredTool>
+registry.byName("web_search");  // RegisteredTool
+registry.openAiToolSchemas();   // the schemas sent to the model
+registry.isEmpty();
 ```
 
-Tool names are derived from the record class name (`WebSearch` → `web_search`).
+`ToolRegistry.of(...)` takes holder instances or a `List<?>`; `register(Object)`
+adds one to an existing registry.
+
+---
+
+## Run options
+
+`RunOptions` controls where the run goes and how long it waits.
+
+```java
+import dev.jamjet.agent.RunOptions;
+import java.time.Duration;
+
+var options = RunOptions.defaults()
+        .withRuntimeUrl("https://engine.internal:7700")
+        .withAuth(System.getenv("JAMJET_TOKEN"), "acme")
+        .withMaxTurns(8)
+        .withPollInterval(Duration.ofMillis(250))
+        .withTimeout(Duration.ofMinutes(5));
+
+var result = agent.runDurable("Summarise this quarter's incidents.", options);
+```
+
+Defaults: runtime URL `http://127.0.0.1:7700`, 500 ms poll interval.
+
+### The result
+
+```java
+import dev.jamjet.agent.AgentResult;
+
+AgentResult result = agent.runDurable("What is JamJet?");
+
+result.output();          // final assistant text
+result.toolCalls();       // List<AgentResult.ToolCall>
+result.terminalState();   // ExecutionState: executionId, status, currentState
+
+for (AgentResult.ToolCall call : result.toolCalls()) {
+    System.out.println(call.tool() + " " + call.input() + " -> " + call.output());
+}
+```
+
+A run that ends `failed` or `limit_exceeded` throws `AgentRunException` rather
+than returning a hollow result; a run that never terminates throws
+`AgentRunTimeoutException`.
 
 ---
 
 ## Runtime client
 
-`JamjetClient` is a blocking HTTP client (uses virtual threads) for the JamJet runtime API.
+`JamjetEngineClient` is the supported Java client for the engine's HTTP API. Use
+it when you want the lifecycle rather than the one-shot `runDurable`.
 
 ```java
-import dev.jamjet.JamjetClient;
-import dev.jamjet.client.ClientConfig;
+import dev.jamjet.agent.client.JamjetEngineClient;
+import dev.jamjet.agent.client.ExecutionState;
+import java.util.Map;
 
-var client = new JamjetClient(
-    ClientConfig.builder()
-        .baseUrl("http://localhost:7700")
-        .apiToken("YOUR_TOKEN")  // or JAMJET_TOKEN env var
-        .timeoutSeconds(30)
-        .build()
-);
-```
+try (var client = new JamjetEngineClient("http://127.0.0.1:7700")) {
+    var created = client.createWorkflow(agent.compileToIr());
 
-### Workflow lifecycle
+    var started = client.startExecution(
+            created.workflowId(), Map.of("topic", "incidents"), created.version());
 
-```java
-// Register workflow
-client.createWorkflow(ir.toMap());
+    ExecutionState state = client.getExecution(started.executionId());
+    System.out.println(state.status());          // running | completed | failed | ...
+    System.out.println(state.currentState());
 
-// Start execution
-var execId = client.startExecution("research-flow", Map.of("query", "..."));
-
-// Poll for status
-var status = client.getExecution(execId);
-System.out.println(status.get("status")); // running | completed | failed
-
-// Get event timeline
-var events = client.getEvents(execId);
-```
-
-### Human-in-the-loop
-
-```java
-// Approve a paused execution
-client.approve(execId, "approved", "Looks good", Map.of("priority", "high"));
-
-// Send external event to wake a waiting execution
-client.sendExternalEvent(execId, "payment-received", Map.of("amount", 500));
-```
-
-### Agent management
-
-```java
-// Register agent
-client.registerAgent(agentCard);
-
-// Discovery
-client.discoverAgent("https://remote-agent.example.com");
-
-// Lifecycle
-client.activateAgent(agentId);
-client.deactivateAgent(agentId);
-
-// List with filters
-client.listAgents(); // all agents
-```
-
----
-
-## State management
-
-State is a Java record. Steps receive the current state and return a new instance — state is always immutable.
-
-```java
-record OrderState(
-    String orderId,
-    double amount,
-    boolean approved,
-    String result
-) {}
-
-// Steps return new state instances
-.step("validate", state ->
-    new OrderState(state.orderId(), state.amount(), state.amount() < 10000, state.result()))
-```
-
-> **tip:** 
-Java records give you immutability, equals/hashCode, and toString for free. The SDK auto-generates JSON Schema from record component types for IR validation.
-
-
----
-
-## IR compilation and validation
-
-Both workflows and agents compile to `WorkflowIr` — the canonical intermediate representation shared with the Python SDK and YAML workflows.
-
-```java
-import dev.jamjet.ir.IrCompiler;
-import dev.jamjet.ir.IrValidator;
-
-// Compile
-var ir = IrCompiler.compileWorkflow(wf);
-// or: var ir = IrCompiler.compileAgent(agent);
-
-// Inspect
-System.out.println(ir.id());          // workflow name
-System.out.println(ir.version());     // version string
-System.out.println(ir.nodes());       // node definitions
-System.out.println(ir.toJson());      // canonical JSON
-
-// Validate
-var errors = IrValidator.validate(ir);
-if (!errors.isEmpty()) {
-    errors.forEach(System.err::println);
-    System.exit(1);
+    client.listEvents(started.executionId());    // the full event log
 }
-
-// Or throw on first error
-IrValidator.validateOrThrow(ir);
 ```
+
+`compileToIr()` produces the `WorkflowIr` for an agent; `compileToIr(int maxTurns)`
+bounds the loop.
+
+<Callout type="info">
+Workflows themselves are authored in Python or YAML — there is no Java workflow
+DSL. Java builds *agents*, compiles them to IR, and runs them. The IR record
+types under `dev.jamjet.runtime.core.ir` exist for serialisation, not as an
+authoring surface.
+</Callout>
 
 ---
 
-## Evaluation
+## Durable tool worker
 
-Test agents and workflows against datasets with pluggable scorers:
+`java_tool` nodes execute outside the engine. `JavaToolWorker` claims them,
+dispatches to your `@Tool` methods, and settles each item.
 
 ```java
-import dev.jamjet.eval.EvalRunner;
-import dev.jamjet.eval.Scorer;
+import dev.jamjet.agent.client.JamjetEngineClient;
+import dev.jamjet.agent.tools.ToolRegistry;
+import dev.jamjet.agent.worker.JavaToolWorker;
 
-var results = EvalRunner.builder()
-    .dataset(dataset)
-    .agent(myAgent)
-    .scorers(new Scorer.ExactMatchScorer("expected"))
-    .parallelism(4)
-    .failBelow(0.8)  // fail if mean score < 0.8
-    .build()
-    .run();
+try (var client = new JamjetEngineClient("http://127.0.0.1:7700");
+     var worker = new JavaToolWorker(client, "java-worker-0",
+             ToolRegistry.of(new SearchTools(), new MathTools()))) {
+    worker.run();   // claim / dispatch / settle, until closed
+}
 ```
+
+`runOnce()` processes a single item and returns an `ItemResult`, which is useful
+in tests and in externally scheduled loops.
+
+The worker handles lease renewal, treats a reclaimed lease as a no-op rather than
+a failure, and echoes the engine's idempotency key so a replay does not fire your
+tool twice. See the [worker protocol](/reference/rest-api#work-items-worker-protocol)
+if you are implementing your own.
 
 ---
 
-## Python vs Java comparison
+## Spring Boot
 
-| Feature | Java SDK | Python SDK |
-|---------|----------|-----------|
-| Workflow definition | Fluent builder + records | Decorators + TypedDict |
-| Tool definition | `@Tool` record + `ToolCall<T>` | `@tool` decorator / MCP |
-| Agent definition | `Agent.builder()` | `@agent` decorator |
-| State | Immutable Java records | TypedDict / Pydantic |
-| HTTP client | Blocking (virtual threads) | Async (asyncio) |
-| IR compilation | `workflow.compile()` | `@workflow` decorator |
-| Minimum version | Java 21 | Python 3.10 |
+`dev.jamjet:jamjet-agent-spring-boot-starter` auto-configures the client and the
+tool worker from application properties. See the
+[Spring Boot integration](/integrations/spring-boot) guide.
 
-Both compile to **identical canonical IR** and run on the same Rust runtime.
+---
+
+## Python vs Java
+
+| Capability | Python | Java |
+|---|---|---|
+| Author an agent | yes | yes |
+| Tools from annotated functions/methods | `@jamjet.tool` | `@Tool` |
+| In-process run | yes | **no** — `runDurable` only |
+| Durable run | yes | yes |
+| Policy, approvals, budgets, PII | yes | yes |
+| Author workflows | yes (Python / YAML) | **no** — no Java workflow DSL |
+| Run evals | yes | **no** — evals are configured in IR and run engine-side |
+| Engine HTTP client | yes | yes (`JamjetEngineClient`) |
+| Durable tool worker | yes | yes (`JavaToolWorker`) |
 
 ---
 
 ## Examples
 
-Working examples in the [examples repository](https://github.com/jamjet-labs/jamjet-examples):
-
-| Example | What it demonstrates |
-|---------|---------------------|
-| `java-hello-agent` | Minimal agent with a single model call |
-| `java-research-agent` | Tools + plan-and-execute strategy |
-| `java-support-bot` | Multi-step workflow with conditional routing |
-| `java-approval-workflow` | Runtime integration + human-in-the-loop |
-| `java-multi-tenant` | Tenant-isolated workflow execution |
-| `java-data-governance` | PII detection and redaction patterns |
-| `java-oauth-agent` | OAuth delegation + scope narrowing |
-
-```bash
-git clone https://github.com/jamjet-labs/jamjet-examples examples
-cd examples/java-hello-agent
-mvn compile exec:java
-```
-
-> **tip:** 
-Every Java example has a Python/YAML equivalent in the same repository.
-
+Runnable examples live in the [`examples/`](https://github.com/jamjet-labs/jamjet-runtime-java/tree/main/examples)
+directory of the Java repository.

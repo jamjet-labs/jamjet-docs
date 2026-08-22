@@ -46,7 +46,7 @@ The `[model]` extra pulls in the model seam so `agent.run()` can call a provider
   </Tab>
   <Tab value="Java">
 
-The Java SDK is published on Maven Central as `dev.jamjet:jamjet-sdk`.
+The Java agent surface is published on Maven Central as `dev.jamjet:jamjet-agent`.
 
 **Prerequisites:** Java 21+ and Maven 3.9+ or Gradle 8+.
 
@@ -55,15 +55,15 @@ The Java SDK is published on Maven Central as `dev.jamjet:jamjet-sdk`.
 ```xml
 <dependency>
     <groupId>dev.jamjet</groupId>
-    <artifactId>jamjet-sdk</artifactId>
-    <version>0.5.0</version>
+    <artifactId>jamjet-agent</artifactId>
+    <version>0.4.0</version>
 </dependency>
 ```
 
 **Gradle (Kotlin DSL):**
 
 ```kotlin
-implementation("dev.jamjet:jamjet-sdk:0.5.0")
+implementation("dev.jamjet:jamjet-agent:0.4.0")
 ```
 
 Make sure your project targets Java 21 or later. In Maven:
@@ -133,18 +133,23 @@ Governance (PII redaction, signed audit, and receipts) is on by default. See
 Define a tool, the bridge between your agent and the outside world:
 
 ```java
-import dev.jamjet.tool.Tool;
-import dev.jamjet.tool.ToolCall;
+import dev.jamjet.agent.Tool;
 
-@Tool(description = "Search the web for information about a topic")
-record WebSearch(String query) implements ToolCall<String> {
-    public String execute() {
-        // In production, call your search API here
+public final class SearchTools {
+
+    @Tool(name = "web_search", description = "Search the web for a topic.")
+    public String webSearch(String query) {
+        // In production, call your search API here.
         return "Results for '" + query + "': JamJet is a safety layer "
                 + "for AI agents.";
     }
 }
 ```
+
+`@Tool` goes on a **method**, and the schema the model sees is derived from the
+method's parameters. `name` is optional — it defaults to the method name, and is
+worth setting when the idiomatic Java name (`webSearch`) should reach the model
+under a different identifier (`web_search`).
 
 Build an agent with a reasoning strategy and runtime-enforced limits:
 
@@ -152,14 +157,19 @@ Build an agent with a reasoning strategy and runtime-enforced limits:
 import dev.jamjet.agent.Agent;
 
 var agent = Agent.builder("researcher")
-        .model("claude-haiku-4-5-20251001")
-        .tools(WebSearch.class)
+        .model("anthropic/claude-sonnet-4-6")
+        .tools(new SearchTools())
         .instructions("You are a helpful research assistant. "
                 + "Always search first, then provide a thorough summary.")
         .strategy("react")
-        .maxIterations(5)
         .build();
 ```
+
+Two details differ from the Python surface. `.tools(...)` takes tool-holder
+**instances**, not class literals — the agent reflects over each holder's
+`@Tool` methods. And the model is a **provider-routed** reference
+(`anthropic/claude-sonnet-4-6`), the same string the Python SDK uses; a bare
+model name has no provider to route to.
 
   </Tab>
 </Tabs>
@@ -180,18 +190,24 @@ python agent.py
   </Tab>
   <Tab value="Java">
 
+**Java has no in-process run.** Where Python offers both `agent.run()` and
+`agent.run_durable()`, the Java surface has only the durable path: a Java agent
+emits `Model` nodes and the engine routes model calls through the governed
+model-seam sidecar, so there is no Java model client to run standalone.
+
+Start the engine first (`jamjet dev`), then:
+
 ```java
 public static void main(String[] args) {
     var agent = Agent.builder("researcher")
-            .model("claude-haiku-4-5-20251001")
-            .tools(WebSearch.class)
+            .model("anthropic/claude-sonnet-4-6")
+            .tools(new SearchTools())
             .instructions("You are a helpful research assistant. "
                     + "Always search first, then provide a thorough summary.")
             .strategy("react")
-            .maxIterations(5)
             .build();
 
-    var result = agent.run("What is JamJet?");
+    var result = agent.runDurable("What is JamJet?");
 
     System.out.println(result.output());
     System.out.printf("Tool calls: %d%n", result.toolCalls().size());
@@ -202,6 +218,10 @@ public static void main(String[] args) {
 export ANTHROPIC_API_KEY=sk-ant-...
 mvn compile exec:java -Dexec.mainClass=com.example.MyAgent
 ```
+
+Your `@Tool` methods run on a Java tool worker that claims work over the same
+durable queue the Python worker uses, so tool calls are exactly-once across a
+crash.
 
   </Tab>
 </Tabs>

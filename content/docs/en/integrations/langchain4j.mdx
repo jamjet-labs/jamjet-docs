@@ -97,7 +97,7 @@ spring:
   jamjet:
     runtime-url: http://localhost:7700
     # api-token: ${JAMJET_API_TOKEN}      # optional, for authenticated runtimes
-    # tenant-id: default                   # multi-tenant isolation
+    # tenant-id: default                   # tenant label (does not isolate tenants)
     durability-enabled: true
 ```
 
@@ -184,7 +184,7 @@ var client = config.buildClient();
 |--------|--------|---------|-------------|
 | Runtime URL | `.runtimeUrl(String)` | `http://localhost:7700` | Address of the JamJet runtime |
 | API token | `.apiToken(String)` | `null` | Authentication token for secured runtimes |
-| Tenant ID | `.tenantId(String)` | `"default"` | Multi-tenant isolation identifier |
+| Tenant ID | `.tenantId(String)` | `"default"` | Tenant identifier (a label, not an isolation boundary) |
 | Connect timeout | `.connectTimeout(int)` | `10` (seconds) | TCP connection timeout |
 | Read timeout | `.readTimeout(int)` | `120` (seconds) | HTTP read timeout for long-running operations |
 

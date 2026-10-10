@@ -4,6 +4,7 @@
     "index",
     "rest-api",
     "compare",
+    "control-map",
     "glossary",
     "---Migration Guides---",
     "migrate/langgraph",

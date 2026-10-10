@@ -1,15 +1,20 @@
 ---
 title: Java SDK
-description: Build durable, governed agents on the JVM with dev.jamjet:jamjet-agent — tools, policy, budgets, and the durable run loop.
+description: Build governed agents on the JVM with dev.jamjet:jamjet-agent (tools, policy, budgets, the engine-run loop), and call the runtime's REST API with dev.jamjet:jamjet-sdk.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout'
 
-# Java SDK
+## Two Java artifacts
+
+| Artifact | Use it to |
+|---|---|
+| `dev.jamjet:jamjet-agent` | Author agents in Java and run them on the engine. Most of this page covers it. |
+| `dev.jamjet:jamjet-sdk` | Call the runtime's REST API from Java: start executions, read their events, decide approvals. See [REST client](#rest-client-jamjet-sdk). |
 
 Author agents in Java, run them on the JamJet engine. Tools are plain annotated
-methods, and every run is durable: the engine owns the loop, so a crash resumes
-from the event log instead of starting over.
+methods. The engine owns the loop and records each step in the run's event log,
+so the run does not depend on the JVM that started it.
 
 ## Installation
 
@@ -30,8 +35,8 @@ implementation("dev.jamjet:jamjet-agent:0.4.0")
 ```
 
 <Callout type="info">
-Earlier docs referenced `dev.jamjet:jamjet-sdk`. That module is frozen and no
-longer built from this repository. `jamjet-agent` is the maintained artifact.
+`dev.jamjet:jamjet-sdk` is a different artifact with a different API. If you
+only need to call the runtime's REST API, see [REST client](#rest-client-jamjet-sdk).
 </Callout>
 
 ---
@@ -67,13 +72,13 @@ System.out.println(result.output());
 ```
 
 `runDurable` creates the workflow, starts an execution, polls it to a terminal
-state, and extracts the answer. It needs a running engine — `jamjet dev` starts
+state, and extracts the answer. It needs a running engine. `jamjet dev` starts
 one on `http://127.0.0.1:7700`, the default.
 
 <Callout type="warn">
 There is no in-process `run()` in Java. `runDurable` is the only run, and that is
-deliberate: the durable path is the one with retries, approvals, budgets and an
-audit trail. Java authors agents; the engine executes them.
+deliberate: the engine path is the one with retries, approvals, budgets and an
+audit trail. Java authors agents and the engine executes them.
 </Callout>
 
 ---
@@ -114,7 +119,7 @@ var agent = Agent.builder("support_agent")
 | `pii(boolean)` | Enable PII redaction |
 | `timeoutSeconds(int)` | Run timeout |
 
-Accessors mirror the builder — `agent.name()`, `agent.model()`, `agent.registry()`,
+Accessors mirror the builder: `agent.name()`, `agent.model()`, `agent.registry()`,
 `agent.budget()`, `agent.approvalGlobs()`, and so on.
 
 ### Budgets
@@ -153,7 +158,7 @@ public class MathTools {
 }
 ```
 
-Omit `name` and the tool takes the **method name verbatim** — `addNumbers` would
+Omit `name` and the tool takes the **method name verbatim**: `addNumbers` would
 be offered to the model as `addNumbers`. Set it explicitly when you want the
 snake_case convention the Python SDK produces.
 
@@ -253,10 +258,11 @@ try (var client = new JamjetEngineClient("http://127.0.0.1:7700")) {
 bounds the loop.
 
 <Callout type="info">
-Workflows themselves are authored in Python or YAML — there is no Java workflow
-DSL. Java builds *agents*, compiles them to IR, and runs them. The IR record
-types under `dev.jamjet.runtime.core.ir` exist for serialisation, not as an
-authoring surface.
+`jamjet-agent` has no workflow DSL. Author workflows in Python or YAML. Java
+builds *agents*, compiles them to IR, and runs them. The IR record types under
+`dev.jamjet.runtime.core.ir` exist for serialisation, not as an authoring
+surface. `jamjet-sdk` has a `Workflow` builder, but its step lambdas run only
+in-process: the runtime accepts the compiled IR and cannot run the steps.
 </Callout>
 
 ---
@@ -290,9 +296,99 @@ if you are implementing your own.
 
 ## Spring Boot
 
-`dev.jamjet:jamjet-agent-spring-boot-starter` auto-configures the client and the
-tool worker from application properties. See the
-[Spring Boot integration](/integrations/spring-boot) guide.
+`dev.jamjet:jamjet-agent-spring-boot-starter` (0.4.0) auto-configures a
+`JamjetEngineClient` and the `JavaToolWorker` from `jamjet.agent.*` properties:
+
+```properties
+jamjet.agent.runtime-url=http://127.0.0.1:7700
+jamjet.agent.bearer-token=${JAMJET_TOKEN}
+jamjet.agent.worker.id=orders-worker-1
+```
+
+This is a different starter from `jamjet-spring-boot-starter`, which records
+Spring AI `ChatClient` calls on the runtime. See the
+[Spring Boot integration](/integrations/spring-boot) for that one.
+
+---
+
+## REST client (jamjet-sdk)
+
+`dev.jamjet:jamjet-sdk` has `JamjetClient`, a thin client for the runtime's REST
+API. Use it to start executions of workflows registered from Python or YAML,
+read their state and events, deliver external events, and decide approvals.
+
+```xml
+<dependency>
+    <groupId>dev.jamjet</groupId>
+    <artifactId>jamjet-sdk</artifactId>
+    <version>0.5.1</version>
+</dependency>
+```
+
+Use 0.5.1 or later. Earlier versions sent every call to `/api/v1/...`, a prefix
+the runtime has never served.
+
+Every method returns the runtime's JSON response as a `Map`. A non-2xx response
+throws `JamjetApiException` (or `JamjetAuthException` for 401 and 403) with the
+status code and body.
+
+```java
+import dev.jamjet.JamjetClient;
+import dev.jamjet.client.ClientConfig;
+import java.util.Map;
+
+try (var client = new JamjetClient(ClientConfig.builder()
+        .baseUrl("http://localhost:7700")
+        .apiToken(System.getenv("JAMJET_TOKEN"))   // not needed in dev mode
+        .build())) {
+
+    // POST /executions. Pass the version you registered; without one the runtime runs 1.0.0.
+    var exec = client.startExecution("research", "1.0.0", Map.of("question", "What is JamJet?"));
+    var executionId = exec.get("execution_id").toString();
+
+    var status = client.getExecution(executionId).get("status");   // "running", "completed", ...
+    var events = client.getEvents(executionId).get("events");
+
+    // Deliver an event to an execution waiting on a correlation key
+    client.sendExternalEvent(executionId, "order-42", Map.of("status", "paid"));
+}
+```
+
+The runtime has no route that lists workflow definitions, so `listWorkflows()` is
+deprecated and throws `UnsupportedOperationException` without calling the runtime.
+
+### Approvals
+
+An approval decides one exact action. Read the pending request, show the reviewer
+what it covers, then send back its `node_id` and `context.action_digest`:
+
+```java
+import java.util.List;
+import java.util.Map;
+
+// GET /executions/:id/approvals -> {"pending": [...], "decided": [...]}
+var approvals = client.getApprovals(executionId);
+
+@SuppressWarnings("unchecked")
+var pending = (List<Map<String, Object>>) approvals.get("pending");
+var request = pending.get(0);
+
+@SuppressWarnings("unchecked")
+var context = (Map<String, Object>) request.get("context");
+
+// ... the reviewer inspects `context` ...
+
+client.approve(executionId, "approved",
+        (String) request.get("node_id"),
+        (String) context.get("action_digest"),
+        "looks right");
+```
+
+Outside dev mode, a runtime with approval integrity refuses an `approved`
+decision whose digest is missing (400) or no longer matches the pending action
+(409), and refuses an approval from the token that started the run (403). A
+rejection needs no digest. The approver is the token that sends the decision.
+See [Approvals](/open-source/approvals).
 
 ---
 
@@ -302,11 +398,11 @@ tool worker from application properties. See the
 |---|---|---|
 | Author an agent | yes | yes |
 | Tools from annotated functions/methods | `@jamjet.tool` | `@Tool` |
-| In-process run | yes | **no** — `runDurable` only |
+| In-process run | yes | **no**, `runDurable` only |
 | Durable run | yes | yes |
 | Policy, approvals, budgets, PII | yes | yes |
-| Author workflows | yes (Python / YAML) | **no** — no Java workflow DSL |
-| Run evals | yes | **no** — evals are configured in IR and run engine-side |
+| Author workflows | yes (Python / YAML) | **no** Java workflow DSL in `jamjet-agent` |
+| Run evals | yes | **no**, evals are configured in IR and run engine-side |
 | Engine HTTP client | yes | yes (`JamjetEngineClient`) |
 | Durable tool worker | yes | yes (`JavaToolWorker`) |
 

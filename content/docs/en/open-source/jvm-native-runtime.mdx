@@ -1,19 +1,17 @@
 ---
 title: JVM-native runtime
-description: jamjet-runtime-java — the JVM-native durable agent runtime. Checkpoint-based crash recovery, native MCP, Spring Boot starter.
+description: jamjet-runtime-java, the JVM-native agent runtime. Checkpointed steps, native MCP, Spring Boot starter.
 ---
 
-# JVM-native runtime
-
-`jamjet-runtime-java` is the JVM-native durable agent runtime. It ships eight modules on Maven Central and runs durable agents directly on the JVM — no Rust runtime, no REST sidecar, no gRPC bridge.
+`jamjet-runtime-java` is the JVM-native agent runtime. Its runtime modules are on Maven Central (0.4.0) and run agents directly on the JVM, with no Rust runtime, REST sidecar or gRPC bridge.
 
 Use this when:
 
 - Your application is Spring Boot, Quarkus, plain Java, or Kotlin.
-- You want durable execution without a sidecar process.
+- You want checkpointed agent steps without a sidecar process.
 - You're targeting Java 21+ and want virtual threads, not green threads.
 
-Use the [Java SDK](./java-runtime) instead if you want to author workflows in Java that compile to the shared IR and run on the Rust runtime.
+Use the [Java SDK](/open-source/java-runtime) instead if you want to author agents in Java that compile to the shared IR and run on the JamJet engine.
 
 ## Install
 
@@ -24,10 +22,12 @@ Requires **Java 21+**.
 ```xml
 <dependency>
   <groupId>dev.jamjet</groupId>
-  <artifactId>jamjet-spring-boot-starter</artifactId>
-  <version>0.3.1</version>
+  <artifactId>jamjet-runtime-spring-boot-starter</artifactId>
+  <version>0.4.0</version>
 </dependency>
 ```
+
+The artifact is `jamjet-runtime-spring-boot-starter`. `jamjet-spring-boot-starter` is a different starter that records Spring AI calls on the JamJet runtime (see [Spring Boot](/integrations/spring-boot)).
 
 Auto-registers `DurableAgentBeanPostProcessor`. Minimal `application.yml`:
 
@@ -42,12 +42,12 @@ jamjet:
 <dependency>
   <groupId>dev.jamjet</groupId>
   <artifactId>jamjet-runtime-core</artifactId>
-  <version>0.3.1</version>
+  <version>0.4.0</version>
 </dependency>
 <dependency>
   <groupId>dev.jamjet</groupId>
   <artifactId>jamjet-runtime-instrument</artifactId>
-  <version>0.3.1</version>
+  <version>0.4.0</version>
 </dependency>
 ```
 
@@ -65,21 +65,25 @@ public class ResearchAgent {
 
   @Checkpoint("search")
   public String search(String topic) {
-    return DurabilityContext.current().replayOrExecute("search", () -> {
-      return searchClient.query(topic);
-    });
+    return DurabilityContext.current().replayOrExecute("search", () -> callSearchApi(topic));
   }
 
   @Checkpoint("analyze")
   public String analyze(String sources) {
-    return DurabilityContext.current().replayOrExecute("analyze", () -> {
-      return llmClient.chat(systemPrompt, sources);
-    });
+    return DurabilityContext.current().replayOrExecute("analyze", () -> callModel(sources));
+  }
+
+  private String callSearchApi(String topic) {
+    return "sources for " + topic;      // your search client here
+  }
+
+  private String callModel(String sources) {
+    return "analysis of " + sources;    // your LLM call here
   }
 }
 ```
 
-When a worker crashes between checkpoints, the next worker picks up the run and `replayOrExecute` returns the previously-recorded result for every completed checkpoint, then executes only the remaining ones.
+`replayOrExecute` records each step's result under its checkpoint id. When the context is in replay mode, a step that already has a recorded result returns it without running again, and only the remaining steps execute. Checkpoints are kept in memory. To resume after a process restart, persist the recorded results and load them into a new `DurabilityContext` in replay mode, as the `crash-recovery` example does.
 
 ## Spring Boot integration
 
@@ -104,7 +108,7 @@ Inject it the way you'd inject any Spring service.
 | `jamjet-runtime-protocols` | MCP server + client + tool executor |
 | `jamjet-runtime-plugins` | Plugin SPI for runtime extensions |
 | `jamjet-runtime-server` | HTTP server for inspection + control |
-| `jamjet-spring-boot-starter` | Spring Boot auto-config |
+| `jamjet-runtime-spring-boot-starter` | Spring Boot auto-config |
 | `jamjet-cloud-sdk` | AgentBoundary v0.1 receipt types + cloud client |
 | `jamjet-cloud-spring-boot-starter` | Spring Boot wiring for the cloud SDK |
 
@@ -114,22 +118,22 @@ Inject it the way you'd inject any Spring service.
 
 ## AgentBoundary receipts
 
-Emit Action Receipts by pairing `jamjet-cloud-sdk` with the runtime — receipts conform to the open [AgentBoundary v0.1 spec](https://agentboundary.jamjet.dev/spec/v0.1) and validate against the canonical [JSON Schema](https://agentboundary.jamjet.dev/schemas/action-receipt-v0.1.json).
+Emit Action Receipts by pairing `jamjet-cloud-sdk` with the runtime. Receipts conform to the open [AgentBoundary v0.1 spec](https://agentboundary.jamjet.dev/spec/v0.1) and validate against the canonical [JSON Schema](https://agentboundary.jamjet.dev/schemas/action-receipt-v0.1.json).
 
 ## Examples
 
 Four runnable examples ship in the repo:
 
-- **crash-recovery** — Kill a worker mid-run; another picks up at the next checkpoint.
-- **real-agent** — OpenAI-backed agent with checkpoint persistence.
-- **spring-boot-comparison** — Side-by-side old way (manual durability) vs new way (`@DurableAgent`).
-- **latency benchmark** — Measures the overhead of the durability layer.
+- **crash-recovery**: run two steps, exit, then load the saved checkpoints in a new process and run only the last step.
+- **real-agent**: OpenAI-backed agent with checkpointed steps.
+- **spring-boot-comparison**: manual durability next to `@DurableAgent`.
+- **latency-comparison**: measures the overhead of the durability layer.
 
 Browse them at [jamjet-runtime-java/examples](https://github.com/jamjet-labs/jamjet-runtime-java/tree/main/examples).
 
 ## Storage backends
 
-The current 0.3.x line supports an in-memory checkpoint store, suitable for single-process deployments and development. The wire protocol for swappable backends is in place; durable backends are tracked on the [jamjet-runtime-java](https://github.com/jamjet-labs/jamjet-runtime-java) issue tracker.
+0.4.0 supports an in-memory store (`jamjet.storage: in-memory`, the only supported value), suitable for single-process deployments and development.
 
 ## Reference
 

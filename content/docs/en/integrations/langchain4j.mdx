@@ -1,49 +1,24 @@
 ---
 title: "LangChain4j Integration"
-description: "Add durable execution, crash recovery, audit trails, and replay testing to existing LangChain4j agents — without rewriting them."
+description: "Record LangChain4j AI service calls and chat memory on the JamJet runtime without rewriting your agents."
 ---
 
+## What the integration does
 
+`dev.jamjet:langchain4j-jamjet` adds two things to an existing LangChain4j application:
 
-# LangChain4j Integration
+- **Recorded AI services.** Wrap an `AiServices` proxy, and each method call becomes an execution on the JamJet runtime with an outcome event that holds the result or the error.
+- **Chat memory on the runtime.** `JamjetChatMemoryStore` is a `ChatMemoryStore` that keeps each conversation's messages in the runtime's event log, so they outlive the process.
 
-JamJet is a full agent runtime with its own [Java SDK](/java-sdk) — it talks to LLMs natively, manages tools, compiles to durable workflow IR, and enforces cost and time guardrails at runtime. For new projects, that is the recommended path.
+Your interface, tools and model configuration do not change. The call runs in your JVM and the runtime holds the record. The runtime does not re-run or resume a LangChain4j call, so a call that was in flight when your process stopped is not continued after a restart.
 
-But if you already have LangChain4j agents in production — `AiServices` proxies, chat memory stores, tool bindings — you do not need to rewrite them. This integration wraps your existing LangChain4j code with JamJet's durable execution engine, giving you crash recovery, audit trails, and replay testing with minimal changes.
-
-### Before and after
-
-```mermaid
-flowchart LR
-    subgraph before["Before: Vanilla LangChain4j"]
-        direction LR
-        A1[Your Code] --> B1[AiService Proxy]
-        B1 --> C1[LLM Provider]
-        B1 --> D1["In-memory ChatMemoryStore"]
-    end
-
-    subgraph after["After: LangChain4j + JamJet"]
-        direction LR
-        A2[Your Code] --> B2["JamjetDurableAgent.wrap()"]
-        B2 --> C2[AiService Proxy]
-        C2 --> D2[LLM Provider]
-        B2 --> E2[JamJet Runtime]
-        F2["JamjetChatMemoryStore"] --> E2
-    end
-```
-
-The left side is what you have today. The right side adds a durable proxy in front of your existing agent and persists chat memory through the JamJet runtime. Your `AiService` interface, tool definitions, and LLM configuration do not change.
-
-> **note:**
-> For greenfield Java projects, consider the [Java SDK](/java-sdk) directly — it provides native LLM integration, typed tools, strategy selection, and IR compilation without the LangChain4j dependency.
-
----
+By default both refuse to run unrecorded: if the runtime cannot record a call or a memory update, you get a `JamjetGovernanceException` instead of a silent gap.
 
 ## Setup
 
 ### 1. Add the dependency
 
-The integration module is published on Maven Central. It requires `jamjet-spring-boot-starter` as a peer dependency for the runtime client.
+`langchain4j-jamjet` brings the JamJet runtime client with it. You bring your own LangChain4j and model provider.
 
 #### Maven
 
@@ -51,11 +26,6 @@ The integration module is published on Maven Central. It requires `jamjet-spring
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.2</version>
-</dependency>
-<dependency>
-    <groupId>dev.jamjet</groupId>
-    <artifactId>jamjet-spring-boot-starter</artifactId>
     <version>0.2.0</version>
 </dependency>
 ```
@@ -63,234 +33,154 @@ The integration module is published on Maven Central. It requires `jamjet-spring
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.2.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.2.0'
 ```
+
+0.2.0 is built and tested against LangChain4j 1.12.2.
 
 ### 2. Start the JamJet runtime
 
-The runtime is the execution engine that persists events and manages workflow state. Run it with Docker:
-
 ```bash
-docker run -p 7700:7700 ghcr.io/jamjet-labs/jamjet:latest
+docker run -p 7700:8080 -e JAMJET_DEV_MODE=1 jamjetdev/jamjet:0.5.0
 ```
 
-Or, if you have the CLI installed:
+Dev mode turns off authentication and this image keeps state in memory. Outside dev mode, pass a token with `.apiToken(...)`.
 
-```bash
-jamjet dev
-```
+### 3. Configure the client
 
-### 3. Configure
-
-Add the runtime URL to your `application.yml`:
-
-```yaml
-spring:
-  jamjet:
-    runtime-url: http://localhost:7700
-    # api-token: ${JAMJET_API_TOKEN}      # optional, for authenticated runtimes
-    # tenant-id: default                   # multi-tenant isolation
-    durability-enabled: true
-```
-
----
-
-## Wrap an existing agent
-
-Suppose you have a LangChain4j `AiService` already in production:
-
-**Your existing code (no changes needed):**
-
-```java
-import dev.langchain4j.service.AiServices;
-import dev.langchain4j.model.openai.OpenAiChatModel;
-
-interface ResearchAssistant {
-    String research(String topic);
-}
-
-var model = OpenAiChatModel.builder()
-        .apiKey(System.getenv("OPENAI_API_KEY"))
-        .modelName("gpt-4o")
-        .build();
-
-ResearchAssistant assistant = AiServices.create(ResearchAssistant.class, model);
-```
-
-**Add durability with one call:**
-
-```java
-import dev.jamjet.langchain4j.JamjetDurableAgent;
-import dev.jamjet.spring.client.JamjetRuntimeClient;
-
-// client is auto-configured by jamjet-spring-boot-starter,
-// or build one manually with JamjetConfig (see Configuration below)
-ResearchAssistant durable = JamjetDurableAgent.wrap(
-        assistant,                // your existing AiService proxy
-        ResearchAssistant.class,  // the interface type
-        client                    // JamjetRuntimeClient
-);
-
-// Use exactly as before — the interface is unchanged
-String result = durable.research("quantum error correction");
-```
-
-That is the entire change. Your calling code, interface definition, tool annotations, and model configuration stay the same.
-
-### What happens under the hood
-
-When you call `JamjetDurableAgent.wrap()`, it creates a JDK dynamic proxy (`java.lang.reflect.Proxy`) around your `AiService` interface. Every method call on the wrapped proxy goes through this sequence:
-
-1. **Build workflow IR** — the proxy constructs a lightweight intermediate representation named `langchain4j-{InterfaceName}-{methodName}` with a single `LlmGenerate` node. This IR is the same format used by JamJet's native SDK and Rust runtime.
-
-2. **Create workflow and start execution** — the proxy calls `client.createWorkflow(ir)` followed by `client.startExecution(workflowId, ...)`. The execution is now tracked by the JamJet runtime with a unique execution ID.
-
-3. **Invoke the delegate** — the original `AiService` proxy handles the actual LLM call. Your tools, memory, and model configuration all work as before.
-
-4. **Record completion or failure** — on success, the proxy sends a `completion` event with `status=completed` and the result. On failure, it records `status=failed` with the error message.
-
-5. **Graceful degradation** — if the JamJet runtime is unreachable (network partition, container not started), the proxy logs a warning and delegates directly to the original `AiService`. Your application never fails because of JamJet being down.
-
----
-
-## Configuration
-
-If you are using Spring Boot, the `JamjetRuntimeClient` is auto-configured from `application.yml` properties (see the [Spring Boot Starter](/spring-boot-starter) guide). For standalone usage outside Spring, use `JamjetConfig` to build a client manually:
+`JamjetConfig` holds the runtime settings and builds everything else:
 
 ```java
 import dev.jamjet.langchain4j.JamjetConfig;
 
-var config = new JamjetConfig()
+var jamjet = new JamjetConfig()
         .runtimeUrl("http://localhost:7700")
-        .apiToken("your-token")
-        .tenantId("default")
-        .connectTimeout(10)
-        .readTimeout(120);
-
-var client = config.buildClient();
+        .apiToken(System.getenv("JAMJET_API_TOKEN")) // null in dev mode
+        .memoryNamespace("support-bot");
 ```
 
-### Configuration options
+| Method | Default | Description |
+|--------|---------|-------------|
+| `.runtimeUrl(String)` | `http://localhost:7700` | Address of the JamJet runtime |
+| `.apiToken(String)` | none | Bearer token. The token decides the tenant |
+| `.memoryNamespace(String)` | none | Namespace for chat memory, normally your application's name. Required for `chatMemoryStore()` |
+| `.onRuntimeError(RuntimeErrorMode)` | `FAIL_CLOSED` | `FAIL_OPEN` lets calls run unrecorded and reads fall back to an empty memory |
+| `.recordContent(boolean)` | `true` | Record call arguments and results. With `false`, only the method, the argument count, the outcome and, on failure, the exception type are recorded |
+| `.connectTimeout(int)` | `10` | Connection timeout in seconds |
+| `.readTimeout(int)` | `120` | Read timeout in seconds |
 
-| Option | Method | Default | Description |
-|--------|--------|---------|-------------|
-| Runtime URL | `.runtimeUrl(String)` | `http://localhost:7700` | Address of the JamJet runtime |
-| API token | `.apiToken(String)` | `null` | Authentication token for secured runtimes |
-| Tenant ID | `.tenantId(String)` | `"default"` | Multi-tenant isolation identifier |
-| Connect timeout | `.connectTimeout(int)` | `10` (seconds) | TCP connection timeout |
-| Read timeout | `.readTimeout(int)` | `120` (seconds) | HTTP read timeout for long-running operations |
+`.tenantId(String)` is deprecated and ignored. `.buildClient()` returns the `JamjetRuntimeClient` the other methods use, the same client type as the [Spring Boot starter](/integrations/spring-boot).
 
-All options use a fluent builder pattern. `JamjetConfig` produces a `JamjetRuntimeClient` via `.buildClient()`, which is the same client type used by the Spring Boot auto-configuration.
+## Record an AI service
 
----
-
-## Durable chat memory
-
-LangChain4j stores conversation history through the `ChatMemoryStore` interface. The default implementation is in-memory — if the process restarts, all conversation history is lost.
-
-`JamjetChatMemoryStore` persists conversation history through the JamJet runtime's audit event system. Messages are serialized to JSON using LangChain4j's built-in `ChatMessageSerializer` and stored as external events, making them durable across restarts and queryable through the audit API.
+Your existing code stays as it is:
 
 ```java
-import dev.jamjet.langchain4j.JamjetChatMemoryStore;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.service.AiServices;
+
+public interface ResearchAssistant {
+    String research(String topic);
+}
+
+ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
+        .chatModel(model)
+        .build();
+```
+
+Wrap it once:
+
+```java
+ResearchAssistant recorded = jamjet.wrap(assistant, ResearchAssistant.class);
+
+String result = recorded.research("quantum error correction");
+```
+
+`JamjetDurableAgent.wrap(assistant, ResearchAssistant.class, client)` does the same with a client you built yourself, and has overloads that take a `RuntimeErrorMode` and the record-content flag.
+
+### What happens on each call
+
+1. On the first call, the wrapper registers the `langchain4j-durable-agent` workflow (`POST /workflows`). Its one node is a `wait` on the `langchain4j.completed` event.
+2. It starts an execution (`POST /executions`) whose input names the interface and the method, and holds the arguments as strings unless content recording is off.
+3. It calls your AI service. Tools, memory and the model work as before.
+4. It appends a `langchain4j.completed` event with `status` `completed` and the result, or `failed` and the error message.
+
+The table shows what happens when the runtime cannot record, in the default fail-closed mode:
+
+| When | Result |
+|------|--------|
+| Before your service is called (registration or starting the execution) | `JamjetGovernanceException`. Your service is not called. |
+| After your service returned | `JamjetRecordingException`. The call ran, and only its record is missing. |
+| After your service threw | Your service's exception, with a `JamjetRecordingException` attached as suppressed. |
+
+With `.onRuntimeError(RuntimeErrorMode.FAIL_OPEN)` each of these logs a warning and the call goes on.
+
+## Chat memory on the runtime
+
+```java
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 
-var memoryStore = new JamjetChatMemoryStore(client);
-
 var memory = MessageWindowChatMemory.builder()
+        .chatMemoryStore(jamjet.chatMemoryStore())
+        .id("session-1")
         .maxMessages(20)
-        .chatMemoryStore(memoryStore)
         .build();
 
-// Use with your AiService as usual
 ResearchAssistant assistant = AiServices.builder(ResearchAssistant.class)
-        .chatLanguageModel(model)
+        .chatModel(model)
         .chatMemory(memory)
         .build();
 ```
 
+`chatMemoryStore()` throws `IllegalStateException` if no namespace is set.
+
 ### How it works
+
+Each (namespace, memory id) pair is one execution of the `langchain4j-chat-memory` workflow, started on the first write.
 
 | Operation | What happens |
 |-----------|-------------|
-| `getMessages(memoryId)` | Queries the JamJet audit trail for the latest `chat_memory` event associated with the memory ID. Deserializes the stored JSON back into `ChatMessage` objects. Returns an empty list if no history exists. |
-| `updateMessages(memoryId, messages)` | Serializes all messages to JSON and sends a `chat_memory` external event to the runtime, recording the message count alongside the payload. |
-| `deleteMessages(memoryId)` | Sends a `memory_cleared` event to the runtime. The event log is append-only, so the clear is recorded as a fact rather than deleting previous entries. |
+| `updateMessages(id, messages)` | Appends a `chat_memory` event holding the full message list. |
+| `getMessages(id)` | Reads the execution's events (`GET /executions/{id}/events`) and returns the latest message list. Returns an empty list for an id with no history. |
+| `deleteMessages(id)` | Appends a `chat_memory_cleared` event. The event log is append-only, so earlier updates stay on the runtime. |
 
-All three operations degrade gracefully — if the JamJet runtime is unreachable, the store logs a warning and returns empty results (for reads) or silently drops the write. This matches the same graceful degradation pattern used by `JamjetDurableAgent`.
+Things to know:
 
-### Engram: long-term memory beyond chat history
+- **The namespace separates applications. It is not access control.** Anything holding a token for the tenant can read and append events on any execution. Set the namespace to your application's name, so two applications on one tenant do not read each other's memory under the same id (LangChain4j's default id is `"default"`).
+- **The first access to an id scans executions.** The runtime has no lookup by input, so the first access to a memory id in a process scans `GET /executions` for it (linear in the tenant's execution count) and caches the result. A miss is cached for 30 seconds, so a new conversation scans once.
+- **Keep one writer per memory id.** Two replicas that both start the same new id each create an execution and the history splits. After a restart the newest one wins. Route a conversation to one replica.
+- **Fail-closed by default.** A runtime error throws `JamjetGovernanceException` rather than reading as an empty memory or dropping a write. `FAIL_OPEN` restores read-empty, drop-write behaviour.
 
-`JamjetChatMemoryStore` persists raw conversation messages through the JamJet runtime. For agents that need richer memory --- entity extraction, temporal knowledge graphs, semantic search --- consider [Engram](https://java-ai-memory.dev), JamJet's dedicated memory layer. The `engram-spring-boot-starter` provides a `ChatMemoryRepository` for Spring AI that stores messages through the Engram server, which additionally extracts entities and relations and indexes them for semantic recall. See the [Engram Memory section](/spring-boot-starter#engram-memory) in the Spring Boot Starter guide for setup details.
+For memory beyond raw chat history, such as entity extraction and semantic recall, see [Engram](/open-source/engram).
 
----
+## Read the record
 
-## What you get
-
-Wrapping your LangChain4j agents with JamJet adds the following capabilities without changing your application code:
-
-| Capability | Without JamJet | With JamJet |
-|------------|---------------|-------------|
-| **Crash recovery** | Process dies, interaction lost, tokens wasted | Execution tracked by runtime, resumable after restart |
-| **Audit trails** | No record of what happened | Every method call recorded as an immutable event with args, result, and status |
-| **Replay testing** | Must call live LLM to test | Replay recorded executions in test suite, no LLM calls needed |
-| **Cost tracking** | Manual token counting | Execution events include method name and arguments for cost attribution |
-| **Observability** | Application-level logging only | Execution IDs for distributed tracing correlation, Micrometer metrics via Spring Boot starter |
-| **Chat memory persistence** | In-memory only, lost on restart | Durable through JamJet audit event system, survives restarts |
-
----
-
-## Testing wrapped agents
-
-The `jamjet-spring-boot-starter-test` module works with wrapped LangChain4j agents. Since `JamjetDurableAgent.wrap()` creates JamJet executions, you can replay them in tests using `@ReplayExecution`.
+Each wrapped call and each memory id is an ordinary runtime execution. List them with `GET /executions` and read one with `GET /executions/{id}/events`. The outcome is an `external_event_received` event with correlation key `langchain4j.completed`. From Java:
 
 ```java
-import dev.jamjet.spring.test.annotations.WithJamjetRuntime;
-import dev.jamjet.spring.test.annotations.ReplayExecution;
-import dev.jamjet.spring.test.RecordedExecution;
-import dev.jamjet.spring.test.AgentAssertions;
-import org.junit.jupiter.api.Test;
-import java.util.concurrent.TimeUnit;
+import dev.jamjet.spring.client.model.ExecutionEvent;
 
-@WithJamjetRuntime
-class ResearchAssistantTest {
-
-    @Test
-    @ReplayExecution("exec-lc4j-abc123")
-    void wrappedAgentProducesConsistentOutput(RecordedExecution execution) {
-        AgentAssertions.assertThat(execution)
-                .completedSuccessfully()
-                .completedWithin(30, TimeUnit.SECONDS)
-                .outputContains("quantum");
+var client = jamjet.buildClient();
+for (ExecutionEvent event : client.listEvents(executionId)) {
+    if (event.isExternalEvent("langchain4j.completed")) {
+        System.out.println(event.payload());
     }
 }
 ```
 
-Add the test dependency:
+The test module of the Spring Boot starter can load these executions in JUnit 5. See [Testing](/integrations/spring-boot#testing).
 
-```xml
-<dependency>
-    <groupId>dev.jamjet</groupId>
-    <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.2.0</version>
-    <scope>test</scope>
-</dependency>
-```
+## Upgrading from 0.1.0
 
-For the full testing API — `RecordedExecution` fields, `AgentAssertions` fluent API, `DeterministicModelStub`, fork-at-node replay — see the testing section of the [Spring Boot Starter](/spring-boot-starter) guide.
+0.1.0 called `/api/v1/...` routes the runtime never served, so nothing was recorded and memory reads came back empty. 0.2.0 calls the runtime's real routes and fails closed by default. Chat memory is keyed by a namespace now. `langchain4j-jamjet` brings the runtime client itself, so you do not need `jamjet-spring-boot-starter` alongside it.
 
----
+## Related
 
-## Next steps
-
-- **[Java SDK Reference](/java-sdk)** — for new projects, JamJet's native Java SDK provides direct LLM integration, typed tools, strategy selection, and IR compilation without the LangChain4j dependency
-- **[Java Quickstart](/java-quickstart)** — build your first agent and workflow from scratch with the native SDK
-- **[Spring Boot Starter](/spring-boot-starter)** — full Spring AI integration with auto-configured durability, audit trails, human-in-the-loop approval, and observability
-- **[Agentic AI Patterns](https://sunilprakash.com/agentic-ai)** — strategy selection, tool design, and production patterns for agent systems
+- [Spring Boot starter](/integrations/spring-boot): the same recording for Spring AI `ChatClient` calls, plus human approval.
+- [Java SDK](/open-source/java-runtime): author agents in Java that run on the engine.

@@ -1,38 +1,37 @@
 ---
 title: Enterprise Security
-description: Multi-tenant isolation, PII redaction, OAuth delegation, mTLS federation, and data retention policies in JamJet.
+description: Tenancy, PII redaction, mTLS federation, and data retention policies in JamJet.
 ---
 
 
 
 # Enterprise Security
 
-JamJet provides runtime-enforced controls for teams that need reliability and governance together: tenant isolation, PII redaction, scoped OAuth delegation, mTLS federation, and retention-aware execution logs.
+JamJet provides runtime-enforced controls for teams that need reliability and governance together: PII redaction, mTLS federation, and retention-aware execution logs. The tenancy and OAuth sections below describe what the open-source runtime does and does not do today.
 
 Enforced at the Rust runtime layer — not by convention, and not by middleware you might forget to add.
 
 > **Best for:**
 > - Regulated internal platforms
-> - Multi-tenant agent infrastructure
 > - Audit-heavy enterprise workflows
 > - Teams that need replay, traces, and policy controls together
 
-## Multi-tenant isolation
+## Tenancy
 
-Partition all storage by tenant ID. Workflow definitions, execution state, event logs, audit trails, and snapshots are scoped per tenant.
+The open-source runtime is single-tenant in practice. Tenant IDs exist in the data model, but they do not isolate tenants from each other.
 
-```bash
-# Same workflow, different tenants — fully isolated
-jamjet run workflow.yaml \
-  --input '{"invoice_id": "INV-001", "amount": 2500}' \
-  --tenant acme
+What exists:
 
-jamjet run workflow.yaml \
-  --input '{"invoice_id": "INV-042", "amount": 75000}' \
-  --tenant globex
-```
+- A `tenant_id` field on API tokens and on policies (policy scopes run node, workflow, tenant).
+- Tenant-scoped routes and a `TenantScopedSqliteBackend` that binds a tenant ID into its SQL.
+- Tenant management endpoints (`/tenants`), see the [REST API reference](/reference/rest-api).
 
-The runtime's `TenantScopedSqliteBackend` wraps every storage query with `WHERE tenant_id = ?`. The workflow definition table uses a composite primary key `(tenant_id, workflow_id, version)`.
+What does not exist:
+
+- Isolation between tenants. With the SQLite backend, tokens do not resolve to their tenant. Workflow lookup and caches, work items after the start node, segments, and the agent registry all run in the `default` tenant.
+- A `--tenant` flag on `jamjet run`.
+
+Do not rely on tenant IDs to separate customers or teams in a shared runtime. Run a separate runtime per tenant if you need a hard boundary.
 
 ---
 
@@ -94,41 +93,9 @@ The audit log retains metadata (node ID, token counts, timestamps) without the c
 
 ## OAuth 2.0 delegation
 
-RFC 8693 token exchange. The user's token is exchanged for a narrowly-scoped agent token.
+Not active in 0.5.0. The runtime source includes an RFC 8693 token exchange module (`runtime/api/src/oauth.rs`) with scope narrowing, a node-scope resolver, and a token validity check. Nothing in the runtime calls it: there is no `oauth:` configuration block, no `oauth_scopes` node setting, and no token exchange, per-step scope resolution, or validity check happens when a workflow runs.
 
-```yaml
-oauth:
-  token_endpoint: "${JAMJET_OAUTH_TOKEN_ENDPOINT}"
-  grant_type: "urn:ietf:params:oauth:grant-type:token-exchange"
-  client_id: "${JAMJET_OAUTH_CLIENT_ID}"
-  client_secret: "${JAMJET_OAUTH_CLIENT_SECRET}"
-  requested_scopes: ["expenses:read", "expenses:write"]
-```
-
-### Scope narrowing
-
-The agent's effective scopes are the intersection of what it requests and what the user has. If the intersection is empty, the runtime returns `OAuthError::ScopeNarrowingFailed`.
-
-### Per-step scoping
-
-Different nodes can declare different scope requirements:
-
-```yaml
-nodes:
-  authenticate:
-    oauth_scopes:
-      required_scopes: ["expenses:read"]
-
-  submit-expense:
-    oauth_scopes:
-      required_scopes: ["expenses:read", "expenses:write"]
-```
-
-The runtime resolves scopes before every node executes — not once at workflow start.
-
-### Token validity
-
-`check_token_validity()` runs before every tool and model invocation. Expired or revoked tokens produce clean errors (`OAuthError::TokenExpired`, `OAuthError::TokenRevoked`) and escalate to a human.
+The only OAuth 2.0 support that is wired today is the `oauth2` auth type for outbound connections (client ID and secret read from environment variables, plus a token URL).
 
 ---
 
@@ -187,11 +154,9 @@ Runnable examples for each enterprise feature:
 
 ```bash
 git clone https://github.com/jamjet-labs/jamjet-examples examples
-cd examples/multi-tenant       # tenant isolation
 cd examples/data-governance    # PII redaction + retention
-cd examples/oauth-delegation   # OAuth 2.0 + scope narrowing
 ```
 
 > **tip:** 
-Read the full deep dives: [data governance and PII redaction](https://jamjet.dev/blog/data-governance-pii-retention/), [OAuth delegation and federation auth](https://jamjet.dev/blog/oauth-federation-agent-auth/).
+Read the deep dives: [data governance and PII redaction](https://jamjet.dev/blog/data-governance-pii-retention/), [federation auth](https://jamjet.dev/blog/oauth-federation-agent-auth/).
 

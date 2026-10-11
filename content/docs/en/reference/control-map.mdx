@@ -14,7 +14,7 @@ Checked against the sources and code below on 2026-10-11. A mapping is not a cer
 | Status | Meaning |
 |---|---|
 | Implemented (released) | In a published package or tagged release listed under Components. |
-| Implemented (unreleased, PR) | Written and tested, but in an open pull request or a merged change that has not been published yet. The row names it. Do not rely on it until it ships. |
+| Implemented (unreleased, PR) | Merged to main and tested, but not in a published package or tagged release yet. The row names the pull request. Do not rely on it until it ships. |
 | Partial | Covers part of the framework item. The Notes column says what is missing. |
 | Not covered | JamJet has no control for this item. Use another control. |
 
@@ -22,7 +22,7 @@ Checked against the sources and code below on 2026-10-11. A mapping is not a cer
 
 The map covers the open-source runtime and libraries listed below. JamJet Cloud is not mapped on this page.
 
-**The runtime is single-tenant today.** The API layer scopes requests by the token's tenant, but the engine runs every workflow in tenant `default`, and a token of any other tenant is refused. No row on this page claims isolation between tenants. The [security guide on the approval-deadlines branch][sec-guide] lists what would have to change.
+**The runtime is single-tenant today.** The API layer scopes requests by the token's tenant, but the engine runs every workflow in tenant `default`, and a token of any other tenant is refused. No row on this page claims isolation between tenants. The [security guide][sec-guide] lists what would have to change.
 
 ### Components
 
@@ -36,21 +36,27 @@ The map covers the open-source runtime and libraries listed below. JamJet Cloud 
 | [@jamjet/ext-authz][ext-authz] | Policy decision point over Envoy ext_authz and AuthZen 1.0, for MCP tool calls | 0.2.0 on npm |
 | [AgentBoundary][agentboundary] | Action Receipt spec, validator and conformance suite | 0.1.0 on PyPI |
 | [jamjet-a2a][a2a-fed] | A2A protocol crate with federation auth | 0.1.2 on crates.io |
+| [@jamjet/cedar][cedar] | Cedar policies for MCP tool calls, evaluated by ext-authz | 0.1.0 on main, not on npm yet |
+| [Engram][engram] | Agent memory store (`jamjet-engram`) | 0.3.0 on main, not released yet |
 
-### Pending changes this page depends on
+### Merged changes not yet released
 
-Rows marked unreleased, and some Partial rows, depend on these. Each must merge and ship before the row holds for a released version.
+Rows marked unreleased, and some Partial rows, depend on these. All are merged to main as of 2026-10-11, and none is in a published package or tagged release yet. Until one ships, its rows do not hold for a released version.
 
 | Change | What it adds |
 |---|---|
-| [jamjet #140][pr-140] | External worker hardening (leases, named queues, terminal-run refusals). #142 is stacked on it. |
+| [jamjet #140][pr-140] | External worker hardening (leases, named queues, terminal-run refusals). |
 | [jamjet #142][pr-142] | Approval integrity: approver is the token principal, initiator cannot approve, approval bound to an action digest, one guard on every transport, immutable workflow versions, authenticated MCP bridge. |
-| [jamjet approval-deadlines branch][hitl-guide] | Stacked on #142. Approval deadlines and escalation, late decisions refused, approval requests and expiries sealed into the audit log, fail-closed on unknown event kinds. No PR yet. |
 | [jamjet #143][pr-143] | Java SDK drives the real runtime routes, including approval with the action digest. |
+| [jamjet #144][pr-144] | Approval deadlines and escalation, late decisions refused, approval requests and expiries sealed into the audit log, start node scheduled once, fail closed on event kinds the build cannot read. |
+| [jamjet #145][pr-145] | Agent Card `allowed_tools`, `blocked_tools`, `require_approval_for` and `allowed_delegations` enforced at the shared guard. Optional Ed25519 audit log signing, with the public key in `/.well-known/did.json` as `#audit-key`, and offline verification in the Python SDK. |
+| [jamjet #146][pr-146] | Agent Card autonomy limits (iterations, tool calls, tokens, cost, time, consecutive errors) counted from the run's event log, with `escalate_to_human` through an ordinary approval. |
 | [jamjet-policy #12][pr-policy-12] | mcp-shim 0.3.0: tool-definition pinning, MCP 2026-07-28 support, refusal of unknown protocol versions and header-body mismatches. |
-| [agentboundary #5][pr-ab-5] | Refusal receipts, Ed25519 COSE_Sign1 envelope, offline `agentboundary verify`. |
+| [jamjet-policy #14][pr-policy-14] | @jamjet/cedar 0.1.0, Cedar policies in ext-authz 0.3.0, `jamjet policy validate` and `explain`. |
+| [agentboundary #5][pr-ab-5] | Refusal receipts, Ed25519 COSE_Sign1 envelope, offline `agentboundary verify`. In 0.2.0a2, not on PyPI yet (0.2.0a1 is). |
+| [engram #11][pr-engram-11] | Revocation enforced on every read, erasure, provenance on recall results. In 0.3.0. |
 
-Some rows also cite changes that are merged but not yet published: [jamjet #133][pr-133] (Python SDK fails closed on approval), [jamjet-policy #3][pr-policy-3] (mcp-threat wired into mcp-shim) and [jamjet-guardrails #43][pr-gr-43] (repository scan).
+Some rows also cite older changes that are merged but not yet published: [jamjet #133][pr-133] (Python SDK fails closed on approval), [jamjet-policy #3][pr-policy-3] (mcp-threat wired into mcp-shim, shipping with 0.3.0) and [jamjet-guardrails #43][pr-gr-43] (repository scan, in the untagged 0.5.0 with [#44][pr-gr-44]).
 
 ## OWASP Top 10 for Agentic Applications 2026
 
@@ -60,29 +66,33 @@ Source: [OWASP Top 10 for Agentic Applications for 2026][owasp], OWASP Gen AI Se
 |---|---|---|---|---|
 | ASI01 Agent Goal Hijack | Structural injection checks on inputs and outputs: hidden Unicode, encoded payloads, fake role markers | guardrails 0.4.1 (`injection-structural`, `encoded-content`, `template-integrity`) | Partial | The checks are patterns, not a classifier. An injection written in plain visible words passes. Measured misses are in [BENCHMARKS.md][gr-bench]. |
 | ASI01 Agent Goal Hijack | Goal-drift detection, intent capsules, behavioral baselines | none | Not covered | |
-| ASI02 Tool Misuse and Exploitation | Policy evaluated by the engine before a node runs: `blocked_tools`, `require_approval_for`, `model_allowlist` | runtime 0.5.0, [policy crate][policy-crate] | Implemented (released) | Patterns match a node's names, not its code. A narrow pattern stops honest mistakes; only a catch-all binds an author who writes their own IR. See [Approvals](/open-source/approvals). |
+| ASI02 Tool Misuse and Exploitation | Policy evaluated by the engine before a node runs: `blocked_tools`, `require_approval_for`, `model_allowlist` | runtime 0.5.0, [policy crate][policy-crate] | Implemented (released) | Patterns match a node's names, not its code. A narrow pattern stops honest mistakes; only a catch-all binds an author who writes their own IR. In 0.5.0 the HTTP claim route checks only agent tool dispatch nodes; the next row covers every transport. See [Approvals](/open-source/approvals). |
 | ASI02 Tool Misuse and Exploitation | One approval guard for the in-process worker, the claim route and completion, covering every node kind, with the approval bound to a digest of the exact action | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | A payload that changes after approval asks again instead of running. |
+| ASI02 Tool Misuse and Exploitation | An agent's Agent Card `allowed_tools`, `blocked_tools` and `require_approval_for`, checked by the same guard for every node that acts for the agent | runtime, [jamjet #145][pr-145] ([node_guard.rs][node-guard]) | Implemented (unreleased, PR #145) | A tool call is matched by its name and by the code it resolves to. An empty list restricts nothing. A node that picks its target at run time is refused under a list. Released 0.5.0 declares these fields but does not read them. See [what each constraint does][agent-guide]. |
 | ASI02 Tool Misuse and Exploitation | Block MCP `tools/call` at the wire by policy, with a JSONL audit record | mcp-shim 0.2.1 | Implemented (released) | stdio only. |
 | ASI02 Tool Misuse and Exploitation | Allow, block or hold MCP tool calls at an Envoy-compatible gateway | ext-authz 0.2.0 | Implemented (released) | An approved hold permits exactly once. |
-| ASI02 Tool Misuse and Exploitation | Cost, token, iteration and tool-call ceilings with escalation | runtime 0.5.0 [autonomy limits][autonomy]; Python SDK 0.12.0 `budget` | Implemented (released) | |
+| ASI02 Tool Misuse and Exploitation | Workflow token and cost budgets checked before a node fires; agent `budget` in the Python SDK | runtime 0.5.0 [worker][budget-050]; Python SDK 0.12.0 `budget` | Partial | The runtime check is made by the in-process worker only, not the HTTP claim route. The Agent Card's iteration, tool-call and time limits are not enforced in 0.5.0. |
+| ASI02 Tool Misuse and Exploitation | Agent Card limits on iterations, tool calls, tokens, cost and time, counted from the run's event log; `escalate_to_human` holds the step for an ordinary approval | runtime, [jamjet #146][pr-146] ([agent_limits.rs][agent-limits]) | Implemented (unreleased, PR #146) | Checked on the claim route and the in-process worker. A restart does not reset the counts. Cost counts only what a worker reports. |
 | ASI02 Tool Misuse and Exploitation | Execution sandboxes and egress allowlists; just-in-time, per-call credentials | none | Not covered | |
 | ASI03 Identity and Privilege Abuse | API tokens with four ordered roles (operator, developer, reviewer, viewer) | runtime 0.5.0 [auth][auth] | Implemented (released) | Dev mode (`JAMJET_DEV_MODE=1`) has no tokens. |
 | ASI03 Identity and Privilege Abuse | Role enforced on every route, MCP bridge authenticated with the tenant taken from the token, tenant policy operator-only | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | Route table in the [security guide][sec-guide]. |
 | ASI03 Identity and Privilege Abuse | Separation of duties: the token that started a run cannot approve it | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | Distinguishes tokens, not people. Issue one token per human. `JAMJET_ALLOW_SELF_APPROVAL=1` turns it off. |
-| ASI03 Identity and Privilege Abuse | Detect bearer tokens and JWTs passed through MCP tool arguments | mcp-threat 0.1.0 via ext-authz 0.2.0 | Implemented (released) | In mcp-shim only from [jamjet-policy #3][pr-policy-3], merged but not published. |
+| ASI03 Identity and Privilege Abuse | Agent Card `allowed_delegations`: an agent node, agent tool or A2A task may target only what the acting agent's card lists | runtime, [jamjet #145][pr-145] ([node_guard.rs][node-guard]) | Implemented (unreleased, PR #145) | Coordinators and agent discovery pick their target at run time and are refused under a list. This limits whom an agent calls; it does not issue delegated credentials. |
+| ASI03 Identity and Privilege Abuse | Detect bearer tokens and JWTs passed through MCP tool arguments | mcp-threat 0.1.0 via ext-authz 0.2.0 | Implemented (released) | In mcp-shim only from [jamjet-policy #3][pr-policy-3], merged but not published (mcp-shim 0.3.0). |
 | ASI03 Identity and Privilege Abuse | Per-agent identities with short-lived, task-scoped credentials; "on behalf of" delegation | none | Not covered | An RFC 8693 token-exchange module exists in [`oauth.rs`][oauth] but the engine does not call it, so nodes do not run with exchanged tokens. |
 | ASI04 Agentic Supply Chain Vulnerabilities | Detect tool-definition drift (rug pull) and tool shadowing against a local trust baseline | mcp-threat 0.1.0 via ext-authz 0.2.0 | Implemented (released) | |
 | ASI04 Agentic Supply Chain Vulnerabilities | Pin MCP tool definitions by hash; withhold and refuse a changed tool until it is approved; scan definitions for hidden characters | mcp-shim, [jamjet-policy #12][pr-policy-12] | Implemented (unreleased, PR #12) | |
 | ASI04 Agentic Supply Chain Vulnerabilities | Workflow versions are immutable: different content under the same version is refused | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | |
-| ASI04 Agentic Supply Chain Vulnerabilities | Scan a repository for instructions hidden in agent rule files | guardrails `scan`, [jamjet-guardrails #43][pr-gr-43] | Implemented (unreleased, PR #43) | Merged, not yet published. |
+| ASI04 Agentic Supply Chain Vulnerabilities | Scan a repository for instructions hidden in agent rule files | guardrails `scan`, [jamjet-guardrails #43][pr-gr-43] | Implemented (unreleased, PR #43) | In the untagged 0.5.0. PyPI has 0.4.1. |
 | ASI04 Agentic Supply Chain Vulnerabilities | SBOM or AIBOM, signed tool manifests, a kill switch across deployments | none | Not covered | |
 | ASI05 Unexpected Code Execution (RCE) | Hold `python_fn`, `java_fn` and `external_fn` nodes for approval before they run | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | Use `require_approval_for: ["*"]` at tenant level. |
 | ASI05 Unexpected Code Execution (RCE) | Sandboxed execution of tool or generated code | none | Not covered | JamJet runs your handlers in your worker process. |
-| ASI06 Memory & Context Poisoning | Validation, provenance and expiry of memory writes | none | Not covered | |
+| ASI06 Memory & Context Poisoning | Revoked facts are hidden from every read path, including re-inserted copies and facts derived from them; erasure; provenance on each recall result | Engram 0.3.0, [engram #11][pr-engram-11] | Partial (unreleased, PR #11) | Engram is a separate memory store; the runtime does not use it. Revocation is an explicit call, not detection of a poisoned write. |
+| ASI06 Memory & Context Poisoning | Validation of content before it is written to memory | none | Not covered | |
 | ASI07 Insecure Inter-Agent Communication | A2A federation: bearer tokens with method scopes, mTLS client | [jamjet-a2a 0.1.2][a2a-fed] | Partial | Messages are not signed and there is no anti-replay nonce. |
-| ASI07 Insecure Inter-Agent Communication | MCP protocol version enforcement: unknown versions and header-body mismatches refused | mcp-shim, [jamjet-policy #12][pr-policy-12] | Implemented (unreleased, PR #12) | The header checks are unit-tested; the shim serves stdio only today. |
-| ASI08 Cascading Failures | Circuit breaker on consecutive errors; iteration and cost limits that escalate | runtime 0.5.0 [autonomy limits][autonomy] | Implemented (released) | |
-| ASI08 Cascading Failures | Tamper-evident, time-stamped logs bound to cryptographic agent identities | runtime 0.5.0 [audit log][audit] | Partial | Hash-chained and HMAC-SHA256 signed with an operator key. Entries are not bound to per-agent keys. |
+| ASI07 Insecure Inter-Agent Communication | MCP protocol version enforcement: unknown versions and header-body mismatches refused | mcp-shim, [jamjet-policy #12][pr-policy-12] | Implemented (unreleased, PR #12) | Unknown versions are refused by default; an operator can let them pass with a warning. The header checks are unit-tested; the shim serves stdio only today. |
+| ASI08 Cascading Failures | Circuit breaker on consecutive errors; iteration and cost limits that fail the node or escalate to a human | runtime, [jamjet #146][pr-146] ([agent_limits.rs][agent-limits]) | Implemented (unreleased, PR #146) | Released 0.5.0 declares these limits, but the breaker never trips and the iteration counters are never incremented. |
+| ASI08 Cascading Failures | Tamper-evident, time-stamped logs bound to cryptographic agent identities | runtime 0.5.0 [audit log][audit]; Ed25519 in [jamjet #145][pr-145] | Partial | Hash-chained and HMAC-SHA256 signed with an operator key. #145 (unreleased) adds Ed25519 signing that a third party can verify with the runtime's public key. Entries are not bound to per-agent keys. |
 | ASI08 Cascading Failures | Behavioral drift detection, replay testing of policy changes | none | Not covered | |
 | ASI09 Human-Agent Trust Exploitation | The approver sees exactly what the approval covers (`action_basis`, `jamjet approvals --show-basis`), and an approval cannot be reused for a different payload | runtime and CLI, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | |
 | ASI09 Human-Agent Trust Exploitation | Risk badges, untrusted-rationale labels and other approver UI safeguards | none | Not covered | The runtime exposes approvals through the API, CLI and MCP only. |
@@ -97,35 +107,35 @@ JamJet contributed mi-24, Human-in-the-Loop Action Approval Gate ([finos/ai-gove
 
 | Mitigation (mitigates) | JamJet control | Component and version | Status | Notes |
 |---|---|---|---|---|
-| mi-18 Agent Authority Least Privilege Framework (ri-24, ri-18) | Roles on tokens, policy that blocks tools or requires approval, model allowlist | runtime 0.5.0 | Partial | No time-bounded or context-adjusted agent privileges, and no per-agent credentials. |
+| mi-18 Agent Authority Least Privilege Framework (ri-24, ri-18) | Roles on tokens, policy that blocks tools or requires approval, model allowlist; Agent Card tool and delegation lists | runtime 0.5.0; card lists in [jamjet #145][pr-145] | Partial | No time-bounded or context-adjusted agent privileges, and no per-agent credentials. |
 | mi-19 Tool Chain Validation and Sanitization (ri-25, ri-10, ri-24) | Policy check before dispatch; guardrails checks on tool inputs and outputs; approval bound to the tool calls a model chose | runtime 0.5.0, guardrails 0.4.1, [jamjet #142][pr-142] | Partial | No parameter schema validation by the engine and no tool-sequence rules. |
-| mi-20 MCP Server Security Governance (ri-26, ri-8, ri-1) | Central policy point for MCP calls, drift and shadowing detection, trust baseline for servers | ext-authz 0.2.0, mcp-threat 0.1.0, mcp-shim 0.2.1 | Partial | No vendor vetting, encryption or server isolation. Definition pinning in the shim is [jamjet-policy #12][pr-policy-12]. |
-| mi-21 Agent Decision Audit and Explainability (ri-24, ri-25, ri-22) | Hash-chained, HMAC-signed audit log of policy decisions, approvals and lifecycle events; AgentBoundary receipt per Python agent turn | runtime 0.5.0 [audit][audit], Python SDK 0.12.0 ([governance](/open-source/governance)) | Partial | No capture of model reasoning. The signature is a symmetric MAC, so it shows tampering but not who signed. |
+| mi-20 MCP Server Security Governance (ri-26, ri-8, ri-1) | Central policy point for MCP calls, drift and shadowing detection, trust baseline for servers | ext-authz 0.2.0, mcp-threat 0.1.0, mcp-shim 0.2.1 | Partial | No vendor vetting, encryption or server isolation. Definition pinning in the shim ([jamjet-policy #12][pr-policy-12]) and Cedar policies in ext-authz ([jamjet-policy #14][pr-policy-14]) are merged, not yet published. |
+| mi-21 Agent Decision Audit and Explainability (ri-24, ri-25, ri-22) | Hash-chained, HMAC-signed audit log of policy decisions, approvals and lifecycle events; AgentBoundary receipt per Python agent turn | runtime 0.5.0 [audit][audit], Python SDK 0.12.0 ([governance](/open-source/governance)) | Partial | No capture of model reasoning. In 0.5.0 the signature is a symmetric MAC, so it shows tampering but not who signed. Ed25519 signing is in [jamjet #145][pr-145], not yet released. |
 | mi-22 Multi-Agent Isolation and Segmentation (ri-28, ri-24, ri-27) | none | none | Not covered | The runtime is single-tenant and does not isolate agents' state or processes. |
 | mi-23 Agentic System Credential Protection Framework (ri-29, ri-24, ri-26) | `secrets` check redacts credentials in model inputs and replies; token-passthrough detection for MCP tool arguments | guardrails 0.4.1, mcp-threat 0.1.0 | Partial | No just-in-time credential delivery, rotation or isolated credential store. `secrets` matches issuer prefixes only. |
 | mi-24 Human-in-the-Loop Action Approval Gate (ri-24, ri-18, ri-22) | Approval gate in the runtime | runtime | Partial | See the next section, item by item. |
-| mi-25 Skill/Plugin Integrity and Governance (ri-30, ri-8, ri-9) | Scan repository rule files for hidden Unicode instructions | guardrails `scan`, [jamjet-guardrails #43][pr-gr-43] | Partial (unreleased, PR #43) | Covers part of automated pre-screening only. No allowlisting, provenance, dependency control or sandboxing. |
+| mi-25 Skill/Plugin Integrity and Governance (ri-30, ri-8, ri-9) | Scan repository rule files for hidden Unicode instructions | guardrails `scan`, [jamjet-guardrails #43][pr-gr-43] | Partial (unreleased, PR #43) | In the untagged 0.5.0. Covers part of automated pre-screening only. No allowlisting, provenance, dependency control or sandboxing. |
 
 ## mi-24 item by item
 
-Each row is a principle or requirement from the [mi-24 text][finos-mi24]. The runtime behavior is described in the [HITL guide on the approval-deadlines branch][hitl-guide].
+Each row is a principle or requirement from the [mi-24 text][finos-mi24]. The runtime behavior is described in the [HITL guide][hitl-guide].
 
 | mi-24 requirement | JamJet behavior | Component and version | Status | Notes |
 |---|---|---|---|---|
 | Gate the action with its resolved parameters | The approval binds a digest over the dispatched payload, the node occurrence and the node definition. The approver must echo it (400 if missing, 409 if stale). | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | Released 0.5.0 gates a node, but the approval is not bound to its payload. |
 | Enforce at a choke point the agent cannot skip | One guard decides for the in-process worker, the claim route and completion. A gated node is withheld from claim until approved. | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | Complete mediation of credentials and network egress is outside JamJet. |
-| Fail closed | A decision after the deadline is refused; an unreadable deadline counts as passed; an event kind the build cannot read stops the run. The Python SDK fails closed on approval in process. | runtime, approval-deadlines branch; Python SDK, [jamjet #133][pr-133] | Implemented (unreleased, approval-deadlines branch) | Actions no pattern matches run without approval, as mi-24 expects for baseline controls (mi-18). |
+| Fail closed | A decision after the deadline is refused; an unreadable deadline counts as passed; an event kind the build cannot read covers no approval and stalls the run. The Python SDK fails closed on approval in process. | runtime, [jamjet #144][pr-144]; Python SDK, [jamjet #133][pr-133] | Implemented (unreleased, PR #144) | Actions no pattern matches run without approval, as mi-24 expects for baseline controls (mi-18). |
 | Durable, resumable approval state | Pending approvals are events in the run's durable log and survive restarts. | runtime 0.5.0 | Implemented (released) | |
 | Idempotent side effects | An idempotency key is reserved before a tool effect fires. | runtime 0.5.0 ([#125][pr-125], [#128][pr-128]) | Partial | Firing is at-least-once. There is no `outcome-unknown` state for a downstream that cannot honor the key. |
-| Single-effect resolution; late decisions rejected | One outcome per request, checked in the same step as the append. A decision at or after `expires_at` is refused with 409. | runtime, approval-deadlines branch | Implemented (unreleased, approval-deadlines branch) | |
+| Single-effect resolution; late decisions rejected | One outcome per request, checked in the same step as the append. A decision at or after `expires_at` is refused with 409. | runtime, [jamjet #144][pr-144] | Implemented (unreleased, PR #144) | |
 | Named oversight pattern (maker-checker, dual authorization) | Maker-checker: the run's initiator cannot approve, and the approver is the authenticated token principal. | runtime, [jamjet #142][pr-142] | Partial (unreleased, PR #142) | No N-of-M or two-person approval. Shared identities are prevented only by issuing one token per human. |
-| Bounded waiting and escalation | `approval_timeout_secs` expires a request as a rejection by `system:deadline`. `escalate_after_secs` records `approval_escalated` once. | runtime, approval-deadlines branch | Implemented (unreleased, approval-deadlines branch) | No built-in notifier. The escalation event is the hook for one. |
+| Bounded waiting and escalation | `approval_timeout_secs` expires a request as a rejection by `system:deadline`. `escalate_after_secs` records `approval_escalated` once. | runtime, [jamjet #144][pr-144] | Implemented (unreleased, PR #144) | When several policy levels set a timeout, the shortest applies. No built-in notifier. The escalation event is the hook for one. |
 | Modification is a new action | An approval carrying a `state_patch` is refused. Reject and re-run with different input. | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | |
 | Revalidate before release | If the payload differs from the approved one at dispatch, the node asks again. | runtime, [jamjet #142][pr-142] | Partial (unreleased, PR #142) | External predicates (account state, limits, policy version) are not re-checked by JamJet. |
 | Decision-grade channel showing the digest | REST, CLI (`jamjet approvals`, `--show-basis`), Python SDK and Java SDK take and show the digest. | runtime and SDKs, [jamjet #142][pr-142], Java SDK [jamjet #143][pr-143] | Implemented (unreleased, PR #142) | |
 | Standing approval and pre-authorization | none | none | Not covered | An approval covers one request and its retries. |
-| Tamper-evident record | Requests (with digest and deadline), decisions, expiries and escalations are sealed into the hash-chained audit log. A failed seal is recorded as `audit_seal_failed`. | runtime, approval-deadlines branch | Implemented (unreleased, approval-deadlines branch) | Chain verification cannot see entries removed from the end of the log. |
-| Non-repudiation (NIST AU-10) | none in the runtime | runtime | Not covered | The audit signature is HMAC-SHA256 with one shared key. Whoever can verify can also sign. |
+| Tamper-evident record | Requests (with digest and deadline), decisions, expiries and escalations are sealed into the hash-chained audit log. A failed seal is recorded as `audit_seal_failed`. | runtime, [jamjet #144][pr-144] | Implemented (unreleased, PR #144) | Chain verification cannot see entries removed from the end of the log. |
+| Non-repudiation (NIST AU-10) | With `JAMJET_AUDIT_SIGNING_MODE=ed25519`, every audit entry, decisions included, is signed with a key only the runtime holds. The public key is in `/.well-known/did.json` as `#audit-key`, and `jamjet.runtime_audit` verifies an export offline. | runtime, [jamjet #145][pr-145] | Partial (unreleased, PR #145) | The runtime signs, not the approver, who is named by API token. The default HMAC-SHA256 mode uses one shared key, so whoever can verify can also sign. |
 
 ## NIST CAISI and NCCoE themes
 
@@ -138,10 +148,12 @@ Sources: NIST CAISI [AI Agent Standards Initiative][caisi], announced February 1
 | Authentication | MCP bridge requires the same token auth outside dev mode | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | |
 | Authentication | Key issuance, rotation and revocation for agents | none | Not covered | |
 | Authorization | Deterministic policy decision before each node; per-route roles; operator-only tenant policy | runtime 0.5.0; route enforcement in [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | The policy engine itself is released in 0.5.0. |
+| Authorization | Cedar policies evaluated next to YAML rules at the ext-authz decision point; an evaluation error blocks the call | @jamjet/cedar, ext-authz, [jamjet-policy #14][pr-policy-14] | Implemented (unreleased, PR #14) | For MCP tool calls through ext-authz. The runtime's policy engine does not read Cedar. |
 | Authorization: binding agent action to human approval | Approver is the token principal, distinct from the initiator, and approves a digest of the exact action | runtime, [jamjet #142][pr-142] | Implemented (unreleased, PR #142) | |
 | Authorization: delegation "on behalf of" | none wired | runtime | Not covered | See the ASI03 row on `oauth.rs`. |
 | Auditing | Hash-chained, HMAC-signed audit log; `verify_chain` reports an edited entry, a broken link, and a missing or invalid signature | runtime 0.5.0 [audit][audit]; Python SDK 0.12.0 [audit][py-audit] | Implemented (released) | Without `JAMJET_AUDIT_SIGNING_KEY` entries are left unsigned and reported as unsigned. |
-| Non-repudiation | Ed25519 COSE_Sign1 envelope over AgentBoundary receipts, with an offline verifier that lists what it did not check | AgentBoundary, [agentboundary #5][pr-ab-5] ([SCITT alignment][ab-scitt]) | Implemented (unreleased, PR #5) | The JamJet runtime does not emit signed receipts yet. Signer identity is established only by the keyring you pass, and nothing is registered with a transparency service. |
+| Non-repudiation | Ed25519 signature on every runtime audit entry, verifiable offline with the public key the runtime publishes | runtime, [jamjet #145][pr-145] | Partial (unreleased, PR #145) | Shows the runtime wrote the entry. Approvers and agents do not sign. HMAC remains the default mode. |
+| Non-repudiation | Ed25519 COSE_Sign1 envelope over AgentBoundary receipts, with an offline verifier that lists what it did not check | AgentBoundary, [agentboundary #5][pr-ab-5] ([SCITT alignment][ab-scitt]) | Implemented (unreleased, PR #5) | The JamJet runtime does not emit AgentBoundary receipts. Signer identity is established only by the keyring you pass, and nothing is registered with a transparency service. |
 | Prompt injection | Structural injection checks; `url-exfiltration` and `secrets` limit what an injected agent can carry out | guardrails 0.4.1 | Partial | Does not read meaning. Approval gates and policy limit what an injection can do; they do not detect it. |
 | Tracking data flows | Each guardrails verdict records the SHA-256 of the text it inspected; receipts carry an `arguments_hash` | guardrails 0.4.1; AgentBoundary 0.1.0 | Partial | No end-to-end provenance of prompts and data sources. |
 
@@ -149,11 +161,11 @@ Sources: NIST CAISI [AI Agent Standards Initiative][caisi], announced February 1
 
 | Section | Implemented (released) | Implemented (unreleased) | Partial | Not covered |
 |---|---:|---:|---:|---:|
-| OWASP ASI01 to ASI10 | 8 | 9 | 4 | 9 |
+| OWASP ASI01 to ASI10 | 6 | 13 | 6 | 9 |
 | FINOS mi-18 to mi-25 | 0 | 0 | 7 | 1 |
-| FINOS mi-24 item by item | 1 | 8 | 3 | 2 |
-| NIST CAISI and NCCoE themes | 2 | 4 | 3 | 2 |
-| All rows | 11 | 21 | 17 | 14 |
+| FINOS mi-24 item by item | 1 | 8 | 4 | 1 |
+| NIST CAISI and NCCoE themes | 2 | 5 | 4 | 2 |
+| All rows | 9 | 26 | 21 | 13 |
 
 Partial rows that also depend on unreleased work are counted as Partial.
 
@@ -163,7 +175,10 @@ If a row is wrong or out of date, open an issue on [jamjet-labs/jamjet-docs](htt
 
 [runtime]: https://github.com/jamjet-labs/jamjet/tree/crates-v0.5.0/runtime
 [policy-crate]: https://github.com/jamjet-labs/jamjet/blob/crates-v0.5.0/runtime/policy/src/lib.rs
-[autonomy]: https://github.com/jamjet-labs/jamjet/blob/crates-v0.5.0/runtime/policy/src/autonomy.rs
+[budget-050]: https://github.com/jamjet-labs/jamjet/blob/crates-v0.5.0/runtime/workers/src/worker.rs
+[node-guard]: https://github.com/jamjet-labs/jamjet/blob/main/runtime/workers/src/node_guard.rs
+[agent-limits]: https://github.com/jamjet-labs/jamjet/blob/main/runtime/workers/src/agent_limits.rs
+[agent-guide]: https://github.com/jamjet-labs/jamjet/blob/main/docs/guides/agent-model-guide.md#what-each-constraint-does
 [auth]: https://github.com/jamjet-labs/jamjet/blob/crates-v0.5.0/runtime/api/src/auth.rs
 [oauth]: https://github.com/jamjet-labs/jamjet/blob/crates-v0.5.0/runtime/api/src/oauth.rs
 [routes]: https://github.com/jamjet-labs/jamjet/blob/crates-v0.5.0/runtime/api/src/routes.rs
@@ -171,25 +186,33 @@ If a row is wrong or out of date, open an issue on [jamjet-labs/jamjet-docs](htt
 [py-sdk]: https://github.com/jamjet-labs/jamjet/tree/python-sdk-v0.12.0/sdk/python
 [py-receipts]: https://github.com/jamjet-labs/jamjet/blob/python-sdk-v0.12.0/sdk/python/jamjet/agents/receipts.py
 [py-audit]: https://github.com/jamjet-labs/jamjet/blob/python-sdk-v0.12.0/sdk/python/jamjet/agents/audit.py
-[hitl-guide]: https://github.com/jamjet-labs/jamjet/blob/approval-deadlines/docs/guides/hitl.md
-[sec-guide]: https://github.com/jamjet-labs/jamjet/blob/approval-deadlines/docs/guides/security.md
+[hitl-guide]: https://github.com/jamjet-labs/jamjet/blob/main/docs/guides/hitl.md
+[sec-guide]: https://github.com/jamjet-labs/jamjet/blob/main/docs/guides/security.md
 [pr-125]: https://github.com/jamjet-labs/jamjet/pull/125
 [pr-128]: https://github.com/jamjet-labs/jamjet/pull/128
 [pr-133]: https://github.com/jamjet-labs/jamjet/pull/133
 [pr-140]: https://github.com/jamjet-labs/jamjet/pull/140
 [pr-142]: https://github.com/jamjet-labs/jamjet/pull/142
 [pr-143]: https://github.com/jamjet-labs/jamjet/pull/143
+[pr-144]: https://github.com/jamjet-labs/jamjet/pull/144
+[pr-145]: https://github.com/jamjet-labs/jamjet/pull/145
+[pr-146]: https://github.com/jamjet-labs/jamjet/pull/146
 [guardrails]: https://github.com/jamjet-labs/jamjet-guardrails
 [gr-bench]: https://github.com/jamjet-labs/jamjet-guardrails/blob/main/BENCHMARKS.md
 [pr-gr-43]: https://github.com/jamjet-labs/jamjet-guardrails/pull/43
+[pr-gr-44]: https://github.com/jamjet-labs/jamjet-guardrails/pull/44
 [mcp-shim]: https://github.com/jamjet-labs/jamjet-policy/tree/main/packages/mcp-shim
 [mcp-threat]: https://github.com/jamjet-labs/jamjet-policy/tree/main/packages/mcp-threat
 [ext-authz]: https://github.com/jamjet-labs/jamjet-policy/tree/main/packages/ext-authz
+[cedar]: https://github.com/jamjet-labs/jamjet-policy/tree/main/packages/cedar
 [pr-policy-3]: https://github.com/jamjet-labs/jamjet-policy/pull/3
 [pr-policy-12]: https://github.com/jamjet-labs/jamjet-policy/pull/12
+[pr-policy-14]: https://github.com/jamjet-labs/jamjet-policy/pull/14
 [agentboundary]: https://github.com/jamjet-labs/agentboundary
 [pr-ab-5]: https://github.com/jamjet-labs/agentboundary/pull/5
-[ab-scitt]: https://github.com/jamjet-labs/agentboundary/blob/scitt-alignment/docs/spec/scitt-alignment.md
+[ab-scitt]: https://github.com/jamjet-labs/agentboundary/blob/main/docs/spec/scitt-alignment.md
+[engram]: https://github.com/jamjet-labs/engram
+[pr-engram-11]: https://github.com/jamjet-labs/engram/pull/11
 [a2a-fed]: https://github.com/jamjet-labs/jamjet-a2a/blob/main/jamjet-a2a/src/federation.rs
 [owasp]: https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/
 [finos-repo]: https://github.com/finos/ai-governance-framework

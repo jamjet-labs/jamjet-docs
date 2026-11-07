@@ -28,7 +28,7 @@ JamJet records each Spring AI call as an execution on the runtime, with events f
 The record is what the other features build on:
 
 - **Audit trails** --- every prompt, response, tool call, and token count recorded as immutable events. Required for regulated industries (financial services, healthcare, legal).
-- **Human-in-the-loop approval** --- hold a marked call until a human approves or rejects it. The wait happens in your JVM, so it does not survive a restart.
+- **Human-in-the-loop approval:** hold a marked call until a human approves or rejects it. The wait happens in your JVM, so it does not survive a restart.
 - **Replay testing** --- replay a production execution in a test environment and assert on the results. No LLM calls needed.
 - **Cost tracking** --- aggregate real token costs per execution, per user, per workflow.
 
@@ -775,8 +775,8 @@ For chat memory, see [Engram](/open-source/engram) — JamJet's temporal-knowled
 
 ## Next steps
 
-- **[LangChain4j Integration](/integrations/langchain4j)** --- use JamJet as a durable execution layer for LangChain4j agents with `JamjetDurableAgent` and `JamjetChatMemoryStore`
-- **[Java SDK Reference](/open-source/java-runtime)** --- full API coverage for tools, strategies, IR compilation, and the runtime client
-- **[Java Quickstart](/open-source/quickstart)** --- build your first agent and workflow from scratch with the Java SDK
-- **[Core Concepts](/open-source/concepts)** --- agents, nodes, state, and durability in depth
+- **[LangChain4j Integration](/integrations/langchain4j)**: use JamJet as a durable execution layer for LangChain4j agents with `JamjetDurableAgent` and `JamjetChatMemoryStore`
+- **[Java SDK Reference](/open-source/java-runtime)**: full API coverage for tools, strategies, IR compilation, and the runtime client
+- **[Java Quickstart](/open-source/quickstart)**: build your first agent and workflow from scratch with the Java SDK
+- **[Core Concepts](/open-source/concepts)**: agents, nodes, state, and durability in depth
 - **[Agentic AI Patterns](https://sunilprakash.com/agentic-ai)** --- strategy selection, tool design, and production patterns for agent systems

@@ -1,13 +1,19 @@
 ---
 title: "Spring Boot Starter"
-description: "Add durable execution, crash recovery, audit trails, and human-in-the-loop approval to Spring AI agents with one dependency."
+description: "Record Spring AI ChatClient calls on the JamJet runtime, with audit and approval advisors. Check the release status before you install."
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout'
 
+{/* TODO(jamjet-spring 0.2.1): when 0.2.1 is on Maven Central, change every 0.1.0 on this page to 0.2.1 and replace the release status note. Use 0.2.1, not 0.2.0: 0.2.0 of the parent POM is already on Central. */}
 
 # Spring Boot Starter
 
-This guide covers the full JamJet Spring Boot integration: why durability matters for AI agents, how each advisor works under the hood, how to test agents deterministically, and how to monitor them in production. By the end you will have a working Spring AI application where every LLM call is crash-recoverable, audited, and observable.
+This guide covers the JamJet Spring Boot integration: what each advisor does, how to test agents, and how to monitor them.
+
+<Callout type="warn" title="Release status">
+`0.1.0` is the only release of this starter on Maven Central, and it does not reach the runtime. Its client calls `/api/v1/...` routes that the runtime does not serve. The health check passes. Every other call fails, so the advisors log `JamJet runtime unavailable, proceeding without durability` and let the call through. With 0.1.0, nothing is recorded, no call is held for approval and no audit event is written. The fix is merged in [jamjet-spring](https://github.com/jamjet-labs/jamjet-spring) but not released yet. The rest of this page describes the integration as designed.
+</Callout>
 
 ---
 
@@ -17,12 +23,12 @@ Spring AI gives you a clean abstraction for building LLM-powered applications. Y
 
 Consider what happens when your Spring AI agent is halfway through a multi-step task --- it has called a search tool, retrieved results, and is about to synthesize an answer --- and the process crashes. With vanilla Spring AI, the entire interaction is lost. The user sees an error. The tokens you already spent are wasted. There is no record of what happened.
 
-This is the problem **durable execution** solves. JamJet records every step of your agent's interaction as an immutable event. If the process crashes and restarts, it replays those events and resumes from exactly where it left off. No lost work, no wasted tokens, no user-visible failure.
+JamJet records each Spring AI call as an execution on the runtime, with events for the prompt, the response and the outcome. The model call runs in your JVM and the runtime holds the record. The runtime does not re-run, resume or replay Spring AI calls, so a call that was in flight when your process stopped is not continued after a restart.
 
-Durability also unlocks capabilities that are impossible without it:
+The record is what the other features build on:
 
 - **Audit trails** --- every prompt, response, tool call, and token count recorded as immutable events. Required for regulated industries (financial services, healthcare, legal).
-- **Human-in-the-loop approval** --- pause an agent mid-execution, wait for a human to approve or reject, then resume. The pause is durable: it survives restarts.
+- **Human-in-the-loop approval:** hold a marked call until a human approves or rejects it. The wait happens in your JVM, so it does not survive a restart.
 - **Replay testing** --- replay a production execution in a test environment and assert on the results. No LLM calls needed.
 - **Cost tracking** --- aggregate real token costs per execution, per user, per workflow.
 
@@ -42,29 +48,31 @@ The starter is published on Maven Central. Add a single dependency and Spring Bo
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.2.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
 ```
 
 ### 2. Start the JamJet runtime
 
-The runtime is the execution engine that persists events and manages workflow state. Run it with Docker:
+The runtime is the execution engine that stores events and manages workflow state. Run it with Docker:
 
 ```bash
-docker run -p 7700:7700 ghcr.io/jamjet-labs/jamjet:latest
+docker run -p 7700:8080 -e JAMJET_DEV_MODE=1 jamjetdev/jamjet:0.5.0
 ```
+
+The image is built for `linux/amd64`; on Apple silicon add `--platform linux/amd64`. The server listens on 8080 inside the container, so this maps it to `localhost:7700`. `JAMJET_DEV_MODE=1` turns off authentication, so use it only on your own machine. The image keeps state in memory.
 
 Or, if you have the CLI installed:
 
@@ -125,49 +133,13 @@ The `JamjetDurabilityAdvisor` is the core of the integration. It implements Spri
 
 If you have not worked with event sourcing before, here is the essential idea: instead of storing only the *current state* of an operation, you store every *event that led to that state*. The current state is a derived view --- you can always reconstruct it by replaying the events from the beginning.
 
-For AI agents, this means every LLM call, every tool invocation, every state change is recorded as an immutable event in the JamJet runtime. The event log is the source of truth.
+For the Spring integration, this means each `ChatClient` call is recorded as an execution with immutable events on the JamJet runtime. The event log is the record of what happened.
 
-Why does this matter? Because it gives you crash recovery for free. If a process dies at any point, you replay the event log up to the last completed event and resume from there. No data loss. No duplicate work.
+It does not give you crash recovery for Spring AI calls. The model call runs in your JVM, and the runtime does not re-run or resume it.
 
-### Crash recovery walkthrough
+### What happens on a crash
 
-Consider an agent that performs 8 steps: retrieve context, call the LLM, execute a tool, call the LLM again, and so on. Here is what happens when the process crashes at step 7:
-
-```mermaid
-sequenceDiagram
-    participant App as Spring App
-    participant Advisor as DurabilityAdvisor
-    participant Runtime as JamJet Runtime
-    participant LLM as LLM Provider
-
-    Note over App,LLM: First run (steps 1-6 succeed)
-    App->>Advisor: chatClient.prompt("Analyze portfolio")
-    Advisor->>Runtime: startExecution(workflowId)
-    Runtime-->>Advisor: executionId
-    Advisor->>LLM: Step 1: Generate plan
-    LLM-->>Advisor: Plan response
-    Advisor->>Runtime: Event: step 1 completed
-    Advisor->>LLM: Steps 2-6...
-    Advisor->>Runtime: Events: steps 2-6 completed
-
-    Note over App,LLM: CRASH at step 7
-    App-xAdvisor: Process killed
-
-    Note over App,LLM: Restart and recovery
-    App->>Advisor: chatClient.prompt("Analyze portfolio")
-    Advisor->>Runtime: getExecution(executionId)
-    Runtime-->>Advisor: status=Running, 6 events
-    Note over Advisor: Replay events 1-6 (no LLM calls)
-    Advisor->>LLM: Resume at step 7
-    LLM-->>Advisor: Step 7 response
-    Advisor->>Runtime: Event: step 7 completed
-    Advisor->>LLM: Step 8
-    LLM-->>Advisor: Final response
-    Advisor->>Runtime: Event: execution completed
-    Advisor-->>App: ChatClientResponse
-```
-
-Steps 1 through 6 are **not re-executed** on restart. The advisor reads their events from the runtime and reconstructs the state. Only step 7 (and beyond) actually calls the LLM. This saves tokens and time.
+If the process stops while a `ChatClient` call is in flight, that call is lost, as it would be without JamJet. Its execution stays on the runtime without an outcome event, so you can see that it started and never finished. After a restart, the next call starts a new execution. Nothing is replayed and no step is skipped.
 
 ### Before and after
 
@@ -208,7 +180,7 @@ CommandLineRunner demo(ChatClient chatClient) {
                 .call()
                 .content();
         System.out.println(result);
-        // Durable — survives crashes, events persisted, execution tracked
+        // Recorded on the runtime as an execution; not re-run after a crash
     };
 }
 ```
@@ -302,7 +274,7 @@ This still records the *fact* that an interaction happened (with the execution I
 
 ## Human-in-the-loop approval
 
-The `JamjetApprovalAdvisor` implements a durable pause-and-resume pattern: the agent pauses mid-execution, waits for a human to approve or reject via a REST endpoint, and then continues or aborts. Because the pause is backed by the durable execution engine, it survives process restarts.
+The `JamjetApprovalAdvisor` holds a marked call until a human approves or rejects it through a REST endpoint, then lets it continue or aborts it. The call waits in your JVM, so a restart loses it. Because the pause is backed by the durable execution engine, it survives process restarts.
 
 ### When to use approval gates
 
@@ -436,7 +408,7 @@ JamJet's test module solves this with two complementary approaches: **replay tes
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.2.0</version>
+    <version>0.1.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -476,11 +448,13 @@ class PortfolioAgentTest {
 }
 ```
 
-`@WithJamjetRuntime` is a JUnit 5 extension that starts a JamJet runtime container before your tests. You can configure the image and tag:
+`@WithJamjetRuntime` is a JUnit 5 extension that starts a JamJet runtime container before your tests. In 0.1.0 its default image is `ghcr.io/jamjet-labs/jamjet:0.3.1`, which refuses anonymous pulls, so set the public image:
 
 ```java
-@WithJamjetRuntime(image = "ghcr.io/jamjet-labs/jamjet", tag = "0.3.1")
+@WithJamjetRuntime(image = "jamjetdev/jamjet", tag = "0.3.1")
 ```
+
+The 0.1.0 test container expects the runtime on port 7700. `jamjetdev/jamjet:0.3.1` listens there; 0.4.0 and later listen on 8080.
 
 `@ReplayExecution` specifies which execution to replay. The optional `forkAtNode` parameter lets you fork the execution at a specific node --- useful for testing "what if we changed the output of step X?"
 
@@ -656,7 +630,7 @@ Here is a full Spring Boot application that ties together durability, audit, app
     <dependency>
         <groupId>dev.jamjet</groupId>
         <artifactId>jamjet-spring-boot-starter</artifactId>
-        <version>0.2.0</version>
+        <version>0.1.0</version>
     </dependency>
 
     <!-- Spring Boot Actuator (enables Micrometer metrics) -->
@@ -669,7 +643,7 @@ Here is a full Spring Boot application that ties together durability, audit, app
     <dependency>
         <groupId>dev.jamjet</groupId>
         <artifactId>jamjet-spring-boot-starter-test</artifactId>
-        <version>0.2.0</version>
+        <version>0.1.0</version>
         <scope>test</scope>
     </dependency>
 </dependencies>
@@ -757,8 +731,8 @@ public class DurableAgentApplication {
 ### Running it
 
 ```bash
-# Terminal 1: Start JamJet runtime
-docker run -p 7700:7700 ghcr.io/jamjet-labs/jamjet:latest
+# Terminal 1: Start JamJet runtime (add --platform linux/amd64 on Apple silicon)
+docker run -p 7700:8080 -e JAMJET_DEV_MODE=1 jamjetdev/jamjet:0.5.0
 
 # Terminal 2: Start the Spring Boot app
 export OPENAI_API_KEY=sk-...
@@ -801,8 +775,8 @@ For chat memory, see [Engram](/open-source/engram) — JamJet's temporal-knowled
 
 ## Next steps
 
-- **[LangChain4j Integration](/langchain4j-integration)** --- use JamJet as a durable execution layer for LangChain4j agents with `JamjetDurableAgent` and `JamjetChatMemoryStore`
-- **[Java SDK Reference](/java-sdk)** --- full API coverage for tools, strategies, IR compilation, and the runtime client
-- **[Java Quickstart](/java-quickstart)** --- build your first agent and workflow from scratch with the Java SDK
-- **[Core Concepts](/concepts)** --- agents, nodes, state, and durability in depth
+- **[LangChain4j Integration](/integrations/langchain4j)**: use JamJet as a durable execution layer for LangChain4j agents with `JamjetDurableAgent` and `JamjetChatMemoryStore`
+- **[Java SDK Reference](/open-source/java-runtime)**: full API coverage for tools, strategies, IR compilation, and the runtime client
+- **[Java Quickstart](/open-source/quickstart)**: build your first agent and workflow from scratch with the Java SDK
+- **[Core Concepts](/open-source/concepts)**: agents, nodes, state, and durability in depth
 - **[Agentic AI Patterns](https://sunilprakash.com/agentic-ai)** --- strategy selection, tool design, and production patterns for agent systems

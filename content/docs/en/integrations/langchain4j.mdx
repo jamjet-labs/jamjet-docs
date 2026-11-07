@@ -1,15 +1,21 @@
 ---
 title: "LangChain4j Integration"
-description: "Add durable execution, crash recovery, audit trails, and replay testing to existing LangChain4j agents — without rewriting them."
+description: "Record existing LangChain4j agents and chat memory on the JamJet runtime without rewriting them. Check the release status before you install."
 ---
 
+import { Callout } from 'fumadocs-ui/components/callout'
 
+{/* TODO(jamjet-spring 0.2.1): when 0.2.1 is on Maven Central, change langchain4j-jamjet and jamjet-spring-boot-starter on this page to 0.2.1 and replace the release status note. Use 0.2.1, not 0.2.0: 0.2.0 of the parent POM is already on Central. */}
 
 # LangChain4j Integration
 
-JamJet is a full agent runtime with its own [Java SDK](/java-sdk) — it talks to LLMs natively, manages tools, compiles to durable workflow IR, and enforces cost and time guardrails at runtime. For new projects, that is the recommended path.
+<Callout type="warn" title="Release status">
+`langchain4j-jamjet` 0.1.0 is the only release on Maven Central. It uses the runtime client from `jamjet-spring-boot-starter` 0.1.0, which calls `/api/v1/...` routes the runtime does not serve. So `JamjetDurableAgent` logs `JamJet runtime unavailable, proceeding without durability` and runs your agent unrecorded. `JamjetChatMemoryStore` logs a warning on every read and write, and stores nothing. The fix is merged in [jamjet-spring](https://github.com/jamjet-labs/jamjet-spring) but not released yet. The rest of this page describes the integration as designed.
+</Callout>
 
-But if you already have LangChain4j agents in production — `AiServices` proxies, chat memory stores, tool bindings — you do not need to rewrite them. This integration wraps your existing LangChain4j code with JamJet's durable execution engine, giving you crash recovery, audit trails, and replay testing with minimal changes.
+JamJet is a full agent runtime with its own [Java SDK](/open-source/java-runtime). It talks to LLMs natively, manages tools, compiles to durable workflow IR, and enforces cost and time guardrails at runtime. For new projects, that is the recommended path.
+
+But if you already have LangChain4j agents in production (`AiServices` proxies, chat memory stores, tool bindings), you do not need to rewrite them. This integration records your existing LangChain4j calls and chat memory on the JamJet runtime with minimal changes. The call runs in your JVM and the runtime holds the record. The runtime does not re-run or resume a LangChain4j call, so a call that was in flight when your process stopped is not continued after a restart.
 
 ### Before and after
 
@@ -35,7 +41,7 @@ flowchart LR
 The left side is what you have today. The right side adds a durable proxy in front of your existing agent and persists chat memory through the JamJet runtime. Your `AiService` interface, tool definitions, and LLM configuration do not change.
 
 > **note:**
-> For greenfield Java projects, consider the [Java SDK](/java-sdk) directly — it provides native LLM integration, typed tools, strategy selection, and IR compilation without the LangChain4j dependency.
+> For greenfield Java projects, consider the [Java SDK](/open-source/java-runtime) directly. It provides native LLM integration, typed tools, strategy selection, and IR compilation without the LangChain4j dependency.
 
 ---
 
@@ -51,36 +57,38 @@ The integration module is published on Maven Central. It requires `jamjet-spring
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>langchain4j-jamjet</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.0</version>
 </dependency>
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter</artifactId>
-    <version>0.2.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
 #### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("dev.jamjet:langchain4j-jamjet:0.1.2")
-implementation("dev.jamjet:jamjet-spring-boot-starter:0.2.0")
+implementation("dev.jamjet:langchain4j-jamjet:0.1.0")
+implementation("dev.jamjet:jamjet-spring-boot-starter:0.1.0")
 ```
 
 #### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'dev.jamjet:langchain4j-jamjet:0.1.2'
-implementation 'dev.jamjet:jamjet-spring-boot-starter:0.2.0'
+implementation 'dev.jamjet:langchain4j-jamjet:0.1.0'
+implementation 'dev.jamjet:jamjet-spring-boot-starter:0.1.0'
 ```
 
 ### 2. Start the JamJet runtime
 
-The runtime is the execution engine that persists events and manages workflow state. Run it with Docker:
+The runtime is the execution engine that stores events and manages workflow state. Run it with Docker:
 
 ```bash
-docker run -p 7700:7700 ghcr.io/jamjet-labs/jamjet:latest
+docker run -p 7700:8080 -e JAMJET_DEV_MODE=1 jamjetdev/jamjet:0.5.0
 ```
+
+The image is built for `linux/amd64`; on Apple silicon add `--platform linux/amd64`. The server listens on 8080 inside the container, so this maps it to `localhost:7700`. `JAMJET_DEV_MODE=1` turns off authentication, so use it only on your own machine. The image keeps state in memory.
 
 Or, if you have the CLI installed:
 
@@ -163,7 +171,7 @@ When you call `JamjetDurableAgent.wrap()`, it creates a JDK dynamic proxy (`java
 
 ## Configuration
 
-If you are using Spring Boot, the `JamjetRuntimeClient` is auto-configured from `application.yml` properties (see the [Spring Boot Starter](/spring-boot-starter) guide). For standalone usage outside Spring, use `JamjetConfig` to build a client manually:
+If you are using Spring Boot, the `JamjetRuntimeClient` is auto-configured from `application.yml` properties (see the [Spring Boot Starter](/integrations/spring-boot) guide). For standalone usage outside Spring, use `JamjetConfig` to build a client manually:
 
 ```java
 import dev.jamjet.langchain4j.JamjetConfig;
@@ -228,7 +236,7 @@ All three operations degrade gracefully — if the JamJet runtime is unreachable
 
 ### Engram: long-term memory beyond chat history
 
-`JamjetChatMemoryStore` persists raw conversation messages through the JamJet runtime. For agents that need richer memory --- entity extraction, temporal knowledge graphs, semantic search --- consider [Engram](https://java-ai-memory.dev), JamJet's dedicated memory layer. The `engram-spring-boot-starter` provides a `ChatMemoryRepository` for Spring AI that stores messages through the Engram server, which additionally extracts entities and relations and indexes them for semantic recall. See the [Engram Memory section](/spring-boot-starter#engram-memory) in the Spring Boot Starter guide for setup details.
+`JamjetChatMemoryStore` persists raw conversation messages through the JamJet runtime. For agents that need richer memory (entity extraction, temporal knowledge graphs, semantic search), consider [Engram](https://java-ai-memory.dev), JamJet's dedicated memory layer. The `engram-spring-boot-starter` provides a `ChatMemoryRepository` for Spring AI that stores messages through the Engram server, which additionally extracts entities and relations and indexes them for semantic recall. See the [Engram](/open-source/engram) page for setup details.
 
 ---
 
@@ -238,7 +246,7 @@ Wrapping your LangChain4j agents with JamJet adds the following capabilities wit
 
 | Capability | Without JamJet | With JamJet |
 |------------|---------------|-------------|
-| **Crash recovery** | Process dies, interaction lost, tokens wasted | Execution tracked by runtime, resumable after restart |
+| **Crash visibility** | Process dies, no record of the call | The execution stays on the runtime without an outcome, so you can see it never finished. It is not resumed. |
 | **Audit trails** | No record of what happened | Every method call recorded as an immutable event with args, result, and status |
 | **Replay testing** | Must call live LLM to test | Replay recorded executions in test suite, no LLM calls needed |
 | **Cost tracking** | Manual token counting | Execution events include method name and arguments for cost attribution |
@@ -279,18 +287,18 @@ Add the test dependency:
 <dependency>
     <groupId>dev.jamjet</groupId>
     <artifactId>jamjet-spring-boot-starter-test</artifactId>
-    <version>0.2.0</version>
+    <version>0.1.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-For the full testing API — `RecordedExecution` fields, `AgentAssertions` fluent API, `DeterministicModelStub`, fork-at-node replay — see the testing section of the [Spring Boot Starter](/spring-boot-starter) guide.
+For the full testing API (`RecordedExecution` fields, `AgentAssertions` fluent API, `DeterministicModelStub`, fork-at-node replay), see the testing section of the [Spring Boot Starter](/integrations/spring-boot) guide.
 
 ---
 
 ## Next steps
 
-- **[Java SDK Reference](/java-sdk)** — for new projects, JamJet's native Java SDK provides direct LLM integration, typed tools, strategy selection, and IR compilation without the LangChain4j dependency
-- **[Java Quickstart](/java-quickstart)** — build your first agent and workflow from scratch with the native SDK
-- **[Spring Boot Starter](/spring-boot-starter)** — full Spring AI integration with auto-configured durability, audit trails, human-in-the-loop approval, and observability
+- **[Java SDK Reference](/open-source/java-runtime)**: for new projects, JamJet's native Java SDK provides direct LLM integration, typed tools, strategy selection, and IR compilation without the LangChain4j dependency
+- **[Java Quickstart](/open-source/quickstart)**: build your first agent and workflow from scratch with the native SDK
+- **[Spring Boot Starter](/integrations/spring-boot)**: full Spring AI integration with auto-configured durability, audit trails, human-in-the-loop approval, and observability
 - **[Agentic AI Patterns](https://sunilprakash.com/agentic-ai)** — strategy selection, tool design, and production patterns for agent systems

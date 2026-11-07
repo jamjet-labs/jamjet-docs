@@ -3,7 +3,6 @@ title: Optimize
 description: Cost and waste findings you can turn into enforced policies in one click. Apply is a live policy, not a ticket.
 ---
 
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
 import { Cards, Card } from 'fumadocs-ui/components/card'
 import { Callout } from 'fumadocs-ui/components/callout'
 
@@ -27,7 +26,11 @@ Findings are sorted biggest-savings-first, ranked by an ROI score (the recoverab
 
 ## Applying a finding
 
-Applying a finding calls `POST /v1/cost-findings/{id}/apply`. What that creates depends on the kind.
+Apply a finding from its detail drawer on the Optimize page, signed in as a project member with the operator role or above. What that creates depends on the kind.
+
+<Callout type="info" title="Signed-in users only">
+  Applying and dismissing write policy for the project, so they are not open to project API keys. The dashboard calls `POST /v1/cost-findings/{id}/apply` and `POST /v1/cost-findings/{id}/dismiss` with your signed-in session. A request made with a `jj_` key gets `403`: "This action needs a signed-in user with the 'operator' role or higher. Project API keys cannot perform it." An agent's own key cannot apply or dismiss a finding about its own spend.
+</Callout>
 
 ### Cache leaks
 
@@ -35,31 +38,6 @@ A `cache_leak` apply creates a live `cache_inject` policy keyed on the prompt pr
 
 - **Monitor.** Record the realized savings while leaving output identical. Use this to confirm the savings are real before you commit.
 - **Enforce.** Turn the cache policy on so the cached prefix is served instead of re-billed.
-
-<Tabs items={['Apply (Monitor)', 'Apply (Enforce)']}>
-  <Tab value="Apply (Monitor)">
-
-  ```bash
-  curl -X POST https://api.jamjet.dev/v1/cost-findings/$FINDING_ID/apply \
-    -H "Authorization: Bearer $JAMJET_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d '{ "mode": "monitor" }'
-  # records realized savings, output identical
-  ```
-
-  </Tab>
-  <Tab value="Apply (Enforce)">
-
-  ```bash
-  curl -X POST https://api.jamjet.dev/v1/cost-findings/$FINDING_ID/apply \
-    -H "Authorization: Bearer $JAMJET_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d '{ "mode": "enforce" }'
-  # cache_inject policy goes live, keyed on the prompt prefix hash
-  ```
-
-  </Tab>
-</Tabs>
 
 ### Quality-risk kinds
 
@@ -71,13 +49,7 @@ Quality-risk kinds (`model_overspec` and `context_bloat`) change what the model 
 
 ## Dismissing a finding
 
-If a finding does not apply to your workload, dismiss it. Dismissing calls `POST /v1/cost-findings/{id}/dismiss`, which moves it to the **Dismissed** status filter and removes it from the open list.
-
-```bash
-curl -X POST https://api.jamjet.dev/v1/cost-findings/$FINDING_ID/dismiss \
-  -H "Authorization: Bearer $JAMJET_API_KEY" \
-  -H "Content-Type: application/json"
-```
+If a finding does not apply to your workload, click **Dismiss** in its detail drawer. That moves it to the **Dismissed** status filter and removes it from the open list. Like apply, dismiss needs a signed-in member with the operator role or above.
 
 ## Where the savings land
 

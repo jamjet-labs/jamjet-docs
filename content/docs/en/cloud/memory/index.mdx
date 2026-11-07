@@ -190,6 +190,7 @@ The page is hidden when the project hasn't configured an embedding provider yet,
 
 - **API key auth (`jj_…`)** — single project, scoped automatically. Use this from your agents.
 - **Dashboard auth (Supabase JWT)** — scoped to projects you own. Used by the Memory tab and Settings page in the browser.
+- **Settings writes:** `POST` and `PATCH /v1/memory/settings` and `POST /v1/memory/settings/test` need a signed-in admin, which is what the **Settings → Memory** page sends. A `jj_` key gets `403`. `GET /v1/memory/settings` still works with a key.
 - **Disabled project** — when `memory_enabled = false`, all three endpoints return `403` with `error_code: "memory_disabled"`. Toggling re-enables without touching data.
 
 ## Endpoint reference

@@ -584,6 +584,8 @@ the execution is stranded. It exists only for clients that predate the fence.
 
 Hosted vector memory for your agent fleet. Three-level scope (project / agent / end-user), inclusive cascade on recall, BYOK embedding provider. See the [Memory guide](/cloud/memory) for concepts and quickstart.
 
+Changing settings (`POST` and `PATCH /v1/memory/settings`, `POST /v1/memory/settings/test`) needs a signed-in user with the admin role. A project API key gets `403`. Reading settings and the add, recall, forget, facts and stats endpoints work with a key.
+
 ### `POST /v1/memory/settings`
 
 Configure the embedding provider key for the project. Encrypts the key with AES-256-GCM at rest.
